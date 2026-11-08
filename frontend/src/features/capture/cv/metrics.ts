@@ -1,5 +1,14 @@
 import type { MotionType, Session } from '@/types';
+import { FramingTracker, type FramingStatus } from './framing';
 import { Joint, bodyInFrame, isVisible } from './landmarks';
+import {
+  assessMovement,
+  movementState as movementStateFor,
+  signalFromFrame,
+  type AssessmentInput,
+  type MotionSignal,
+  type MovementState,
+} from './motionAssessment';
 import type { PoseFrame, PoseSample, Vec3 } from './poseTypes';
 
 /**
@@ -17,7 +26,7 @@ import type { PoseFrame, PoseSample, Vec3 } from './poseTypes';
  * - Steadiness is how even the gaps between steps (or reps) are: 100 when the gaps match,
  *   falling as their spread grows. It is left out until there are at least three gaps.
  * - In-frame rate is the share of frames where the head, both hips, and one foot are visible.
- * - Gait score is the average of the in-frame rate and whichever of symmetry and steadiness
+ * - Movement score is the average of the in-frame rate and whichever of symmetry and steadiness
  *   were measured. It summarizes this recording. It is not a clinical index.
  */
 
@@ -28,12 +37,18 @@ const KNEE_STRAIGHT_DEG = 160;
 const MIN_REP_GAP_MS = 600;
 const BOTH_LEGS_FRACTION = 0.5;
 const MIN_GAPS_FOR_STEADINESS = 3;
+const LIVE_SIGNAL_WINDOW = 300;
+const LIVE_EVENT_WINDOW = 30;
 
 export type LiveReadout = {
   count: number;
   unit: 'steps' | 'reps';
   inFrame: boolean;
   seenPerson: boolean;
+  framing: FramingStatus;
+  movementState: MovementState;
+  detectedMotion?: MotionType;
+  captureStarted: boolean;
 };
 
 export type RecordedSession = {
@@ -54,8 +69,10 @@ type Foot = {
 
 type Rise = {
   phase: 'unknown' | 'bent' | 'straight';
+  bentAt: number | null;
   lastRep: number | null;
   reps: number[];
+  durations: number[];
   kneeDiffSum: number;
   kneeDiffCount: number;
 };
@@ -68,22 +85,45 @@ export class PoseAccumulator {
   private latestInFrame = false;
   private person = false;
   private readonly samples: PoseSample[] = [];
+  private readonly signals: MotionSignal[] = [];
+  private readonly framingTracker = new FramingTracker();
+  private framing: FramingStatus = 'no-person';
+  private captureStarted = false;
+  private assessedCycleCount = -1;
+  private liveMovementState: MovementState = 'waiting';
+  private liveDetectedMotion: MotionType | undefined;
+  private activeElapsedMs = 0;
+  private lastSignalAt: number | null = null;
   private readonly left = emptyFoot();
   private readonly right = emptyFoot();
-  private readonly rise: Rise = { phase: 'unknown', lastRep: null, reps: [], kneeDiffSum: 0, kneeDiffCount: 0 };
+  private readonly rise: Rise = {
+    phase: 'unknown',
+    bentAt: null,
+    lastRep: null,
+    reps: [],
+    durations: [],
+    kneeDiffSum: 0,
+    kneeDiffCount: 0,
+  };
 
   constructor(motion: MotionType) {
     this.motion = motion;
   }
 
   push(frame: PoseFrame | null): LiveReadout {
-    this.total += 1;
     if (frame == null) {
       this.latestInFrame = false;
+      this.framing = this.framingTracker.push(null, this.motion);
+      if (this.captureStarted) this.total += 1;
       return this.readout();
     }
 
     this.person = true;
+    this.framing = this.framingTracker.push(frame.image, this.motion);
+    if (this.framing === 'ready') this.captureStarted = true;
+    if (!this.captureStarted) return this.readout();
+
+    this.total += 1;
     this.samples.push({ tMs: frame.tMs, world: frame.world.map((point) => ({ ...point })) });
 
     const inside = bodyInFrame(frame.image);
@@ -93,29 +133,45 @@ export class PoseAccumulator {
     this.inFrame += 1;
     if (isVisible(frame.image, Joint.leftAnkle) && isVisible(frame.image, Joint.rightAnkle)) this.bothAnkles += 1;
 
-    if (isReps(this.motion)) {
-      const left = kneeAngle(frame, Joint.leftHip, Joint.leftKnee, Joint.leftAnkle);
-      const right = kneeAngle(frame, Joint.rightHip, Joint.rightKnee, Joint.rightAnkle);
-      pushKnees(this.rise, frame.tMs, left, right);
-    } else {
-      pushFoot(this.left, frame.tMs, footHeight(frame, Joint.leftHeel, Joint.leftAnkle));
-      pushFoot(this.right, frame.tMs, footHeight(frame, Joint.rightHeel, Joint.rightAnkle));
-    }
+    const leftKnee = kneeAngle(frame, Joint.leftHip, Joint.leftKnee, Joint.leftAnkle);
+    const rightKnee = kneeAngle(frame, Joint.rightHip, Joint.rightKnee, Joint.rightAnkle);
+    pushKnees(this.rise, frame.tMs, leftKnee, rightKnee);
+    pushFoot(this.left, frame.tMs, footHeight(frame, Joint.leftHeel, Joint.leftAnkle));
+    pushFoot(this.right, frame.tMs, footHeight(frame, Joint.rightHeel, Joint.rightAnkle));
+    if (this.lastSignalAt != null) this.activeElapsedMs += Math.max(0, frame.tMs - this.lastSignalAt);
+    this.lastSignalAt = frame.tMs;
+    this.signals.push(signalFromFrame(frame));
     return this.readout();
   }
 
   readout(): LiveReadout {
+    const cycleCount = this.left.strikes.length + this.right.strikes.length + this.rise.reps.length;
+    if (cycleCount !== this.assessedCycleCount) {
+      const input = this.assessmentInput(this.elapsedSeconds(), true);
+      const assessment = assessMovement(input);
+      this.liveMovementState = movementStateFor(input, assessment);
+      this.liveDetectedMotion = assessment.detectedMotion;
+      this.assessedCycleCount = cycleCount;
+    }
     return {
       count: this.count(),
       unit: isReps(this.motion) ? 'reps' : 'steps',
       inFrame: this.latestInFrame,
       seenPerson: this.person,
+      framing: this.framing,
+      movementState: this.liveMovementState,
+      detectedMotion: this.liveDetectedMotion,
+      captureStarted: this.captureStarted,
     };
   }
 
-  /** Null when the camera never delivered a frame, so we do not invent a score. */
+  setPaused(paused: boolean): void {
+    if (paused) this.lastSignalAt = null;
+  }
+
+  /** Null when the camera never delivered a complete body pose, so we do not invent a score. */
   finish(durationSec: number, patientId: string): RecordedSession | null {
-    if (this.total === 0) return null;
+    if (this.samples.length === 0 || this.inFrame === 0) return null;
 
     const reps = isReps(this.motion);
     const count = this.count();
@@ -123,6 +179,7 @@ export class PoseAccumulator {
     const inFrameRate = Math.round((100 * this.inFrame) / this.total);
     const symmetry = this.symmetry();
     const steady = steadiness(reps ? gaps(this.rise.reps) : [...gaps(this.left.strikes), ...gaps(this.right.strikes)]);
+    const assessment = assessMovement(this.assessmentInput(durationSec));
 
     const parts = [inFrameRate];
     if (symmetry.measured) parts.push(symmetry.value);
@@ -142,6 +199,10 @@ export class PoseAccumulator {
       symmetryMeasured: symmetry.measured,
       farLegHidden: symmetry.farLegHidden,
       ...(reps ? { reps: count } : { stepCount: count }),
+      movementVerified: assessment.verified,
+      detectedMotion: assessment.detectedMotion,
+      movementMatch: assessment.match,
+      assessmentMetrics: assessment.metrics,
     };
     return { session, samples: this.samples };
   }
@@ -170,6 +231,27 @@ export class PoseAccumulator {
     const peak = Math.max(leftMean, rightMean);
     if (peak <= 0) return { measured: false, farLegHidden: false, value: 0 };
     return { measured: true, farLegHidden: false, value: Math.round((100 * Math.min(leftMean, rightMean)) / peak) };
+  }
+
+  private assessmentInput(durationSec: number, recentSignals = false): AssessmentInput {
+    const stepCount = this.left.strikes.length + this.right.strikes.length;
+    const reps = this.rise.reps.length;
+    const leftStrikes = recentSignals ? this.left.strikes.slice(-LIVE_EVENT_WINDOW) : this.left.strikes;
+    const rightStrikes = recentSignals ? this.right.strikes.slice(-LIVE_EVENT_WINDOW) : this.right.strikes;
+    return {
+      selected: this.motion,
+      stepCount,
+      stepCadence: durationSec > 0 ? Math.round((stepCount / durationSec) * 60) : 0,
+      reps,
+      repCadence: durationSec > 0 ? Math.round((reps / durationSec) * 60) : 0,
+      riseDurationsMs: recentSignals ? this.rise.durations.slice(-LIVE_EVENT_WINDOW) : this.rise.durations,
+      stepRegularity: steadiness([...gaps(leftStrikes), ...gaps(rightStrikes)]),
+      signals: recentSignals ? this.signals.slice(-LIVE_SIGNAL_WINDOW) : this.signals,
+    };
+  }
+
+  private elapsedSeconds(): number {
+    return this.activeElapsedMs / 1000;
   }
 }
 
@@ -251,14 +333,17 @@ function pushKnees(rise: Rise, t: number, left: number | null, right: number | n
   if (angles.length === 0) return;
   const angle = mean(angles);
   if (angle < KNEE_BENT_DEG) {
+    if (rise.phase !== 'bent') rise.bentAt = t;
     rise.phase = 'bent';
     return;
   }
   if (angle > KNEE_STRAIGHT_DEG && rise.phase === 'bent') {
     if (rise.lastRep == null || t - rise.lastRep >= MIN_REP_GAP_MS) {
       rise.reps.push(t);
+      if (rise.bentAt != null) rise.durations.push(t - rise.bentAt);
       rise.lastRep = t;
     }
+    rise.bentAt = null;
     rise.phase = 'straight';
   }
 }

@@ -26,3 +26,9 @@ builds. Expo Go cannot load the pose camera.
 
 No backend yet: login just routes by role. A camera session's numbers stay in memory until you reload.
 `src/lib/data.ts` holds no synthetic records. Its collections stay empty until a session is recorded or real data is connected.
+
+Camera guidance estimates whether the person is too small, clipped or off-centre
+from pose landmarks. Walking, running, stairs and sit-to-stand each have a
+separate heuristic pattern check and descriptive measurements. These prototype
+measurements are not clinically validated and must not be treated as a diagnosis
+or pass/fail rehabilitation result.
