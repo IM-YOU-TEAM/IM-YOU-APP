@@ -25,7 +25,7 @@ export default function ClinicianLayout() {
         <BottomBarInsetProvider value={0}>
           <View style={{ flex: 1 }}>
             <Tabs
-              screenOptions={{ headerShown: false, title: "I'M U", sceneStyle: { backgroundColor: colors.honeydew } }}
+              screenOptions={{ headerShown: false, title: "I'M YOU", sceneStyle: { backgroundColor: colors.honeydew } }}
               tabBar={() => null}
             >
               <Tabs.Screen name="dashboard/index" />

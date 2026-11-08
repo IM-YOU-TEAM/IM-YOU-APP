@@ -1,4 +1,4 @@
-// Design tokens for I'M U. Every screen and component reads from here.
+// Design tokens for I'M YOU. Every screen and component reads from here.
 import { Platform, type TextStyle, type ViewStyle } from 'react-native';
 
 // ---------- Color ----------
@@ -11,6 +11,8 @@ export const colors = {
   cherry: '#EDAFB8', // accent ONLY (one highlight per screen)
   graphite: '#3C3744', // text, icons, dark bento tile
   white: '#FFFFFF', // main cards
+  burntOrange: '#CF4F27', // warm icon accent; passes 3:1 on its tint and Honeydew
+  burntOrangeTint: '#FBE3D8', // soft icon bubble behind Burnt Orange glyphs
 
   // Text
   text: '#3C3744',

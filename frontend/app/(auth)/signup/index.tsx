@@ -47,7 +47,18 @@ function RoleOption({ value, label, description, icon, selected, onPress }: Role
         pressed && styles.pressed,
       ]}
     >
-      <Ionicons name={icon} size={22} color={colors.seagrass} />
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: colors.burntOrangeTint,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Ionicons name={icon} size={22} color={colors.burntOrange} />
+      </View>
       <View style={styles.roleCopy}>
         <Text variant="headline">{label}</Text>
         <Text variant="callout" muted>
@@ -112,7 +123,7 @@ export default function SignupScreen() {
           <Text variant="callout" muted align="center">
             {preset
               ? `One last step for your ${preset === 'patient' ? 'patient' : 'professional'} account.`
-              : "Select how you'll use I'M U."}
+              : "Select how you'll use I'M YOU."}
           </Text>
         </View>
 
@@ -182,7 +193,7 @@ export default function SignupScreen() {
         <View style={styles.actions}>
           <PillButton
             label={saving ? 'Setting up…' : 'Continue'}
-            icon="arrow-forward"
+            icon="chevron-forward"
             iconRight
             fullWidth
             disabled={saving}
@@ -266,7 +277,7 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: 54,
+    marginLeft: 68,
     backgroundColor: colors.separator,
   },
   field: {
