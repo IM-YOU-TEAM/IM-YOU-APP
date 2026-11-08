@@ -1,4 +1,4 @@
-import { View, type ViewProps } from 'react-native';
+import { StyleSheet, View, type ViewProps } from 'react-native';
 import { colors, continuous, radii, shadows, space } from '@/lib/theme';
 import { OnDark } from './Text';
 
@@ -23,13 +23,27 @@ const FILL: Record<CardTone, string> = {
   accent: colors.cherry,
 };
 
+const EDGE: Record<CardTone, string> = {
+  white: colors.glassBorder,
+  pale: colors.border,
+  dark: colors.whiteTint,
+  accent: colors.border,
+};
+
 /** Rounded block with iOS continuous corners and a barely-there shadow. The basic bento tile. */
 export function Card({ tone = 'white', padding = space.xl - 4, style, children, ...rest }: Props) {
   const body = (
     <View
       {...rest}
       style={[
-        { backgroundColor: FILL[tone], borderRadius: radii.card, padding, ...continuous },
+        {
+          backgroundColor: FILL[tone],
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: EDGE[tone],
+          borderRadius: radii.card,
+          padding,
+          ...continuous,
+        },
         tone === 'pale' ? null : shadows.card,
         style,
       ]}

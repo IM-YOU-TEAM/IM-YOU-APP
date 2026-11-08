@@ -4,6 +4,7 @@ import { Animated, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 
 import { colors, MIN_HIT, radii, shadows, space } from '@/lib/theme';
 import { usePressScale } from '@/lib/usePressScale';
 import type { IconName } from '@/types';
+import { Gloss } from './Gloss';
 import { Text } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
@@ -26,10 +27,28 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-const FILL: Record<Variant, { rest: string; hover: string; ink: string; icon: string }> = {
-  primary: { rest: colors.seagrass, hover: colors.seagrassDark, ink: colors.onSeagrass, icon: colors.onSeagrass },
-  secondary: { rest: colors.white, hover: colors.honeydewLight, ink: colors.graphite, icon: colors.seagrass },
-  ghost: { rest: 'transparent', hover: colors.fill, ink: colors.graphite, icon: colors.seagrass },
+const FILL: Record<Variant, { rest: string; hover: string; ink: string; icon: string; edge: string }> = {
+  primary: {
+    rest: colors.seagrass,
+    hover: colors.seagrassDark,
+    ink: colors.onSeagrass,
+    icon: colors.onSeagrass,
+    edge: colors.glassBorder,
+  },
+  secondary: {
+    rest: colors.white,
+    hover: colors.honeydewLight,
+    ink: colors.graphite,
+    icon: colors.seagrass,
+    edge: colors.border,
+  },
+  ghost: {
+    rest: 'transparent',
+    hover: colors.fill,
+    ink: colors.graphite,
+    icon: colors.seagrass,
+    edge: 'transparent',
+  },
 };
 
 /** iOS-style capsule button: flat fill, semibold label, gentle press squish. */
@@ -45,7 +64,7 @@ export function PillButton({
   accessibilityLabel,
   style,
 }: Props) {
-  const { scale, onPressIn, onPressOut } = usePressScale(0.97);
+  const { scale, onPressIn, onPressOut } = usePressScale(0.985);
   const [hovered, setHovered] = useState(false);
   const fill = FILL[variant];
   const iconEl = icon ? <Ionicons name={icon} size={19} color={fill.icon} /> : null;
@@ -55,7 +74,7 @@ export function PillButton({
       style={[
         { transform: [{ scale }], alignSelf: fullWidth ? 'stretch' : 'flex-start', opacity: disabled ? 0.4 : 1 },
         { borderRadius: radii.pill },
-        variant === 'secondary' && shadows.card,
+        variant !== 'ghost' && shadows.card,
         style,
       ]}
     >
@@ -75,13 +94,15 @@ export function PillButton({
             minHeight: size === 'lg' ? 56 : 50,
             paddingHorizontal: size === 'lg' ? space.xxl : space.xl,
             backgroundColor: hovered && !disabled ? fill.hover : fill.rest,
+            borderWidth: variant === 'ghost' ? 0 : StyleSheet.hairlineWidth,
+            borderColor: fill.edge,
             opacity: pressed ? 0.85 : 1,
           },
         ]}
       >
+        {variant === 'primary' ? <Gloss strength={0.14} /> : null}
         {!iconRight && iconEl}
-        {/* White on Seagrass stays bold (brand contrast rule). */}
-        <Text variant="body" weight={variant === 'primary' ? 700 : 600} color={fill.ink} numberOfLines={1}>
+        <Text variant="body" weight={600} color={fill.ink} numberOfLines={1}>
           {label}
         </Text>
         {iconRight && iconEl}
@@ -98,5 +119,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
+    overflow: 'hidden',
   },
 });
