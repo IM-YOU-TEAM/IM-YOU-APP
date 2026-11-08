@@ -17,6 +17,12 @@ const isWeb = Platform.OS === 'web';
 // Static web export renders once without a window; there is no session to read then.
 const isServer = isWeb && typeof window === 'undefined';
 
+/**
+ * Two phones batch IMU samples every 80 ms, so a pair pushes ~25 messages a
+ * second down one channel. The client default of 10 would throttle them.
+ */
+const EVENTS_PER_SECOND = 40;
+
 /** The app's single Supabase client. Sessions persist in localStorage (web) or AsyncStorage (native). */
 export const supabase = createClient<Database>(url, publishableKey, {
   auth: {
@@ -27,6 +33,7 @@ export const supabase = createClient<Database>(url, publishableKey, {
     detectSessionInUrl: isWeb && !isServer,
     flowType: 'pkce',
   },
+  realtime: { params: { eventsPerSecond: EVENTS_PER_SECOND } },
 });
 
 // Native apps only refresh tokens while in the foreground.

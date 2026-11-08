@@ -10,8 +10,10 @@ import { PoseCamera } from '@/features/capture/cv/PoseCamera';
 import { savePoseLog } from '@/features/capture/cv/poseLog';
 import type { CameraGate } from '@/features/capture/cv/poseTypes';
 import { usePoseSession } from '@/features/capture/cv/usePoseSession';
+import { ChoiceCard } from '@/features/capture/ChoiceCard';
 import { FlowHeader } from '@/features/capture/FlowHeader';
-import { LiveWaveform } from '@/features/capture/imu/LiveWaveform';
+import { SITE_LABELS, SITES, type Site } from '@/features/capture/imu/protocol';
+import { SensorTrace } from '@/features/capture/imu/SensorTrace';
 import { useImuSession, type ImuGate } from '@/features/capture/imu/useImuSession';
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
@@ -21,9 +23,14 @@ import { METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
 import { formatDuration } from '@/lib/format';
 import { colors, GAP, space, WIDE } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
-import type { MotionType, Session } from '@/types';
+import type { IconName, MotionType, Session } from '@/types';
 
-// Step 4: the live session. Camera sessions record pose on the device. Sensor sessions are still a preview.
+const SITE_COPY: Record<Site, { description: string; icon: IconName }> = {
+  thigh: { description: 'Outer right thigh, screen facing your leg', icon: 'body' },
+  shank: { description: 'Right shin, just below the knee', icon: 'walk' },
+};
+
+// Step 4: the live session. Camera records pose on the device. Sensors stream both phones to the live model.
 export default function SessionScreen() {
   const wide = useWindowDimensions().width >= WIDE;
   const reduce = useReduceMotion();
@@ -49,7 +56,10 @@ export default function SessionScreen() {
   const blocked =
     method === 'cv'
       ? gate === 'denied' || gate === 'unavailable' || gate === 'model-error'
-      : imu.gate === 'unreachable' || imu.gate === 'unsupported-motion';
+      : imu.gate === 'unreachable' ||
+        imu.gate === 'unsupported-motion' ||
+        imu.gate === 'not-a-patient' ||
+        imu.gate === 'unavailable-sensors';
   const recordingStatus = blocked ? 'camera-blocked' : !captureStarted ? 'setting-up' : paused ? 'paused' : 'recording';
 
   useEffect(() => {
@@ -95,8 +105,34 @@ export default function SessionScreen() {
         onGate={setGate}
       />
     ) : (
-      <LiveWaveform angles={paused || reduce ? undefined : imu.angles} caption={prompt} />
+      <SensorTrace samples={paused || reduce ? [] : imu.samples} caption={prompt} />
     );
+
+  const siteChooser =
+    method === 'imu' && imu.gate === 'choose-site' ? (
+      <View accessibilityRole="radiogroup" accessibilityLabel="Where is this phone" style={{ gap: space.md }}>
+        {SITES.map((site) => (
+          <ChoiceCard
+            key={site}
+            title={SITE_LABELS[site]}
+            description={imu.freeSites.includes(site) ? SITE_COPY[site].description : 'The other phone already took this spot'}
+            icon={SITE_COPY[site].icon}
+            selected={false}
+            onPress={() => {
+              if (imu.freeSites.includes(site)) void imu.claim(site);
+            }}
+          />
+        ))}
+      </View>
+    ) : null;
+
+  const imuReadout = imu.captureStarted
+    ? imu.lowMotion
+      ? 'Not moving'
+      : (imu.detectedLabel ?? '—')
+    : imu.mySite
+      ? `${SITE_LABELS[imu.mySite]}${imu.hz > 0 ? ` · ${imu.hz.toFixed(0)} Hz` : ''}`
+      : null;
 
   const controls = (
     <Card style={{ gap: space.xl, flex: wide ? 1 : undefined, justifyContent: 'center' }}>
@@ -113,9 +149,9 @@ export default function SessionScreen() {
             {pose.count} {pose.unit}
           </Text>
         ) : null}
-        {method === 'imu' && imu.captureStarted ? (
+        {method === 'imu' && imuReadout ? (
           <Text variant="title" align="center">
-            {imu.lowMotion ? 'Not moving' : (imu.detectedLabel ?? '—')}
+            {imuReadout}
           </Text>
         ) : null}
         <Text
@@ -129,15 +165,28 @@ export default function SessionScreen() {
         </Text>
       </View>
       <View style={{ gap: space.md }}>
-        <PillButton
-          label={paused ? 'Resume' : 'Pause'}
-          icon={paused ? 'play' : 'pause'}
-          variant="secondary"
-          size="lg"
-          fullWidth
-          disabled={!captureStarted || saving || saveError !== null}
-          onPress={() => setPaused((p) => !p)}
-        />
+        {method === 'imu' && imu.gate === 'need-permission' ? (
+          <PillButton
+            label="Allow motion sensors"
+            icon="phone-portrait"
+            size="lg"
+            fullWidth
+            onPress={() => void imu.requestSensors()}
+          />
+        ) : null}
+        {method === 'imu' && imu.gate === 'ready' && !imu.recording && !captureFinished ? (
+          <PillButton label="Start" icon="play" size="lg" fullWidth onPress={imu.start} />
+        ) : (
+          <PillButton
+            label={paused ? 'Resume' : 'Pause'}
+            icon={paused ? 'play' : 'pause'}
+            variant="secondary"
+            size="lg"
+            fullWidth
+            disabled={!captureStarted || saving || saveError !== null}
+            onPress={() => setPaused((p) => !p)}
+          />
+        )}
         <PillButton
           label={saving ? 'Saving…' : saveError ? 'Try saving again' : 'Stop'}
           icon={saveError ? 'refresh' : 'stop'}
@@ -166,6 +215,8 @@ export default function SessionScreen() {
         <RecordingBadge status={recordingStatus} />
       </View>
 
+      {siteChooser}
+
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: GAP }}>
         <View style={{ flex: wide ? 2 : undefined, height: wide ? 440 : 320 }}>{live}</View>
         {controls}
@@ -178,21 +229,34 @@ export default function SessionScreen() {
 function sensorPrompt(
   motion: MotionType,
   paused: boolean,
-  imu: { gate: ImuGate; lowMotion: boolean; recording: boolean },
+  imu: { gate: ImuGate; lowMotion: boolean; recording: boolean; modelConnected: boolean },
 ): string {
   if (paused) return 'Paused. Resume when you are ready.';
   switch (imu.gate) {
     case 'unsupported-motion':
       return `${MOTION_LABELS[motion]} cannot be measured by the phone sensors yet. Use the camera instead.`;
+    case 'not-a-patient':
+      return 'This account is not a patient profile, so the two phones have nowhere to meet.';
     case 'connecting':
-      return 'Connecting to the sensor service…';
+      return 'Finding the other phone on this account…';
     case 'unreachable':
-      return 'The sensor service is not reachable. Check it is running on your computer.';
+      return 'Could not join the live channel. Check the network and try again.';
+    case 'choose-site':
+      return 'Where is this phone? Pick the right thigh or the right shin.';
+    case 'need-permission':
+      return 'Safari will ask to use Motion & Orientation. Keep this page open.';
+    case 'unavailable-sensors':
+      return 'Open this page in Safari on the iPhone. Desktop browsers cannot stream these sensors.';
     case 'waiting-for-phones':
-      return 'Waiting for both phones. Start the recording on your computer.';
+      return 'This phone is ready. Sign in on the second phone and pick the other spot.';
     case 'ready':
+      if (!imu.recording) {
+        return imu.modelConnected
+          ? 'Both phones are in. Tap Start on either phone when you are ready.'
+          : 'Both phones are in, but the model service is not reachable. Joint angles will wait for it.';
+      }
       if (imu.lowMotion) return 'Not enough movement to measure. Keep going at your usual pace.';
-      return 'Keep moving at your usual pace';
+      return 'Keep moving at your usual pace. Your clinician sees the joint angles live.';
     default: {
       const unexpected: never = imu.gate;
       return unexpected;

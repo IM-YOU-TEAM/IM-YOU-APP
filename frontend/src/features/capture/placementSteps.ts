@@ -56,9 +56,10 @@ const CV_STEPS: Record<MotionType, PlacementStep[]> = {
 
 const IMU_STEPS: Record<MotionType, PlacementStep[]> = {
   walking: [
-    { icon: 'phone-portrait', title: 'Front trouser pocket', detail: 'A snug pocket, so the phone does not swing.' },
-    { icon: 'arrow-up', title: 'Top of the phone pointing up', detail: 'Screen facing your leg.' },
-    { icon: 'walk', title: 'Walk a straight path', detail: 'At your normal pace. Turn around at the end and keep going.' },
+    { icon: 'people', title: 'Sign in on both phones', detail: 'Same I\'M U patient account in Safari on each phone.' },
+    { icon: 'phone-portrait', title: 'Right thigh and right shin', detail: 'One phone strapped to the outer thigh, the other just below the knee.' },
+    { icon: 'arrow-up', title: 'Tops pointing up', detail: 'Screens facing the leg, snug so they do not swing.' },
+    { icon: 'walk', title: 'Walk a straight path', detail: 'At your normal pace. Keep both Safari pages open and unlocked.' },
   ],
   running: [
     { icon: 'phone-portrait', title: 'Running belt at the waist', detail: 'Phone at the front, over your belly button.' },
@@ -67,9 +68,10 @@ const IMU_STEPS: Record<MotionType, PlacementStep[]> = {
     { icon: 'speedometer', title: 'Run at your usual pace', detail: 'Warm up first, then keep a steady speed.' },
   ],
   stairs: [
-    { icon: 'phone-portrait', title: 'Outer thigh', detail: 'A tight side pocket or a sports armband around your thigh.' },
-    { icon: 'arrow-up', title: 'Top of the phone pointing up', detail: 'Screen facing your leg.' },
-    { icon: 'hand-left', title: 'Hold the handrail', detail: 'Go up and back down at least one full flight.' },
+    { icon: 'people', title: 'Sign in on both phones', detail: 'Same I\'M U patient account in Safari on each phone.' },
+    { icon: 'phone-portrait', title: 'Right thigh and right shin', detail: 'A tight side pocket or strap on the thigh; the second phone on the shin.' },
+    { icon: 'arrow-up', title: 'Tops pointing up', detail: 'Screens facing the leg.' },
+    { icon: 'hand-left', title: 'Hold the handrail', detail: 'Go up and back down at least one full flight. Keep both pages open.' },
   ],
   sitToStand: [
     { icon: 'phone-portrait', title: 'Middle of your lower back', detail: 'Tucked into your waistband or a belt clip.' },
