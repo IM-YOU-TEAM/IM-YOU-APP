@@ -13,7 +13,7 @@ const css = `
 
 export function applyWebStyles(): void {
   if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-  document.title = "I'M U";
+  document.title = "I'M YOU";
   if (document.getElementById('imu-web-styles')) return;
   const tag = document.createElement('style');
   tag.id = 'imu-web-styles';

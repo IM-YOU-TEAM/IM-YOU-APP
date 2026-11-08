@@ -49,7 +49,7 @@ function RootStack({ fontsReady }: { fontsReady: boolean }) {
   return (
     <>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, title: "I'M U", contentStyle: { backgroundColor: colors.honeydew } }} />
+      <Stack screenOptions={{ headerShown: false, title: "I'M YOU", contentStyle: { backgroundColor: colors.honeydew } }} />
       {status === 'error' ? (
         <View style={[StyleSheet.absoluteFill, styles.cover, styles.center]}>
           <Text variant="headline" align="center">
