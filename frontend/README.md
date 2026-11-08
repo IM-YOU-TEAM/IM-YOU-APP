@@ -7,9 +7,13 @@ Expo Router + React Native + TypeScript. One codebase for iOS, Android and web.
 ```sh
 npm install              # also copies the pose runtime into public/mediapipe
 npx expo start --web     # camera tracking runs in the browser
-npx expo run:ios         # or run:android. Expo Go cannot load the pose camera
+npm run ios -- --device  # physical iPhone; requires macOS and Xcode
+npm run android -- --device
 npx tsc --noEmit         # type-check before pushing
 ```
+
+The phone camera uses native modules, so it requires one of these development
+builds. Expo Go cannot load the pose camera.
 
 ## Where things live
 

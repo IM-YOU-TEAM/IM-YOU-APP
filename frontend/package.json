@@ -34,8 +34,8 @@
   "scripts": {
     "start": "expo start",
     "web": "expo start --web",
-    "ios": "expo start --ios",
-    "android": "expo start --android",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
     "typecheck": "tsc --noEmit",
     "check:metrics": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./scripts/register-ts-paths.mjs src/features/capture/cv/metrics.check.ts",
     "postinstall": "node scripts/copy-pose-runtime.mjs"
