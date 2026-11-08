@@ -1,4 +1,4 @@
-/** One MediaPipe body point. Image points are 0–1 in the frame; world points are meters, hip at the origin, y up. */
+/** One MediaPipe body point. Image points are 0–1 in the frame; world points are meters, hip at the origin, y down. */
 export type Vec3 = {
   x: number;
   y: number;

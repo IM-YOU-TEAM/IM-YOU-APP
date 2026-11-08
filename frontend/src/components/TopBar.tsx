@@ -1,15 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Animated, Easing, Platform, Pressable, StyleSheet, useWindowDimensions, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { outlineIcon } from '@/lib/icons';
-import { colors, MAX_CONTENT_WIDTH, radii, shadows, space } from '@/lib/theme';
+import { colors, MAX_CONTENT_WIDTH, radii, shadows, space, WIDE } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 import type { IconName } from '@/types';
 import { GlassCard } from './GlassCard';
 import { Logo } from './Logo';
-import { logout, type NavItem } from './Sidebar';
+import { logout, type NavItem } from './nav';
 import { Text } from './Text';
 
 const TAB_WIDTH = 108;
@@ -17,16 +17,17 @@ const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 type Props = {
   items: NavItem[];
-  /** Default: go to /login. */
+  /** Default: sign out; the auth gate then shows /login. */
   onLogout?: () => void;
 };
 
 /**
- * Top navigation for the patient side on wide screens (>= WIDE): logo on the left,
- * a centered glass capsule of tabs (selected tab on a white thumb), and Log out on the right.
+ * Top navigation for signed-in workspaces: logo on the left, a centered glass capsule of tabs
+ * (selected tab on a white thumb), and Log out on the right. Tightens on phone-width screens.
  */
 export function TopBar({ items, onLogout = logout }: Props) {
   const insets = useSafeAreaInsets();
+  const compact = useWindowDimensions().width < WIDE;
   const reduceMotion = useReduceMotion();
   const selectedIndex = Math.max(
     items.findIndex((item) => item.active),
@@ -87,13 +88,13 @@ export function TopBar({ items, onLogout = logout }: Props) {
   };
 
   return (
-    <View style={[styles.wrap, { paddingTop: insets.top + space.lg }]}>
+    <View style={[styles.wrap, { paddingTop: insets.top + space.lg, paddingHorizontal: compact ? space.md : space.xxl }]}>
       <View accessibilityRole="navigation" style={styles.inner}>
         <View style={styles.side}>
-          <Logo size={32} />
+          <Logo size={32} variant={compact ? 'mark' : 'full'} />
         </View>
         <GlassCard padding={4} radius={radii.pill} intensity={60}>
-          <View style={[styles.tabs, { width: items.length * TAB_WIDTH }]} onLayout={handleLayout}>
+          <View style={[styles.tabs, { width: items.length * (compact ? 96 : TAB_WIDTH) }]} onLayout={handleLayout}>
             {slotWidth > 0 ? (
               <Animated.View
                 pointerEvents="none"

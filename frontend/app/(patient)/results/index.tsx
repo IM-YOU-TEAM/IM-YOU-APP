@@ -2,12 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
-import { BentoGrid, Card, LineChart, MetricRow, ScreenContainer, SegmentedToggle, Text, type Metric } from '@/components';
-import { feedbackFor, getSession, METHOD_LABELS, MOTION_ICONS, MOTION_LABELS, sessionsFor, today } from '@/lib/data';
+import { BentoGrid, Card, LineChart, LoadState, MetricRow, ScreenContainer, SegmentedToggle, Text, type Metric } from '@/components';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { fetchNotes, fetchSessions } from '@/features/results/api';
+import { METHOD_LABELS, MOTION_ICONS, MOTION_LABELS, today } from '@/lib/data';
 import { formatDate, formatDuration } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
+import { useLoader } from '@/lib/useLoader';
 import { EmptyState } from '@/features/results/EmptyState';
-import { gaitSeries, mySessions, sessionWhen, type Range } from '@/features/results/derive';
+import { gaitSeries, sessionWhen, type Range } from '@/features/results/derive';
 
 const RANGES = [
   { value: 'week', label: 'Week' },
@@ -20,9 +23,31 @@ export default function ResultsScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const wide = useWindowDimensions().width >= WIDE;
   const [range, setRange] = useState<Range>('week');
+  const { patient } = useAuth();
+  const patientId = patient?.id;
 
-  // A specific session from a link, otherwise the patient's latest one.
-  const session = sessionId ? getSession(sessionId) : mySessions().at(-1);
+  const loaded = useLoader(async () => {
+    const all = patientId ? await fetchSessions(patientId) : [];
+    // A specific session from a link, otherwise the patient's latest one.
+    const session = sessionId ? all.find((s) => s.id === sessionId) : all.at(-1);
+    const notes = session ? await fetchNotes(session.id) : [];
+    return { all, session, notes };
+  }, [patientId, sessionId]);
+
+  if (!loaded.data) {
+    return (
+      <ScreenContainer gap={wide ? 24 : 16}>
+        <Text variant="display" accessibilityRole="header">
+          Results
+        </Text>
+        <Card>
+          <LoadState error={loaded.error} onRetry={loaded.reload} minHeight={240} />
+        </Card>
+      </ScreenContainer>
+    );
+  }
+
+  const { all, session, notes } = loaded.data;
 
   if (!session) {
     return (
@@ -45,8 +70,7 @@ export default function ResultsScreen() {
     );
   }
 
-  const series = gaitSeries(sessionsFor(session.patientId), range, today());
-  const notes = feedbackFor(session.id);
+  const series = gaitSeries(all, range, today());
   const symmetryHidden = session.symmetryMeasured === false;
   const farLegHidden = session.farLegHidden === true;
   const countBit = session.reps != null ? `${session.reps} reps` : session.stepCount != null ? `${session.stepCount} steps` : null;

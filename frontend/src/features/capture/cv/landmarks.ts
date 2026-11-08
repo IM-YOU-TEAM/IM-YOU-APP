@@ -67,17 +67,28 @@ export const POSE_BONES: ReadonlyArray<readonly [number, number]> = [
 
 export const VISIBLE = 0.5;
 
-export function isVisible(points: Vec3[], index: number): boolean {
+// The model keeps guessing joints just past the frame edge with high visibility, so position counts too.
+const EDGE = 0.02;
+
+/** Inside the camera frame, seen or not. The model still places joints hidden behind the body. */
+export function isInFrame(points: Vec3[], index: number): boolean {
   const point = points[index];
-  return point != null && point.visibility >= VISIBLE;
+  return point != null && point.x >= -EDGE && point.x <= 1 + EDGE && point.y >= -EDGE && point.y <= 1 + EDGE;
 }
 
-/** Head, both hips, and at least one foot. Counting waits until this is true. */
+export function isVisible(points: Vec3[], index: number): boolean {
+  const point = points[index];
+  return point != null && point.visibility >= VISIBLE && isInFrame(points, index);
+}
+
+/**
+ * Upper body, a hip, and a foot. Counting waits until this is true.
+ * The face is not required: it turns away on a walk and leaves the top of the frame when someone stands.
+ */
 export function bodyInFrame(image: Vec3[]): boolean {
   return (
-    isVisible(image, Joint.nose) &&
-    isVisible(image, Joint.leftHip) &&
-    isVisible(image, Joint.rightHip) &&
+    (isVisible(image, Joint.nose) || isVisible(image, Joint.leftShoulder) || isVisible(image, Joint.rightShoulder)) &&
+    (isVisible(image, Joint.leftHip) || isVisible(image, Joint.rightHip)) &&
     (isVisible(image, Joint.leftAnkle) || isVisible(image, Joint.rightAnkle))
   );
 }

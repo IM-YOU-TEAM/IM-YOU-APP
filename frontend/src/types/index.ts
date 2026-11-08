@@ -9,26 +9,21 @@ export type MotionType = 'walking' | 'running' | 'stairs' | 'sitToStand';
 /** 'cv' = phone camera (computer vision), 'imu' = phone motion sensors. */
 export type CaptureMethod = 'cv' | 'imu';
 
-export type Exercise = {
-  id: string;
-  name: string;
-  dosage: string; // e.g. "3 x 10 reps, daily"
-  icon: IconName;
-};
+/** 'waiting' = created by a clinician, not claimed yet. 'closed' = the patient deleted their account. */
+export type PatientStatus = 'waiting' | 'linked' | 'closed';
 
+/**
+ * A patient as their clinician sees them. Deliberately pseudonymous: no name, email, birth date
+ * or diagnosis. The care code is the reference clinicians file in their own records.
+ */
 export type Patient = {
   id: string;
-  name: string;
-  age: number;
-  condition: string;
-  adherence: number; // % of prescribed sessions completed, 0-100
-  exercises: Exercise[];
-};
-
-export type Clinician = {
-  id: string;
-  name: string;
-  title: string;
+  careCode: string;
+  status: PatientStatus;
+  createdAt: string; // local ISO date-time
+  linkedAt: string | null; // local ISO date-time
+  sessionCount: number;
+  latest: { date: string; gaitScore: number } | null;
 };
 
 export type Session = {
@@ -52,7 +47,6 @@ export type Session = {
 export type Feedback = {
   id: string;
   sessionId: string;
-  patientId: string;
   clinicianName: string;
   date: string; // local ISO date-time
   text: string;

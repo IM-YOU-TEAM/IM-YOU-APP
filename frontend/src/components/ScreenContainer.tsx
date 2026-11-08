@@ -1,9 +1,14 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, GAP, MAX_CONTENT_WIDTH, space, WIDE } from '@/lib/theme';
 import { useBottomBarInset } from './BottomBar';
 import { TopographicBackground } from './TopographicBackground';
+
+const TopChrome = createContext(false);
+/** True when a TopBar already covers the status-bar inset. */
+export const TopChromeProvider = TopChrome.Provider;
+const useTopChrome = () => useContext(TopChrome);
 
 type Props = {
   children: ReactNode;
@@ -33,10 +38,11 @@ export function ScreenContainer({
 }: Props) {
   const insets = useSafeAreaInsets();
   const barInset = useBottomBarInset();
+  const topChrome = useTopChrome();
   const wide = useWindowDimensions().width >= WIDE;
 
   const padding: ViewStyle = {
-    paddingTop: insets.top + (wide ? space.xl : space.md),
+    paddingTop: (topChrome ? 0 : insets.top) + (wide ? space.xl : space.md),
     paddingBottom: insets.bottom + barInset + (wide ? space.xxl : space.xl),
     paddingHorizontal: wide ? space.xxl : space.lg + 4, // 20pt phone margins, like iOS
   };
@@ -60,6 +66,7 @@ export function ScreenContainer({
         style={styles.fill}
         contentContainerStyle={[styles.scrollContent, padding]}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
       >
         <View style={column}>{children}</View>
       </ScrollView>

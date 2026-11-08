@@ -1,7 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { Card, PillButton, ScreenContainer, Text } from '@/components';
+import { useAuth } from '@/features/auth/AuthProvider';
+import type { FormCue, RecordedSession } from '@/features/capture/cv/metrics';
 import { PoseCamera } from '@/features/capture/cv/PoseCamera';
 import { savePoseLog } from '@/features/capture/cv/poseLog';
 import type { CameraGate } from '@/features/capture/cv/poseTypes';
@@ -11,9 +13,10 @@ import { LiveWaveform } from '@/features/capture/imu/LiveWaveform';
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { RecordingBadge } from '@/features/capture/RecordingBadge';
-import { METHOD_LABELS, MOTION_LABELS, recordSession } from '@/lib/data';
+import { saveSession } from '@/features/results/api';
+import { METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
 import { formatDuration } from '@/lib/format';
-import { GAP, space, WIDE } from '@/lib/theme';
+import { colors, GAP, space, WIDE } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 
 // Step 4: the live session. Camera sessions record pose on the device. Sensor sessions are still a preview.
@@ -27,8 +30,13 @@ export default function SessionScreen() {
   const [seconds, setSeconds] = useState(0);
   const [paused, setPaused] = useState(false);
   const [gate, setGate] = useState<CameraGate>('starting');
+  const { patient } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Kept after a failed save so "Try again" re-sends the same numbers instead of re-scoring.
+  const finished = useRef<RecordedSession | null>(null);
 
-  const clockOn = method === 'imu' || (method === 'cv' && gate === 'ready');
+  const clockOn = !saving && !finished.current && (method === 'imu' || (method === 'cv' && gate === 'ready'));
 
   useEffect(() => {
     if (paused || !clockOn) return;
@@ -38,20 +46,28 @@ export default function SessionScreen() {
 
   if (!motion || !method) return <MissingParams />;
 
-  const stop = () => {
+  const stop = async () => {
     if (method === 'cv') {
-      const done = pose.finish(seconds);
-      if (done) {
-        recordSession(done.session);
-        savePoseLog(done.session.id, done.samples);
-        router.replace({ pathname: '/results', params: { sessionId: done.session.id } });
+      finished.current ??= pose.finish(seconds);
+      const done = finished.current;
+      if (done && patient) {
+        setSaving(true);
+        setSaveError(null);
+        try {
+          const saved = await saveSession(done.session, patient.id);
+          savePoseLog(saved.id, done.samples);
+          router.replace({ pathname: '/results', params: { sessionId: saved.id } });
+        } catch {
+          setSaveError("This session didn't save. Check your connection and try again.");
+          setSaving(false);
+        }
         return;
       }
     }
     router.replace('/results');
   };
 
-  const prompt = sessionPrompt(method, motion, paused, gate, pose.seenPerson, pose.inFrame);
+  const prompt = sessionPrompt(method, motion, paused, gate, pose.seenPerson, pose.inFrame, pose.cue);
   const live =
     method === 'cv' ? (
       <PoseCamera
@@ -80,7 +96,13 @@ export default function SessionScreen() {
             {pose.count} {pose.unit}
           </Text>
         ) : null}
-        <Text variant="callout" muted align="center">
+        <Text
+          variant="callout"
+          muted={!pose.cue}
+          align="center"
+          color={pose.cue?.tone === 'good' ? colors.seagrass : undefined}
+          accessibilityLiveRegion="polite"
+        >
           {prompt}
         </Text>
       </View>
@@ -91,9 +113,22 @@ export default function SessionScreen() {
           variant="secondary"
           size="lg"
           fullWidth
+          disabled={saving || saveError !== null}
           onPress={() => setPaused((p) => !p)}
         />
-        <PillButton label="Stop" icon="stop" size="lg" fullWidth onPress={stop} />
+        <PillButton
+          label={saving ? 'Saving…' : saveError ? 'Try saving again' : 'Stop'}
+          icon={saveError ? 'refresh' : 'stop'}
+          size="lg"
+          fullWidth
+          disabled={saving}
+          onPress={stop}
+        />
+        {saveError ? (
+          <Text variant="callout" muted align="center" accessibilityRole="alert">
+            {saveError}
+          </Text>
+        ) : null}
       </View>
     </Card>
   );
@@ -124,6 +159,7 @@ function sessionPrompt(
   gate: CameraGate,
   seenPerson: boolean,
   inFrame: boolean,
+  cue: FormCue | null,
 ): string {
   if (paused) return 'Paused. Resume when you are ready.';
   if (method === 'imu') return `Keep ${motion === 'sitToStand' ? 'going' : 'moving'} at your usual pace`;
@@ -138,7 +174,10 @@ function sessionPrompt(
       return 'Opening the camera…';
     case 'ready':
       if (!seenPerson || !inFrame) return 'Step back so your head and feet stay in view.';
-      return motion === 'sitToStand' ? 'Keep going at your usual pace' : 'Keep moving at your usual pace';
+      if (cue) return cue.text;
+      return motion === 'sitToStand'
+        ? 'Stand all the way up, sit all the way down. Keep your arms crossed.'
+        : 'Keep moving at your usual pace';
     default: {
       const unexpected: never = gate;
       return unexpected;

@@ -8,7 +8,7 @@ import { colors, radii, space } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 import type { IconName } from '@/types';
 import { GlassCard } from './GlassCard';
-import { logout, type NavItem } from './Sidebar';
+import { logout, type NavItem } from './nav';
 import { Text } from './Text';
 
 const BAR_HEIGHT = 64;
@@ -25,7 +25,7 @@ export const useBottomBarInset = () => useContext(BottomBarInset);
 
 type Props = {
   items: NavItem[];
-  /** Default: go to /login. */
+  /** Default: sign out; the auth gate then shows /login. */
   onLogout?: () => void;
 };
 

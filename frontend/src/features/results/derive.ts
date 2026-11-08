@@ -1,28 +1,9 @@
 // Small pure helpers that turn sessions into what the Home and Results screens show.
-// They take plain arrays so they work the moment real data lands in src/lib/data.ts.
+// They take plain arrays, so screens pass in whatever they loaded from Supabase.
 import type { ChartPoint } from '@/components';
-import { getPatient, MOTION_LABELS, METHOD_LABELS, patients, sessionsFor } from '@/lib/data';
+import { MOTION_LABELS, METHOD_LABELS } from '@/lib/data';
 import { addDays, dayKey, formatDate, formatLongDate, formatTime, formatWeekday } from '@/lib/format';
-import type { Patient, Session } from '@/types';
-
-// ---------- Who is "me"? ----------
-
-/**
- * The signed-in patient's id. There is no auth yet, so this is null and we fall back
- * to the first patient in data.ts. Replace with the id from the auth session later.
- */
-const signedInPatientId: string | null = null;
-
-export function currentPatient(): Patient | undefined {
-  const id = signedInPatientId ?? patients[0]?.id;
-  return id ? getPatient(id) : undefined;
-}
-
-/** The current patient's sessions, oldest first (empty until data exists). */
-export function mySessions(): Session[] {
-  const me = currentPatient();
-  return me ? sessionsFor(me.id) : [];
-}
+import type { Patient, PatientStatus, Session } from '@/types';
 
 // ---------- Home ----------
 
@@ -76,4 +57,18 @@ export function sessionWhen(s: Session): string {
 /** List row text for a session, e.g. { title: "Walking", subtitle: "Sat, Nov 7 · Camera" }. */
 export function sessionRow(s: Session): { title: string; subtitle: string } {
   return { title: MOTION_LABELS[s.motion], subtitle: `${formatLongDate(s.date)} · ${METHOD_LABELS[s.method]}` };
+}
+
+// ---------- Clinician roster ----------
+
+export const PATIENT_STATUS_LABELS: Record<PatientStatus, string> = {
+  waiting: 'Waiting to join',
+  linked: 'Linked',
+  closed: 'Account closed',
+};
+
+/** "Linked · 3 sessions" */
+export function patientSummary(p: Patient): string {
+  const count = p.sessionCount === 1 ? '1 session' : `${p.sessionCount} sessions`;
+  return p.status === 'waiting' ? PATIENT_STATUS_LABELS.waiting : `${PATIENT_STATUS_LABELS[p.status]} · ${count}`;
 }
