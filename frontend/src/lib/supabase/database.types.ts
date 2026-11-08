@@ -47,6 +47,7 @@ export type Database = {
           care_code: string
           clinician_id: string | null
           created_at: string
+          full_name: string | null
           id: string
           linked_at: string | null
           owner_link: string | null
@@ -55,6 +56,7 @@ export type Database = {
           care_code?: string
           clinician_id?: string | null
           created_at?: string
+          full_name?: string | null
           id?: string
           linked_at?: string | null
           owner_link?: string | null
@@ -63,6 +65,7 @@ export type Database = {
           care_code?: string
           clinician_id?: string | null
           created_at?: string
+          full_name?: string | null
           id?: string
           linked_at?: string | null
           owner_link?: string | null
@@ -206,12 +209,13 @@ export type Database = {
         Args: { p_care_code?: string; p_display_name?: string; p_role: string }
         Returns: undefined
       }
-      create_patient_profile: {
-        Args: never
+      provision_patient_account: {
+        Args: { p_clinician_id: string; p_full_name: string; p_user_id: string }
         Returns: {
           care_code: string
           clinician_id: string | null
           created_at: string
+          full_name: string | null
           id: string
           linked_at: string | null
           owner_link: string | null

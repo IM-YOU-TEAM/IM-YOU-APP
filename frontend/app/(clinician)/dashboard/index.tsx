@@ -1,39 +1,21 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { Card, ListCard, LoadState, PillButton, ScreenContainer, Text } from '@/components';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { friendlyError } from '@/features/auth/errors';
-import { Notice } from '@/features/auth/Notice';
-import { createPatientProfile, fetchRoster } from '@/features/care/api';
+import { AddPatientCard } from '@/features/care/AddPatientCard';
+import { fetchRoster, patientName } from '@/features/care/api';
 import { EmptyState } from '@/features/results/EmptyState';
 import { patientSummary } from '@/features/results/derive';
-import { colors, space, WIDE } from '@/lib/theme';
+import { space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
 
 export default function DashboardScreen() {
   const wide = useWindowDimensions().width >= WIDE;
   const { profile } = useAuth();
   const roster = useLoader(fetchRoster, []);
-  const [newCode, setNewCode] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const patients = roster.data ?? [];
-
-  const addPatient = async () => {
-    setCreating(true);
-    setCreateError(null);
-    try {
-      const created = await createPatientProfile();
-      setNewCode(created.careCode);
-      roster.reload();
-    } catch (e) {
-      setCreateError(friendlyError(e));
-    } finally {
-      setCreating(false);
-    }
-  };
 
   return (
     <ScreenContainer gap={wide ? space.xl : space.lg}>
@@ -56,40 +38,16 @@ export default function DashboardScreen() {
           </Text>
         </View>
         <PillButton
-          label={creating ? 'Creating…' : 'New patient'}
+          label="New patient"
           icon="person-add"
           size="lg"
           fullWidth={!wide}
-          disabled={creating}
-          onPress={addPatient}
+          disabled={adding}
+          onPress={() => setAdding(true)}
         />
       </View>
 
-      {createError ? <Notice tone="error" text={createError} /> : null}
-
-      {newCode ? (
-        // The screen's one Cherry Blossom highlight: the code the clinician has to pass on.
-        <Card tone="accent" style={{ gap: space.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="key" size={18} color={colors.graphite} />
-            </View>
-            <Text variant="headline">New patient care code</Text>
-          </View>
-          <Text
-            selectable
-            accessibilityLabel={`Care code ${newCode.split('').join(' ')}`}
-            style={{ fontSize: 40, lineHeight: 48, fontWeight: '800', letterSpacing: 3, fontVariant: ['tabular-nums'] }}
-          >
-            {newCode}
-          </Text>
-          <Text variant="callout">
-            Share this code with your patient. They can enter it while creating their account to connect with your care
-            team.
-          </Text>
-          <PillButton label="Done" variant="secondary" onPress={() => setNewCode(null)} />
-        </Card>
-      ) : null}
+      {adding ? <AddPatientCard onAdded={roster.reload} onClose={() => setAdding(false)} /> : null}
 
       <Card style={{ gap: space.lg }}>
         <View
@@ -113,16 +71,17 @@ export default function DashboardScreen() {
         ) : patients.length > 0 ? (
           <View style={{ gap: space.sm }}>
             {patients.map((patient) => {
+              const name = patientName(patient);
               const summary = patientSummary(patient);
               const score = patient.latest ? String(patient.latest.gaitScore) : undefined;
               return (
                 <ListCard
                   key={patient.id}
-                  title={patient.careCode}
+                  title={name}
                   subtitle={summary}
                   icon={patient.status === 'waiting' ? 'hourglass' : 'person'}
                   trailing={score}
-                  accessibilityLabel={`Patient ${patient.careCode}, ${summary}${score ? `, latest gait score ${score}` : ''}`}
+                  accessibilityLabel={`${name}, ${summary}${score ? `, latest gait score ${score}` : ''}`}
                   onPress={() => router.push(`/patients/${patient.id}`)}
                 />
               );
@@ -132,7 +91,7 @@ export default function DashboardScreen() {
           <EmptyState
             icon="people"
             title="No patients yet"
-            line="Create a patient profile to get a care code. Your patient enters it when they sign up."
+            line="Add a patient with their name and a username. They sign in with the login you give them."
             action={false}
           />
         )}

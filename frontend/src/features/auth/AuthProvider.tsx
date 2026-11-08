@@ -11,9 +11,10 @@ export type Profile = {
   displayName: string | null;
 };
 
-/** The signed-in patient's pseudonymous record. */
+/** The signed-in patient's record, created by their clinician. */
 export type MyPatient = {
   id: string;
+  fullName: string | null;
   careCode: string;
   clinicianId: string | null;
   clinicianName: string | null;
@@ -44,12 +45,13 @@ async function fetchMyPatient(): Promise<MyPatient | null> {
   // RLS only returns the caller's own record to a patient.
   const { data, error } = await supabase
     .from('patients')
-    .select('id, care_code, clinician_id, clinician:profiles(display_name)')
+    .select('id, full_name, care_code, clinician_id, clinician:profiles(display_name)')
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
   return {
     id: data.id,
+    fullName: data.full_name,
     careCode: data.care_code,
     clinicianId: data.clinician_id,
     clinicianName: data.clinician?.display_name ?? null,
