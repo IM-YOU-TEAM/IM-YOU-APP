@@ -63,9 +63,8 @@ export const space = {
 export const GAP = 16;
 
 // ---------- Layout ----------
-export const WIDE = 768; // >= this width: sidebar + multi-column layouts
+export const WIDE = 768; // >= this width: top widget + multi-column layouts
 export const MAX_CONTENT_WIDTH = 1120;
-export const SIDEBAR_WIDTH = 240;
 export const MIN_HIT = 44; // minimum touch target
 
 // ---------- Shadow ----------
