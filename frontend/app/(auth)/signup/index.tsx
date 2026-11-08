@@ -53,7 +53,9 @@ function RoleOption({ value, label, description, icon, selected, onPress }: Role
         </Text>
       </View>
       <View style={styles.checkSlot}>
-        {selected ? <Ionicons name="checkmark-circle" size={22} color={colors.seagrass} /> : null}
+        <View style={[styles.selectionRing, selected ? styles.selectionRingOn : styles.selectionRingOff]}>
+          {selected ? <View style={styles.selectionDot} /> : null}
+        </View>
       </View>
     </Pressable>
   );
@@ -161,6 +163,26 @@ const styles = StyleSheet.create({
   checkSlot: {
     width: 22,
     alignItems: 'center',
+  },
+  selectionRing: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionRingOn: {
+    borderColor: colors.seagrass,
+  },
+  selectionRingOff: {
+    borderColor: colors.border,
+  },
+  selectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.seagrass,
   },
   separator: {
     height: StyleSheet.hairlineWidth,
