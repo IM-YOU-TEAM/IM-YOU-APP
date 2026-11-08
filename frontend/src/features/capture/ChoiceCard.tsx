@@ -39,8 +39,8 @@ export function ChoiceCard({ title, description, icon, selected, onPress, style 
       accessibilityLabel={`${title}. ${description}`}
       style={[styles.card, wide ? styles.tile : styles.row, { backgroundColor: bg }]}
     >
-      <View style={[styles.bubble, wide && styles.bubbleLarge, { backgroundColor: selected ? colors.whiteTint : colors.seagrassTint }]}>
-        <Ionicons name={icon} size={wide ? 30 : 26} color={selected ? colors.onSeagrass : colors.seagrass} />
+      <View style={[styles.bubble, wide && styles.bubbleLarge, { backgroundColor: colors.burntOrangeTint }]}>
+        <Ionicons name={icon} size={wide ? 30 : 26} color={colors.burntOrange} />
       </View>
       <View style={{ flex: wide ? undefined : 1, gap: space.xs }}>
         <Text variant="headline">{title}</Text>

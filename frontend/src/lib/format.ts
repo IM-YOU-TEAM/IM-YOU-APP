@@ -8,6 +8,12 @@ export function dayKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
+/** A Date (e.g. a database timestamp) as a local ISO date-time, "2026-11-07T09:30:00". */
+export function localIso(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 /** Parse "YYYY-MM-DD" or a local ISO date-time without timezone drift. */
 export function parseLocal(iso: string): Date {
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);

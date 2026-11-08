@@ -15,7 +15,7 @@ type Props = {
   formatValue?: (value: number) => string;
   /** Fixed y range. Default: fitted to the data with some headroom. */
   yDomain?: [number, number];
-  /** Read by screen readers, e.g. "Gait score over the last 4 weeks". */
+  /** Read by screen readers, e.g. "Movement score over the last 4 weeks". */
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };

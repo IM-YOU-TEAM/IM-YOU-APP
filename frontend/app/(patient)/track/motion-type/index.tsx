@@ -59,7 +59,7 @@ export default function MotionTypeScreen() {
 
       <PillButton
         label="Continue"
-        icon="arrow-forward"
+        icon="chevron-forward"
         iconRight
         size="lg"
         disabled={!motion}
