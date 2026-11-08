@@ -4,7 +4,7 @@ import { ScreenContainer, Text } from '@/components';
 export default function SignupScreen() {
   return (
     <ScreenContainer>
-      <Text variant="title">Sign up</Text>
+      <Text variant="display">Sign up</Text>
     </ScreenContainer>
   );
 }

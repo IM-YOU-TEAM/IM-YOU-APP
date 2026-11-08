@@ -4,7 +4,7 @@ import { ScreenContainer, Text } from '@/components';
 export default function HomeScreen() {
   return (
     <ScreenContainer>
-      <Text variant="title">Home</Text>
+      <Text variant="display">Home</Text>
     </ScreenContainer>
   );
 }

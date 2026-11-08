@@ -4,7 +4,7 @@ import { ScreenContainer, Text } from '@/components';
 export default function PlacementGuideScreen() {
   return (
     <ScreenContainer>
-      <Text variant="title">Place your phone</Text>
+      <Text variant="display">Place your phone</Text>
     </ScreenContainer>
   );
 }

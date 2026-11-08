@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, MIN_HIT, radii, shadows, space } from '@/lib/theme';
+import { colors, radii, shadows, space } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 import { Text } from './Text';
 
@@ -16,9 +16,9 @@ type Props<T extends string> = {
 };
 
 type Box = { x: number; width: number };
-const PAD = 4;
+const PAD = 3;
 
-/** Pill toggle (e.g. Week / Month). The selected option sits on a sliding Seagrass thumb. */
+/** iOS segmented control (e.g. Week / Month): neutral track, white thumb that slides to the selection. */
 export function SegmentedToggle<T extends string>({ options, value, onChange, accessibilityLabel, style }: Props<T>) {
   const reduce = useReduceMotion();
   const [boxes, setBoxes] = useState<Record<number, Box>>({});
@@ -36,7 +36,7 @@ export function SegmentedToggle<T extends string>({ options, value, onChange, ac
       placed.current = true;
       return;
     }
-    const spring = { useNativeDriver: false, speed: 18, bounciness: 6 };
+    const spring = { useNativeDriver: false, speed: 20, bounciness: 4 };
     Animated.parallel([
       Animated.spring(left, { ...spring, toValue: target.x }),
       Animated.spring(width, { ...spring, toValue: target.width }),
@@ -48,15 +48,17 @@ export function SegmentedToggle<T extends string>({ options, value, onChange, ac
       accessibilityRole="tablist"
       accessibilityLabel={accessibilityLabel}
       style={[
-        { flexDirection: 'row', padding: PAD, borderRadius: radii.pill, backgroundColor: colors.white, alignSelf: 'flex-start' },
-        shadows.card,
+        { flexDirection: 'row', padding: PAD, borderRadius: radii.pill, backgroundColor: colors.fill, alignSelf: 'flex-start' },
         style,
       ]}
     >
       {target && (
         <Animated.View
           pointerEvents="none"
-          style={{ position: 'absolute', top: PAD, bottom: PAD, left, width, borderRadius: radii.pill, backgroundColor: colors.seagrass }}
+          style={[
+            { position: 'absolute', top: PAD, bottom: PAD, left, width, borderRadius: radii.pill, backgroundColor: colors.white },
+            shadows.raised,
+          ]}
         />
       )}
       {options.map((o, i) => {
@@ -72,9 +74,10 @@ export function SegmentedToggle<T extends string>({ options, value, onChange, ac
             accessibilityRole="tab"
             accessibilityState={{ selected }}
             accessibilityLabel={o.label}
-            style={{ flexGrow: 1, minWidth: 72, minHeight: MIN_HIT, paddingHorizontal: space.lg, alignItems: 'center', justifyContent: 'center' }}
+            hitSlop={{ top: 4, bottom: 4 }}
+            style={{ flexGrow: 1, minWidth: 72, minHeight: 36, paddingHorizontal: space.lg, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Text variant="callout" weight={700} color={selected ? colors.onSeagrass : colors.textMuted} numberOfLines={1}>
+            <Text variant="callout" weight={selected ? 600 : 500} muted={!selected} numberOfLines={1}>
               {o.label}
             </Text>
           </Pressable>

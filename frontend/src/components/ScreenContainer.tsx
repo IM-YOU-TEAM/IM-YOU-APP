@@ -26,9 +26,9 @@ export function ScreenContainer({ children, scroll = true, maxWidth = MAX_CONTEN
   const wide = useWindowDimensions().width >= WIDE;
 
   const padding: ViewStyle = {
-    paddingTop: insets.top + (wide ? space.xxl : space.lg),
+    paddingTop: insets.top + (wide ? space.xl : space.md),
     paddingBottom: insets.bottom + barInset + (wide ? space.xxl : space.xl),
-    paddingHorizontal: wide ? space.xxl : space.lg + 4,
+    paddingHorizontal: wide ? space.xxl : space.lg + 4, // 20pt phone margins, like iOS
   };
   const column: StyleProp<ViewStyle> = [{ width: '100%', maxWidth, alignSelf: 'center', gap }, contentStyle];
 

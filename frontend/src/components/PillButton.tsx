@@ -4,7 +4,6 @@ import { Animated, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 
 import { colors, MIN_HIT, radii, shadows, space } from '@/lib/theme';
 import { usePressScale } from '@/lib/usePressScale';
 import type { IconName } from '@/types';
-import { Gloss } from './Gloss';
 import { Text } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
@@ -20,19 +19,20 @@ type Props = {
   disabled?: boolean;
   /** Stretch to the parent's width. */
   fullWidth?: boolean;
-  /** 'md' = 48px tall (default), 'lg' = 56px tall. */
+  /** 'md' = 50px tall (default), 'lg' = 56px tall. */
   size?: 'md' | 'lg';
   /** Defaults to `label`. */
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
-const FILL: Record<Variant, { rest: string; hover: string; ink: string }> = {
-  primary: { rest: colors.seagrass, hover: colors.seagrassDark, ink: colors.onSeagrass },
-  secondary: { rest: colors.white, hover: colors.honeydewLight, ink: colors.graphite },
-  ghost: { rest: 'transparent', hover: colors.seagrassTint, ink: colors.graphite },
+const FILL: Record<Variant, { rest: string; hover: string; ink: string; icon: string }> = {
+  primary: { rest: colors.seagrass, hover: colors.seagrassDark, ink: colors.onSeagrass, icon: colors.onSeagrass },
+  secondary: { rest: colors.white, hover: colors.honeydewLight, ink: colors.graphite, icon: colors.seagrass },
+  ghost: { rest: 'transparent', hover: colors.fill, ink: colors.graphite, icon: colors.seagrass },
 };
 
+/** iOS-style capsule button: flat fill, semibold label, gentle press squish. */
 export function PillButton({
   label,
   onPress,
@@ -45,19 +45,17 @@ export function PillButton({
   accessibilityLabel,
   style,
 }: Props) {
-  const { scale, onPressIn, onPressOut } = usePressScale();
+  const { scale, onPressIn, onPressOut } = usePressScale(0.97);
   const [hovered, setHovered] = useState(false);
   const fill = FILL[variant];
-  const iconColor = variant === 'primary' ? colors.onSeagrass : colors.seagrass;
-
-  const iconEl = icon ? <Ionicons name={icon} size={20} color={iconColor} /> : null;
+  const iconEl = icon ? <Ionicons name={icon} size={19} color={fill.icon} /> : null;
 
   return (
     <Animated.View
       style={[
-        { transform: [{ scale }], alignSelf: fullWidth ? 'stretch' : 'flex-start', opacity: disabled ? 0.45 : 1 },
+        { transform: [{ scale }], alignSelf: fullWidth ? 'stretch' : 'flex-start', opacity: disabled ? 0.4 : 1 },
         { borderRadius: radii.pill },
-        variant !== 'ghost' && shadows.card,
+        variant === 'secondary' && shadows.card,
         style,
       ]}
     >
@@ -71,18 +69,19 @@ export function PillButton({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityState={{ disabled }}
-        style={[
+        style={({ pressed }) => [
           styles.base,
           {
-            minHeight: size === 'lg' ? 56 : 48,
+            minHeight: size === 'lg' ? 56 : 50,
             paddingHorizontal: size === 'lg' ? space.xxl : space.xl,
             backgroundColor: hovered && !disabled ? fill.hover : fill.rest,
+            opacity: pressed ? 0.85 : 1,
           },
         ]}
       >
-        {variant === 'primary' && <Gloss />}
         {!iconRight && iconEl}
-        <Text variant="body" weight={700} color={fill.ink} numberOfLines={1}>
+        {/* White on Seagrass stays bold (brand contrast rule). */}
+        <Text variant="body" weight={variant === 'primary' ? 700 : 600} color={fill.ink} numberOfLines={1}>
           {label}
         </Text>
         {iconRight && iconEl}
@@ -99,6 +98,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: space.sm,
-    overflow: 'hidden',
   },
 });

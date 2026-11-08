@@ -25,7 +25,7 @@ export function Logo({ size = 36, variant = 'full', onDark = false }: Props) {
       style={{ flexDirection: 'row', alignItems: 'center', gap: size * 0.3 }}
     >
       <Svg width={size} height={size} viewBox="0 0 40 40">
-        <Rect x={0} y={0} width={40} height={40} rx={12} fill={tile} />
+        <Rect x={0} y={0} width={40} height={40} rx={11} fill={tile} />
         {/* A motion arc: one stride, ending in a dot */}
         <Path
           d="M9 27 C 13 14, 21 12, 26 19"
@@ -40,7 +40,7 @@ export function Logo({ size = 36, variant = 'full', onDark = false }: Props) {
         <Text
           weight={800}
           color={onDark ? colors.white : colors.graphite}
-          style={{ fontSize: size * 0.62, lineHeight: size * 0.8, letterSpacing: -0.4 }}
+          style={{ fontSize: size * 0.58, lineHeight: size * 0.8, letterSpacing: -0.2 }}
         >
           I'M U
         </Text>

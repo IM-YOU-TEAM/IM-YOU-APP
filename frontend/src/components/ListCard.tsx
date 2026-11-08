@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Animated, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, radii, shadows, space } from '@/lib/theme';
+import { colors, continuous, radii, space } from '@/lib/theme';
 import { usePressScale } from '@/lib/usePressScale';
 import type { IconName } from '@/types';
 import { OnDark, Text } from './Text';
@@ -41,7 +41,7 @@ export function ListCard({ title, subtitle, icon, trailing, chevron, selected = 
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityState={onPress ? { selected } : undefined}
       accessibilityLabel={accessibilityLabel ?? [title, subtitle, trailing].filter(Boolean).join(', ')}
-      style={[styles.row, { backgroundColor: bg }, selected && shadows.card]}
+      style={({ pressed }) => [styles.row, { backgroundColor: bg, opacity: pressed ? 0.8 : 1 }]}
     >
       {icon && (
         <View style={[styles.bubble, { backgroundColor: selected ? colors.whiteTint : colors.white }]}>
@@ -49,22 +49,22 @@ export function ListCard({ title, subtitle, icon, trailing, chevron, selected = 
         </View>
       )}
       <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="body" weight={700} numberOfLines={1}>
+        <Text variant="headline" weight={selected ? 700 : 600} numberOfLines={1}>
           {title}
         </Text>
         {subtitle ? (
           // On Seagrass, secondary text stays bold and white for contrast.
-          <Text variant="callout" weight={selected ? 700 : 500} muted={!selected} numberOfLines={2}>
+          <Text variant="callout" weight={selected ? 700 : 400} muted={!selected} numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}
       </View>
       {trailing ? (
-        <Text variant="callout" weight={700}>
+        <Text variant="callout" weight={600} muted={!selected}>
           {trailing}
         </Text>
       ) : null}
-      {showChevron && <Ionicons name="chevron-forward" size={18} color={selected ? colors.onSeagrass : colors.textMuted} />}
+      {showChevron && <Ionicons name="chevron-forward" size={16} color={selected ? colors.onSeagrass : colors.textMuted} />}
     </Pressable>
   );
 
@@ -83,7 +83,8 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingVertical: space.md,
     paddingHorizontal: space.lg,
-    borderRadius: radii.md + 4,
+    borderRadius: radii.md,
+    ...continuous,
   },
-  bubble: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  bubble: { width: 36, height: 36, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', ...continuous },
 });

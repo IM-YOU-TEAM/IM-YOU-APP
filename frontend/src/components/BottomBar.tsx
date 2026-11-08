@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { outlineIcon } from '@/lib/icons';
 import { colors, radii, space } from '@/lib/theme';
 import type { IconName } from '@/types';
 import { GlassCard } from './GlassCard';
 import { logout, type NavItem } from './Sidebar';
 import { Text } from './Text';
 
-const BAR_HEIGHT = 68;
+const BAR_HEIGHT = 64;
 const BAR_MARGIN = space.md;
 
 /** Space the floating bar covers at the bottom of the screen (without the safe-area inset). */
@@ -26,15 +27,15 @@ type Props = {
   onLogout?: () => void;
 };
 
-/** Floating glass tab bar for phones (< WIDE), both sides. Ends with a Log out button. */
+/**
+ * Floating glass tab bar for phones (< WIDE), both sides, in the style of the iOS tab bar:
+ * filled glyph + tint for the selected tab, outline glyphs for the rest. Ends with Log out.
+ */
 export function BottomBar({ items, onLogout = logout }: Props) {
   const insets = useSafeAreaInsets();
   return (
-    <View
-      pointerEvents="box-none"
-      style={[styles.wrap, { bottom: insets.bottom + BAR_MARGIN }]}
-    >
-      <GlassCard padding={0} radius={radii.pill} intensity={60} style={{ width: '100%', maxWidth: 480 }}>
+    <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom - 8, 0) + BAR_MARGIN }]}>
+      <GlassCard padding={0} radius={radii.pill} intensity={70} style={styles.glass}>
         <View accessibilityRole="tablist" style={styles.row}>
           {items.map((item) => (
             <Link key={item.label} href={item.href} asChild>
@@ -52,27 +53,17 @@ type ButtonProps = { label: string; icon: IconName; active?: boolean; onPress?: 
 
 // Link (asChild) injects onPress/href, so this accepts and forwards extra props.
 function BarButton({ label, icon, active = false, onPress, ...linkProps }: ButtonProps & Record<string, unknown>) {
-  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       {...linkProps}
       onPress={onPress}
-      onHoverIn={() => setHovered(true)}
-      onHoverOut={() => setHovered(false)}
       accessibilityRole={linkProps.href ? 'tab' : 'button'}
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      style={styles.button}
+      style={({ pressed }) => [styles.button, active && styles.active, { opacity: pressed ? 0.6 : 1 }]}
     >
-      <View
-        style={[
-          styles.iconPill,
-          { backgroundColor: active ? colors.seagrass : hovered ? colors.seagrassTint : 'transparent' },
-        ]}
-      >
-        <Ionicons name={icon} size={20} color={active ? colors.onSeagrass : colors.graphite} />
-      </View>
-      <Text variant="caption" weight={active ? 800 : 600} muted={!active} numberOfLines={1}>
+      <Ionicons name={active ? icon : outlineIcon(icon)} size={23} color={active ? colors.seagrass : colors.textMuted} />
+      <Text variant="caption" weight={active ? 700 : 500} muted={!active} numberOfLines={1} style={styles.label}>
         {label}
       </Text>
     </Pressable>
@@ -81,7 +72,9 @@ function BarButton({ label, icon, active = false, onPress, ...linkProps }: Butto
 
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: space.lg, right: space.lg, alignItems: 'center' },
-  row: { flexDirection: 'row', height: BAR_HEIGHT, paddingHorizontal: space.sm },
-  button: { flex: 1, minWidth: 64, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  iconPill: { width: 48, height: 30, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center' },
+  glass: { width: '100%', maxWidth: 440 },
+  row: { flexDirection: 'row', height: BAR_HEIGHT, padding: space.xs },
+  button: { flex: 1, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', gap: 1 },
+  active: { backgroundColor: colors.seagrassTint },
+  label: { fontSize: 11, lineHeight: 13 },
 });

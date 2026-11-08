@@ -4,7 +4,7 @@ import { ScreenContainer, Text } from '@/components';
 export default function MethodScreen() {
   return (
     <ScreenContainer>
-      <Text variant="title">Choose a method</Text>
+      <Text variant="display">Choose a method</Text>
     </ScreenContainer>
   );
 }

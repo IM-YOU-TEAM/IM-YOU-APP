@@ -80,14 +80,14 @@ export function LineChart({ data, height = 220, formatValue = String, yDomain, a
                 width: 88,
                 height: 34,
                 borderRadius: radii.pill,
-                backgroundColor: colors.seagrass,
+                backgroundColor: colors.graphite,
                 alignItems: 'center',
                 justifyContent: 'center',
               },
               shadows.raised,
             ]}
           >
-            <Text variant="callout" weight={800} color={colors.onSeagrass} numberOfLines={1}>
+            <Text variant="callout" weight={700} color={colors.onDark} numberOfLines={1} style={{ fontVariant: ['tabular-nums'] }}>
               {formatValue(data[selected].value)}
             </Text>
           </View>
@@ -98,7 +98,7 @@ export function LineChart({ data, height = 220, formatValue = String, yDomain, a
               <Text
                 key={`l${i}`}
                 variant="caption"
-                weight={i === selected ? 800 : 600}
+                weight={i === selected ? 700 : 500}
                 muted={i !== selected}
                 align="center"
                 numberOfLines={1}

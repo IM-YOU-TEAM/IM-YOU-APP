@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 import { addDays, formatLongDate, formatWeekday, parseLocal } from '@/lib/format';
 import { today } from '@/lib/data';
-import { colors, radii, space } from '@/lib/theme';
+import { colors, continuous, radii, space } from '@/lib/theme';
 import { Text } from './Text';
 
 type Props = {
@@ -36,7 +36,7 @@ export function DayStrip({ selected, onSelect, endDate = today(), marked = [], s
 
 function DayPill({ day, selected, marked, onPress }: { day: string; selected: boolean; marked: boolean; onPress: () => void }) {
   const [hovered, setHovered] = useState(false);
-  const bg = selected ? colors.seagrass : hovered ? colors.honeydewLight : 'transparent';
+  const bg = selected ? colors.seagrass : hovered ? colors.fill : 'transparent';
   return (
     <Pressable
       onPress={onPress}
@@ -47,8 +47,9 @@ function DayPill({ day, selected, marked, onPress }: { day: string; selected: bo
       accessibilityLabel={`${formatLongDate(day)}${marked ? ', has sessions' : ''}`}
       style={{
         flex: 1,
-        minHeight: 72,
-        borderRadius: radii.pill,
+        minHeight: 68,
+        borderRadius: radii.md,
+        ...continuous,
         backgroundColor: bg,
         alignItems: 'center',
         justifyContent: 'center',
@@ -56,10 +57,10 @@ function DayPill({ day, selected, marked, onPress }: { day: string; selected: bo
         paddingVertical: space.sm,
       }}
     >
-      <Text variant="caption" weight={700} color={selected ? colors.onSeagrass : colors.textMuted}>
+      <Text variant="caption" weight={selected ? 700 : 500} color={selected ? colors.onSeagrass : colors.textMuted}>
         {formatWeekday(day)}
       </Text>
-      <Text variant="headline" color={selected ? colors.onSeagrass : colors.text}>
+      <Text variant="headline" weight={700} color={selected ? colors.onSeagrass : colors.text}>
         {parseLocal(day).getDate()}
       </Text>
       <View

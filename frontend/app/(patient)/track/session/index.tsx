@@ -4,7 +4,7 @@ import { ScreenContainer, Text } from '@/components';
 export default function SessionScreen() {
   return (
     <ScreenContainer>
-      <Text variant="title">Session</Text>
+      <Text variant="display">Session</Text>
     </ScreenContainer>
   );
 }

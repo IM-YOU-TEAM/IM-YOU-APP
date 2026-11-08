@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { colors, radii, shadows, space } from '@/lib/theme';
+import { colors, continuous, radii, shadows, space } from '@/lib/theme';
 import { smoothPath } from '@/lib/smoothPath';
 import type { IconName } from '@/types';
 import { Gloss } from './Gloss';
@@ -49,7 +49,7 @@ export function StatTile({ label, value, unit, icon, waveform, tone = 'hero', st
     >
       {/* Fill and gloss live in a clipped layer so the outer shadow is not clipped. */}
       <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.clip, { backgroundColor: hero ? colors.seagrass : colors.white }]}>
-        {hero && <Gloss />}
+        {hero && <Gloss strength={0.14} />}
       </View>
       <View style={styles.header}>
         {icon && (
@@ -62,7 +62,7 @@ export function StatTile({ label, value, unit, icon, waveform, tone = 'hero', st
         </Text>
       </View>
       <View style={styles.valueRow}>
-        <Text variant="display" style={{ fontSize: 40, lineHeight: 46 }}>
+        <Text variant="display" weight={700} style={{ fontSize: 44, lineHeight: 50, letterSpacing: -1 }}>
           {value}
         </Text>
         {unit && (
@@ -85,11 +85,12 @@ export function StatTile({ label, value, unit, icon, waveform, tone = 'hero', st
 const styles = StyleSheet.create({
   tile: {
     borderRadius: radii.card,
+    ...continuous,
     padding: space.xl - 4,
     gap: space.md,
     minHeight: 160,
   },
-  clip: { borderRadius: radii.card, overflow: 'hidden' },
+  clip: { borderRadius: radii.card, overflow: 'hidden', ...continuous },
   header: { flexDirection: 'row', alignItems: 'center', gap: space.sm },
   bubble: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: space.xs + 2 },
