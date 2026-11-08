@@ -41,9 +41,9 @@ export type SamplesMessage = {
   samples: ImuSample[];
 };
 
-/** Sent by whichever phone the person pressed Start on. */
+/** Sent by whichever phone the person tapped. Both phones always act on it together. */
 export type ControlMessage = {
-  action: 'start' | 'stop';
+  action: 'start' | 'stop' | 'pause' | 'resume';
   motion: string;
   /** Milliseconds since the epoch, so both phones trim to the same window. */
   at: number;

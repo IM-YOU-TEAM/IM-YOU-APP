@@ -45,11 +45,19 @@ const JOINT_LABELS: Record<JointName, string> = {
 
 const BATCH_SIZE = 10;
 const BATCH_MS = 80;
+/** Long enough to cover a second thumb tapping Start just after the first phone already did. */
+const SETTLE_MS = 1500;
+
+const CONTROL_ACTIONS: ControlMessage['action'][] = ['start', 'stop', 'pause', 'resume'];
 
 export type ImuReadout = {
   gate: ImuGate;
   captureStarted: boolean;
   recording: boolean;
+  /** Just started, so a near-simultaneous tap on this phone must not land on Pause. */
+  settling: boolean;
+  /** The other phone tapped Stop. It saves the session; this one must not save a copy. */
+  stoppedElsewhere: boolean;
   modelConnected: boolean;
   mySite: Site | null;
   freeSites: Site[];
@@ -70,6 +78,8 @@ const EMPTY: ImuReadout = {
   gate: 'connecting',
   captureStarted: false,
   recording: false,
+  settling: false,
+  stoppedElsewhere: false,
   modelConnected: false,
   mySite: null,
   freeSites: SITES.slice(),
@@ -133,7 +143,7 @@ function summarise(tally: Tally, motion: MotionType, durationSec: number): Sessi
 function asControl(payload: unknown): ControlMessage | null {
   if (payload == null || typeof payload !== 'object') return null;
   const message = payload as Partial<ControlMessage>;
-  if (message.action !== 'start' && message.action !== 'stop') return null;
+  if (message.action == null || !CONTROL_ACTIONS.includes(message.action)) return null;
   if (typeof message.session_id !== 'string' || typeof message.origin !== 'string') return null;
   return message as ControlMessage;
 }
@@ -164,36 +174,76 @@ function pairToImuGate(gate: PairGate, motion: MotionGate): ImuGate {
  * Two phones signed into the same patient account: pair over Realtime, stream
  * DeviceMotion samples, and feed the live inference service.
  */
-export function useImuSession(motion: MotionType | null, paused: boolean) {
+export function useImuSession(
+  motion: MotionType | null,
+  paused: boolean,
+  setPaused: (paused: boolean) => void,
+) {
   const tally = useRef<Tally>({ accepted: [], total: 0 });
   const pausedRef = useRef(paused);
+  /** The pause state both phones last agreed on, so a pause from the other phone is not sent back. */
+  const sharedPaused = useRef(false);
+  const setPausedRef = useRef(setPaused);
+  setPausedRef.current = setPaused;
   const recordingRef = useRef(false);
   const sessionRef = useRef<string | null>(null);
   const seqRef = useRef(0);
   const batchRef = useRef<ImuSample[]>([]);
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const phoneRef = useRef<ReturnType<typeof connectSocket> | null>(null);
   const [live, setLive] = useState<ImuReadout>(EMPTY);
 
   useEffect(() => {
-    pausedRef.current = paused;
-  }, [paused]);
+    return () => {
+      if (settleTimer.current) clearTimeout(settleTimer.current);
+    };
+  }, []);
 
   const supported = motion != null && IMU_SUPPORTED.includes(motion);
   const sensors = useMotionStream();
 
-  const onBroadcast = useCallback((event: string, payload: unknown) => {
-    if (event !== EVENTS.control) return;
-    const control = asControl(payload);
-    if (!control) return;
-    recordingRef.current = control.action === 'start';
-    sessionRef.current = control.action === 'start' ? control.session_id : null;
-    setLive((prev) => ({
-      ...prev,
-      recording: control.action === 'start',
-      captureStarted: prev.captureStarted || control.action === 'start',
-    }));
+  /** Both phones run this, whichever one was tapped. */
+  const beginRecording = useCallback((id: string) => {
+    recordingRef.current = true;
+    sessionRef.current = id;
+    seqRef.current = 0;
+    tally.current = { accepted: [], total: 0 };
+    sharedPaused.current = false;
+    setPausedRef.current(false);
+    if (settleTimer.current) clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => setLive((prev) => ({ ...prev, settling: false })), SETTLE_MS);
+    setLive((prev) => ({ ...prev, recording: true, captureStarted: true, settling: true, stoppedElsewhere: false }));
   }, []);
+
+  const onBroadcast = useCallback(
+    (event: string, payload: unknown) => {
+      if (event !== EVENTS.control) return;
+      const control = asControl(payload);
+      if (!control) return;
+      switch (control.action) {
+        case 'start':
+          // Both phones tapped Start at once: this one is already recording, so it just carries on.
+          if (!recordingRef.current) beginRecording(control.session_id);
+          return;
+        case 'stop':
+          recordingRef.current = false;
+          sessionRef.current = null;
+          setLive((prev) => ({ ...prev, recording: false, settling: false, stoppedElsewhere: true }));
+          return;
+        case 'pause':
+        case 'resume':
+          sharedPaused.current = control.action === 'pause';
+          setPausedRef.current(sharedPaused.current);
+          return;
+        default: {
+          const unexpected: never = control.action;
+          return unexpected;
+        }
+      }
+    },
+    [beginRecording],
+  );
 
   const pairing = usePairing(supported, onBroadcast);
   const mySiteRef = useRef(pairing.mySite);
@@ -310,41 +360,47 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   const claim = pairing.claim;
   const requestSensors = sensors.request;
 
+  const sendControl = useCallback(
+    (action: ControlMessage['action']) => {
+      const control: ControlMessage = {
+        action,
+        motion: motion ?? '',
+        at: Date.now(),
+        session_id: sessionRef.current ?? '',
+        origin: pairing.clientKey,
+      };
+      publishRef.current(EVENTS.control, control);
+    },
+    [motion, pairing.clientKey],
+  );
+
+  // A pause on either phone pauses both: the model needs thigh and shin from the same moments.
+  useEffect(() => {
+    pausedRef.current = paused;
+    if (!recordingRef.current || paused === sharedPaused.current) return;
+    sharedPaused.current = paused;
+    sendControl(paused ? 'pause' : 'resume');
+    // The model would interpolate straight across the gap, so it restarts clean on resume.
+    phoneRef.current?.send(paused ? { type: 'session_stop' } : { type: 'session_start', session_id: sessionRef.current });
+  }, [paused, sendControl]);
+
   const start = useCallback(() => {
-    if (motion == null || pairing.gate !== 'paired') return;
+    if (motion == null || pairing.gate !== 'paired' || recordingRef.current) return;
     const id = sessionId('imu');
-    sessionRef.current = id;
-    recordingRef.current = true;
-    seqRef.current = 0;
-    tally.current = { accepted: [], total: 0 };
-    const control: ControlMessage = {
-      action: 'start',
-      motion,
-      at: Date.now(),
-      session_id: id,
-      origin: pairing.clientKey,
-    };
-    publishRef.current(EVENTS.control, control);
+    beginRecording(id);
+    sendControl('start');
     phoneRef.current?.send({ type: 'session_start', session_id: id });
-    setLive((prev) => ({ ...prev, recording: true, captureStarted: true }));
-  }, [motion, pairing.gate, pairing.clientKey]);
+  }, [motion, pairing.gate, beginRecording, sendControl]);
 
   const halt = useCallback(() => {
     if (!recordingRef.current) return;
     flush();
-    const control: ControlMessage = {
-      action: 'stop',
-      motion: motion ?? '',
-      at: Date.now(),
-      session_id: sessionRef.current ?? '',
-      origin: pairing.clientKey,
-    };
-    publishRef.current(EVENTS.control, control);
+    sendControl('stop');
     phoneRef.current?.send({ type: 'session_stop' });
     recordingRef.current = false;
     sessionRef.current = null;
-    setLive((prev) => ({ ...prev, recording: false }));
-  }, [flush, motion, pairing.clientKey]);
+    setLive((prev) => ({ ...prev, recording: false, settling: false }));
+  }, [flush, sendControl]);
 
   const finish = useCallback(
     (durationSec: number): Session | null => {
