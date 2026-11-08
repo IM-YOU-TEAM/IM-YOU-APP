@@ -1,13 +1,19 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Animated, Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, MIN_HIT, radii, shadows, space } from '@/lib/theme';
-import { usePressScale } from '@/lib/usePressScale';
-import type { IconName } from '@/types';
-import { Gloss } from './Gloss';
-import { Text } from './Text';
+import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
+import { colors, MIN_HIT, radii, shadows, space } from "@/lib/theme";
+import { usePressScale } from "@/lib/usePressScale";
+import type { IconName } from "@/types";
+import { Gloss } from "./Gloss";
+import { Text } from "./Text";
 
-type Variant = 'primary' | 'secondary' | 'ghost';
+type Variant = "primary" | "secondary" | "ghost" | "cherry";
 
 type Props = {
   label: string;
@@ -21,13 +27,16 @@ type Props = {
   /** Stretch to the parent's width. */
   fullWidth?: boolean;
   /** 'md' = 50px tall (default), 'lg' = 56px tall. */
-  size?: 'md' | 'lg';
+  size?: "md" | "lg";
   /** Defaults to `label`. */
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 };
 
-const FILL: Record<Variant, { rest: string; hover: string; ink: string; icon: string; edge: string }> = {
+const FILL: Record<
+  Variant,
+  { rest: string; hover: string; ink: string; icon: string; edge: string }
+> = {
   primary: {
     rest: colors.seagrass,
     hover: colors.seagrassDark,
@@ -43,11 +52,18 @@ const FILL: Record<Variant, { rest: string; hover: string; ink: string; icon: st
     edge: colors.border,
   },
   ghost: {
-    rest: 'transparent',
+    rest: "transparent",
     hover: colors.fill,
     ink: colors.graphite,
     icon: colors.seagrass,
-    edge: 'transparent',
+    edge: "transparent",
+  },
+  cherry: {
+    rest: colors.cherry,
+    hover: colors.cherryDark,
+    ink: colors.onCherry,
+    icon: colors.onCherry,
+    edge: colors.glassBorder,
   },
 };
 
@@ -55,26 +71,32 @@ const FILL: Record<Variant, { rest: string; hover: string; ink: string; icon: st
 export function PillButton({
   label,
   onPress,
-  variant = 'primary',
+  variant = "primary",
   icon,
   iconRight = false,
   disabled = false,
   fullWidth = false,
-  size = 'md',
+  size = "md",
   accessibilityLabel,
   style,
 }: Props) {
   const { scale, onPressIn, onPressOut } = usePressScale(0.985);
   const [hovered, setHovered] = useState(false);
   const fill = FILL[variant];
-  const iconEl = icon ? <Ionicons name={icon} size={19} color={fill.icon} /> : null;
+  const iconEl = icon ? (
+    <Ionicons name={icon} size={19} color={fill.icon} />
+  ) : null;
 
   return (
     <Animated.View
       style={[
-        { transform: [{ scale }], alignSelf: fullWidth ? 'stretch' : 'flex-start', opacity: disabled ? 0.4 : 1 },
+        {
+          transform: [{ scale }],
+          alignSelf: fullWidth ? "stretch" : "flex-start",
+          opacity: disabled ? 0.4 : 1,
+        },
         { borderRadius: radii.pill },
-        variant !== 'ghost' && shadows.card,
+        variant !== "ghost" && shadows.card,
         style,
       ]}
     >
@@ -91,16 +113,16 @@ export function PillButton({
         style={({ pressed }) => [
           styles.base,
           {
-            minHeight: size === 'lg' ? 56 : 50,
-            paddingHorizontal: size === 'lg' ? space.xxl : space.xl,
+            minHeight: size === "lg" ? 56 : 50,
+            paddingHorizontal: size === "lg" ? space.xxl : space.xl,
             backgroundColor: hovered && !disabled ? fill.hover : fill.rest,
-            borderWidth: variant === 'ghost' ? 0 : StyleSheet.hairlineWidth,
+            borderWidth: variant === "ghost" ? 0 : StyleSheet.hairlineWidth,
             borderColor: fill.edge,
             opacity: pressed ? 0.85 : 1,
           },
         ]}
       >
-        {variant === 'primary' ? <Gloss strength={0.14} /> : null}
+        {variant === "primary" ? <Gloss strength={0.14} /> : null}
         {!iconRight && iconEl}
         <Text variant="body" weight={600} color={fill.ink} numberOfLines={1}>
           {label}
@@ -115,10 +137,10 @@ const styles = StyleSheet.create({
   base: {
     minWidth: MIN_HIT,
     borderRadius: radii.pill,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: space.sm,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
 });

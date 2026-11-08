@@ -1,11 +1,20 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useWindowDimensions, View } from 'react-native';
-import { BarChart, BentoGrid, Card, ListCard, PillButton, ScreenContainer, StatTile, Text } from '@/components';
-import { MOTION_ICONS, today } from '@/lib/data';
-import { formatLongDate } from '@/lib/format';
-import { colors, space, WIDE } from '@/lib/theme';
-import { EmptyState } from '@/features/results/EmptyState';
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useWindowDimensions, View } from "react-native";
+import {
+  BarChart,
+  BentoGrid,
+  Card,
+  ListCard,
+  PillButton,
+  ScreenContainer,
+  StatTile,
+  Text,
+} from "@/components";
+import { MOTION_ICONS, today } from "@/lib/data";
+import { formatLongDate } from "@/lib/format";
+import { colors, space, WIDE } from "@/lib/theme";
+import { EmptyState } from "@/features/results/EmptyState";
 import {
   cadenceTrend,
   currentPatient,
@@ -14,7 +23,7 @@ import {
   recentSessions,
   sessionRow,
   weekCounts,
-} from '@/features/results/derive';
+} from "@/features/results/derive";
 
 export default function HomeScreen() {
   const wide = useWindowDimensions().width >= WIDE;
@@ -25,16 +34,16 @@ export default function HomeScreen() {
   const weekTotal = week.reduce((sum, d) => sum + d.value, 0);
   const recent = recentSessions(list);
   const focus = currentPatient()?.exercises[0];
-  const startTracking = () => router.push('/track/motion-type');
+  const startTracking = () => router.push("/track/motion-type");
 
   return (
     <ScreenContainer gap={wide ? 24 : 16}>
       {/* Greeting + main action */}
       <View
         style={{
-          flexDirection: wide ? 'row' : 'column',
-          alignItems: wide ? 'flex-end' : 'stretch',
-          justifyContent: 'space-between',
+          flexDirection: wide ? "row" : "column",
+          alignItems: wide ? "flex-end" : "stretch",
+          justifyContent: "space-between",
           gap: space.lg,
         }}
       >
@@ -46,7 +55,13 @@ export default function HomeScreen() {
             {formatLongDate(day)}
           </Text>
         </View>
-        <PillButton label="Start tracking" icon="play" size="lg" fullWidth={!wide} onPress={startTracking} />
+        <PillButton
+          label="Start tracking"
+          icon="play"
+          size="lg"
+          fullWidth={!wide}
+          onPress={startTracking}
+        />
       </View>
 
       {/* Hero cadence + today's focus */}
@@ -54,7 +69,7 @@ export default function HomeScreen() {
         <View style={{ flex: 1 }}>
           <StatTile
             label="Cadence"
-            value={latest ? latest.cadence : '—'}
+            value={latest ? latest.cadence : "—"}
             unit="steps/min"
             icon="footsteps"
             waveform={cadenceTrend(list)}
@@ -62,8 +77,15 @@ export default function HomeScreen() {
             style={{ flex: 1, paddingBottom: latest ? 20 : 64 }}
           />
           {!latest && (
-            <View pointerEvents="none" style={{ position: 'absolute', left: 20, right: 20, bottom: 20 }}>
-              <Text variant="callout" weight={700} color={colors.onSeagrassMuted}>
+            <View
+              pointerEvents="none"
+              style={{ position: "absolute", left: 20, right: 20, bottom: 20 }}
+            >
+              <Text
+                variant="callout"
+                weight={700}
+                color={colors.onSeagrassMuted}
+              >
                 Track your first session to see your cadence here.
               </Text>
             </View>
@@ -71,18 +93,41 @@ export default function HomeScreen() {
         </View>
 
         <Card tone="dark" style={{ flex: 1, gap: space.md, minHeight: 160 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.whiteTint, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={focus?.icon ?? 'flag'} size={20} color={colors.onDark} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: space.sm,
+            }}
+          >
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: colors.burntorangeTint,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons
+                name={focus?.icon ?? "flag"}
+                size={20}
+                color={colors.burntorange}
+              />
             </View>
             <Text variant="callout" weight={700} muted>
               Today's focus
             </Text>
           </View>
           <View style={{ gap: space.xs }}>
-            <Text variant="headline">{focus ? focus.name : 'Your plan is on its way'}</Text>
+            <Text variant="headline">
+              {focus ? focus.name : "Your plan is on its way"}
+            </Text>
             <Text variant="callout" muted>
-              {focus ? focus.dosage : 'Your clinician will add exercises here. Until then, a short, easy walk is a great start.'}
+              {focus
+                ? focus.dosage
+                : "Your clinician will add exercises here. Until then, a short, easy walk is a great start."}
             </Text>
           </View>
         </Card>
@@ -91,10 +136,17 @@ export default function HomeScreen() {
       {/* This week + recent sessions */}
       <BentoGrid weights={[1, 1]}>
         <Card style={{ flex: 1, gap: space.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: space.sm,
+            }}
+          >
             <Text variant="headline">Sessions this week</Text>
             <Text variant="callout" weight={700} muted>
-              {weekTotal === 0 ? 'None yet' : `${weekTotal} total`}
+              {weekTotal === 0 ? "None yet" : `${weekTotal} total`}
             </Text>
           </View>
           {/* Today (last bar) gets the Cherry Blossom highlight once it has a session. */}
@@ -130,7 +182,11 @@ export default function HomeScreen() {
               })}
             </View>
           ) : (
-            <EmptyState icon="walk" title="No sessions yet" line="Your sessions will show up here after you track one." />
+            <EmptyState
+              icon="walk"
+              title="No sessions yet"
+              line="Your sessions will show up here after you track one."
+            />
           )}
         </Card>
       </BentoGrid>

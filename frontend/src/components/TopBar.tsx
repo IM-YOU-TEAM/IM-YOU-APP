@@ -1,15 +1,15 @@
-import { Ionicons } from '@expo/vector-icons';
-import { Link } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { outlineIcon } from '@/lib/icons';
-import { colors, MAX_CONTENT_WIDTH, radii, shadows, space } from '@/lib/theme';
-import type { IconName } from '@/types';
-import { GlassCard } from './GlassCard';
-import { Logo } from './Logo';
-import { logout, type NavItem } from './Sidebar';
-import { Text } from './Text';
+import { Ionicons } from "@expo/vector-icons";
+import { Link } from "expo-router";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { outlineIcon } from "@/lib/icons";
+import { colors, MAX_CONTENT_WIDTH, radii, shadows, space } from "@/lib/theme";
+import type { IconName } from "@/types";
+import { GlassCard } from "./GlassCard";
+import { Logo } from "./Logo";
+import { logout, type NavItem } from "./Sidebar";
+import { Text } from "./Text";
 
 type Props = {
   items: NavItem[];
@@ -33,23 +33,42 @@ export function TopBar({ items, onLogout = logout }: Props) {
           <View style={styles.tabs}>
             {items.map((item) => (
               <Link key={item.label} href={item.href} asChild>
-                <TabButton label={item.label} icon={item.icon} active={item.active} />
+                <TabButton
+                  label={item.label}
+                  icon={item.icon}
+                  active={item.active}
+                />
               </Link>
             ))}
           </View>
         </GlassCard>
-        <View style={[styles.side, { alignItems: 'flex-end' }]}>
-          <TabButton label="Log out" icon="log-out-outline" onPress={onLogout} />
+        <View style={[styles.side, { alignItems: "flex-end" }]}>
+          <TabButton
+            label="Log out"
+            icon="log-out-outline"
+            onPress={onLogout}
+          />
         </View>
       </View>
     </View>
   );
 }
 
-type ButtonProps = { label: string; icon: IconName; active?: boolean; onPress?: () => void };
+type ButtonProps = {
+  label: string;
+  icon: IconName;
+  active?: boolean;
+  onPress?: () => void;
+};
 
 // Link (asChild) injects onPress/href, so this accepts and forwards extra props.
-function TabButton({ label, icon, active = false, onPress, ...linkProps }: ButtonProps & Record<string, unknown>) {
+function TabButton({
+  label,
+  icon,
+  active = false,
+  onPress,
+  ...linkProps
+}: ButtonProps & Record<string, unknown>) {
   const [hovered, setHovered] = useState(false);
   return (
     <Pressable
@@ -57,16 +76,22 @@ function TabButton({ label, icon, active = false, onPress, ...linkProps }: Butto
       onPress={onPress}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
-      accessibilityRole={linkProps.href ? 'link' : 'button'}
+      accessibilityRole={linkProps.href ? "link" : "button"}
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       style={({ pressed }) => [
         styles.button,
-        active ? [styles.active, shadows.card] : hovered && { backgroundColor: colors.fill },
+        active
+          ? [styles.active, shadows.card]
+          : hovered && { backgroundColor: colors.fill },
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <Ionicons name={active ? icon : outlineIcon(icon)} size={18} color={active ? colors.seagrass : colors.textMuted} />
+      <Ionicons
+        name={active ? icon : outlineIcon(icon)}
+        size={18}
+        color={active ? colors.burntorange : colors.textMuted}
+      />
       <Text variant="callout" weight={active ? 600 : 500} muted={!active}>
         {label}
       </Text>
@@ -77,12 +102,18 @@ function TabButton({ label, icon, active = false, onPress, ...linkProps }: Butto
 const styles = StyleSheet.create({
   // zIndex keeps the glass shadow above the page content below it.
   wrap: { paddingHorizontal: space.xxl, paddingBottom: space.xs, zIndex: 1 },
-  inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', flexDirection: 'row', alignItems: 'center' },
+  inner: {
+    width: "100%",
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+  },
   side: { flex: 1 },
-  tabs: { flexDirection: 'row', gap: 2 },
+  tabs: { flexDirection: "row", gap: 2 },
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: space.sm,
     minHeight: 40,
     paddingHorizontal: space.lg,

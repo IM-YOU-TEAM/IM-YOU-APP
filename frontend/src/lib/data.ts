@@ -9,7 +9,7 @@ import type {
   MotionType,
   Patient,
   Session,
-} from '@/types';
+} from "@/types";
 
 export const patients: Patient[] = [];
 export const sessions: Session[] = [];
@@ -21,32 +21,32 @@ export const clinician: Clinician | null = null;
 /** Today's date as "YYYY-MM-DD" (local time). */
 export function today(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // ---------- Labels and icons ----------
 export const MOTION_LABELS: Labels<MotionType> = {
-  walking: 'Walking',
-  running: 'Running',
-  stairs: 'Stairs',
-  sitToStand: 'Sit-to-stand',
+  walking: "Walking",
+  running: "Running",
+  stairs: "Stairs",
+  sitToStand: "Sit-to-stand",
 };
 
 export const METHOD_LABELS: Labels<CaptureMethod> = {
-  cv: 'Camera',
-  imu: 'Phone sensors',
+  cv: "Camera",
+  imu: "Phone sensors",
 };
 
 export const MOTION_ICONS: Record<MotionType, IconName> = {
-  walking: 'walk',
-  running: 'speedometer',
-  stairs: 'trending-up',
-  sitToStand: 'repeat',
+  walking: "walk",
+  running: "speedometer",
+  stairs: "trending-up",
+  sitToStand: "repeat",
 };
 
 export const METHOD_ICONS: Record<CaptureMethod, IconName> = {
-  cv: 'camera',
-  imu: 'phone-portrait',
+  cv: "camera",
+  imu: "phone-portrait",
 };
 
 // ---------- Helpers ----------
@@ -60,7 +60,9 @@ export function getSession(id: string): Session | undefined {
 
 /** A patient's sessions, oldest first. */
 export function sessionsFor(patientId: string): Session[] {
-  return sessions.filter((x) => x.patientId === patientId).sort((a, b) => a.date.localeCompare(b.date));
+  return sessions
+    .filter((x) => x.patientId === patientId)
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function latestSession(patientId: string): Session | undefined {

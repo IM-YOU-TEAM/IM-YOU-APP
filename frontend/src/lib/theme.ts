@@ -1,37 +1,42 @@
 // Design tokens for I'M U. Every screen and component reads from here.
-import { Platform, type TextStyle, type ViewStyle } from 'react-native';
+import { Platform, type TextStyle, type ViewStyle } from "react-native";
 
 // ---------- Color ----------
 // Five brand colors, plus a few derived alpha variants. Light mode only.
 export const colors = {
-  seagrass: '#269F86', // primary: nav, selected pills, primary buttons, chart lines, hero tile
-  seagrassDark: '#1E8571', // pressed / hover state of seagrass surfaces
-  honeydew: '#D0E1D1', // app background
-  honeydewLight: '#E8F0E8', // pale cards, unselected list cards
-  cherry: '#EDAFB8', // accent ONLY (one highlight per screen)
-  graphite: '#3C3744', // text, icons, dark bento tile
-  white: '#FFFFFF', // main cards
+  seagrass: "#269F86", // primary: nav, selected pills, primary buttons, chart lines, hero tile
+  seagrassDark: "#1E8571", // pressed / hover state of seagrass surfaces
+  honeydew: "#D0E1D1", // app background
+  honeydewLight: "#E8F0E8", // pale cards, unselected list cards
+  cherry: "#EDAFB8", // accent ONLY (one highlight per screen)
+  cherryDark: "#D69AAB", // pressed / hover state of cherry surfaces
+  graphite: "#3C3744", // text, icons, dark bento tile
+  white: "#FFFFFF", // main cards
+  burntorange: "#E8673C", // accent color
+  burntorangeTint: "#FBE3D8", // accent color tint
 
   // Text
-  text: '#3C3744',
-  textMuted: 'rgba(60, 55, 68, 0.78)', // secondary text; passes AA on white and honeydew
-  onSeagrass: '#FFFFFF', // only for bold >= 14 or regular >= 18
-  onSeagrassMuted: 'rgba(255, 255, 255, 0.86)', // secondary text on seagrass (keep it bold)
-  onDark: '#FFFFFF', // text on graphite
-  onDarkMuted: 'rgba(255, 255, 255, 0.74)', // secondary text on graphite
+  text: "#3C3744",
+  textMuted: "rgba(60, 55, 68, 0.78)", // secondary text; passes AA on white and honeydew
+  onSeagrass: "#FFFFFF", // only for bold >= 14 or regular >= 18
+  onSeagrassMuted: "rgba(255, 255, 255, 0.86)", // secondary text on seagrass (keep it bold)
+  onDark: "#FFFFFF", // text on graphite
+  onDarkMuted: "rgba(255, 255, 255, 0.74)", // secondary text on graphite
+  onBurntorange: "#FFFFFF", // text on burntorange
+  onBurntorangeMuted: "#FFFFFF", // secondary text on burntorange
 
   // Lines and fills (iOS-style: hairline separators, tinted neutral fills)
-  border: 'rgba(60, 55, 68, 0.10)',
-  divider: 'rgba(60, 55, 68, 0.08)',
-  separator: 'rgba(60, 55, 68, 0.14)', // hairline (StyleSheet.hairlineWidth)
-  fill: 'rgba(60, 55, 68, 0.06)', // segmented-control tracks, quiet buttons
-  seagrassTint: 'rgba(38, 159, 134, 0.12)', // icon bubbles, soft highlights
-  whiteTint: 'rgba(255, 255, 255, 0.20)', // icon bubbles / active pills on seagrass
+  border: "rgba(60, 55, 68, 0.10)",
+  divider: "rgba(60, 55, 68, 0.08)",
+  separator: "rgba(60, 55, 68, 0.14)", // hairline (StyleSheet.hairlineWidth)
+  fill: "rgba(60, 55, 68, 0.06)", // segmented-control tracks, quiet buttons
+  seagrassTint: "rgba(38, 159, 134, 0.12)", // icon bubbles, soft highlights
+  whiteTint: "rgba(255, 255, 255, 0.20)", // icon bubbles / active pills on seagrass
 
   // Gloss
-  glass: 'rgba(255, 255, 255, 0.68)', // translucent fill behind blur (iOS "regular material")
-  glassBorder: 'rgba(255, 255, 255, 0.85)', // 1px top highlight on glass
-  gloss: 'rgba(255, 255, 255, 0.16)', // soft top sheen on seagrass surfaces
+  glass: "rgba(255, 255, 255, 0.68)", // translucent fill behind blur (iOS "regular material")
+  glassBorder: "rgba(255, 255, 255, 0.85)", // 1px top highlight on glass
+  gloss: "rgba(255, 255, 255, 0.16)", // soft top sheen on seagrass surfaces
 } as const;
 
 // ---------- Shape ----------
@@ -44,7 +49,9 @@ export const radii = {
 } as const;
 
 /** iOS "squircle" corners. Spread into any rounded, non-pill surface: { ...continuous }. */
-export const continuous = { borderCurve: 'continuous' } as const satisfies ViewStyle;
+export const continuous = {
+  borderCurve: "continuous",
+} as const satisfies ViewStyle;
 
 // ---------- Spacing ----------
 export const space = {
@@ -68,7 +75,12 @@ export const MIN_HIT = 44; // minimum touch target
 
 // ---------- Shadow ----------
 // Soft, offset shadows. iOS uses shadow*, Android uses elevation, web uses boxShadow.
-function shadow(y: number, blur: number, opacity: number, elevation: number): ViewStyle {
+function shadow(
+  y: number,
+  blur: number,
+  opacity: number,
+  elevation: number,
+): ViewStyle {
   return Platform.select<ViewStyle>({
     ios: {
       shadowColor: colors.graphite,
@@ -91,14 +103,20 @@ export const shadows = {
 // Sizes follow the iOS Dynamic Type defaults (Large Title 34, Title 2 22, Headline 17, Body 17, Subheadline 15, Footnote 13).
 // Native platforms use their system UI face (San Francisco on iOS, Roboto on Android).
 const SYSTEM_FONT = Platform.select({
-  ios: 'System',
-  android: 'sans-serif',
-  default: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif',
+  ios: "System",
+  android: "sans-serif",
+  default:
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif',
 });
 
 export type FontWeight = 400 | 500 | 600 | 700 | 800;
 
-type TypeStep = { fontSize: number; lineHeight: number; weight: FontWeight; letterSpacing?: number };
+type TypeStep = {
+  fontSize: number;
+  lineHeight: number;
+  weight: FontWeight;
+  letterSpacing?: number;
+};
 
 export const type = {
   display: { fontSize: 34, lineHeight: 41, weight: 700, letterSpacing: -0.8 }, // large title
@@ -112,12 +130,15 @@ export const type = {
 export type TypeVariant = keyof typeof type;
 
 /** Style object for a type step, with an optional weight override. */
-export function typeStyle(variant: TypeVariant, weight?: FontWeight): TextStyle {
+export function typeStyle(
+  variant: TypeVariant,
+  weight?: FontWeight,
+): TextStyle {
   const step: TypeStep = type[variant];
   const resolvedWeight = weight ?? step.weight;
   return {
     fontFamily: SYSTEM_FONT,
-    fontWeight: String(resolvedWeight) as TextStyle['fontWeight'],
+    fontWeight: String(resolvedWeight) as TextStyle["fontWeight"],
     fontSize: step.fontSize,
     lineHeight: step.lineHeight,
     letterSpacing: step.letterSpacing ?? 0,

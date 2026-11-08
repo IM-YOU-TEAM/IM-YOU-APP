@@ -28,7 +28,6 @@ export function ListCard({ title, subtitle, icon, trailing, chevron, selected = 
   const [hovered, setHovered] = useState(false);
   const showChevron = chevron ?? !!onPress;
   const bg = selected ? colors.seagrass : hovered && onPress ? colors.white : colors.honeydewLight;
-  const ink = selected ? colors.onSeagrass : colors.seagrass;
 
   const row = (
     <Pressable
@@ -44,8 +43,8 @@ export function ListCard({ title, subtitle, icon, trailing, chevron, selected = 
       style={({ pressed }) => [styles.row, { backgroundColor: bg, opacity: pressed ? 0.8 : 1 }]}
     >
       {icon && (
-        <View style={[styles.bubble, { backgroundColor: selected ? colors.whiteTint : colors.white }]}>
-          <Ionicons name={icon} size={20} color={ink} />
+        <View style={[styles.bubble, { backgroundColor: colors.burntorangeTint }]}>
+          <Ionicons name={icon} size={20} color={colors.burntorange} />
         </View>
       )}
       <View style={{ flex: 1, gap: 2 }}>

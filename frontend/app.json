@@ -16,6 +16,11 @@
       "backgroundColor": "#D0E1D1",
       "themeColor": "#269F86"
     },
-    "plugins": ["expo-router", "expo-font"]
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-splash-screen",
+      "expo-status-bar"
+    ]
   }
 }

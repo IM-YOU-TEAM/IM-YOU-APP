@@ -1,15 +1,21 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useWindowDimensions, View } from 'react-native';
-import { Card, PillButton, ScreenContainer, Text } from '@/components';
-import { CameraSetup } from '@/features/capture/cv/CameraSetup';
-import { FlowHeader } from '@/features/capture/FlowHeader';
-import { BodyPlacement } from '@/features/capture/imu/BodyPlacement';
-import { MissingParams } from '@/features/capture/MissingParams';
-import { parseMethod, parseMotion } from '@/features/capture/params';
-import { BODY_SPOT_LABELS, CV_DISTANCE_M, IMU_SPOT, placementSteps, type PlacementStep } from '@/features/capture/placementSteps';
-import { METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
-import { colors, GAP, space, WIDE } from '@/lib/theme';
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import { useWindowDimensions, View } from "react-native";
+import { Card, PillButton, ScreenContainer, Text } from "@/components";
+import { CameraSetup } from "@/features/capture/cv/CameraSetup";
+import { FlowHeader } from "@/features/capture/FlowHeader";
+import { BodyPlacement } from "@/features/capture/imu/BodyPlacement";
+import { MissingParams } from "@/features/capture/MissingParams";
+import { parseMethod, parseMotion } from "@/features/capture/params";
+import {
+  BODY_SPOT_LABELS,
+  CV_DISTANCE_M,
+  IMU_SPOT,
+  placementSteps,
+  type PlacementStep,
+} from "@/features/capture/placementSteps";
+import { METHOD_LABELS, MOTION_LABELS } from "@/lib/data";
+import { colors, GAP, space, WIDE } from "@/lib/theme";
 
 // Step 3: where to put the phone, for the chosen motion + method.
 export default function PlacementGuideScreen() {
@@ -22,9 +28,9 @@ export default function PlacementGuideScreen() {
 
   const steps = placementSteps(motion, method);
   const caption =
-    method === 'cv'
+    method === "cv"
       ? `Phone on the floor, ${CV_DISTANCE_M[motion]} m away, side view`
-      : `${BODY_SPOT_LABELS[IMU_SPOT[motion]]}${IMU_SPOT[motion] === 'lowerBack' ? ' (back view)' : ''}`;
+      : `${BODY_SPOT_LABELS[IMU_SPOT[motion]]}${IMU_SPOT[motion] === "lowerBack" ? " (back view)" : ""}`;
 
   const drawing = (
     <Card style={{ gap: space.md, flex: wide ? 1 : undefined }}>
@@ -32,12 +38,34 @@ export default function PlacementGuideScreen() {
         accessible
         accessibilityRole="image"
         accessibilityLabel={`Drawing: ${caption}`}
-        style={{ height: method === 'cv' ? 220 : 280, flexGrow: wide ? 1 : 0 }}
+        style={{ height: method === "cv" ? 220 : 280, flexGrow: wide ? 1 : 0 }}
       >
-        {method === 'cv' ? <CameraSetup motion={motion} /> : <BodyPlacement spot={IMU_SPOT[motion]} />}
+        {method === "cv" ? (
+          <CameraSetup motion={motion} />
+        ) : (
+          <BodyPlacement spot={IMU_SPOT[motion]} />
+        )}
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
-        <Ionicons name="location" size={18} color={colors.seagrass} />
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: space.sm,
+        }}
+      >
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            backgroundColor: colors.burntorangeTint,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name="location" size={16} color={colors.burntorange} />
+        </View>
         <Text variant="callout" weight={700}>
           {caption}
         </Text>
@@ -47,17 +75,30 @@ export default function PlacementGuideScreen() {
 
   return (
     <ScreenContainer maxWidth={1000} gap={space.xl}>
-      <FlowHeader step={3} backTo={{ pathname: '/track/method', params: { motion, method } }} />
+      <FlowHeader
+        step={3}
+        backTo={{ pathname: "/track/method", params: { motion, method } }}
+      />
       <View style={{ gap: space.sm }}>
         <Text variant="display">Set up your phone</Text>
         <Text muted>
-          {MOTION_LABELS[motion]}, tracked with your {METHOD_LABELS[method].toLowerCase()}. About a minute to get ready.
+          {MOTION_LABELS[motion]}, tracked with your{" "}
+          {METHOD_LABELS[method].toLowerCase()}. About a minute to get ready.
         </Text>
       </View>
 
-      <View style={{ flexDirection: wide ? 'row' : 'column', gap: GAP, alignItems: 'stretch' }}>
+      <View
+        style={{
+          flexDirection: wide ? "row" : "column",
+          gap: GAP,
+          alignItems: "stretch",
+        }}
+      >
         {drawing}
-        <View style={{ flex: wide ? 1 : undefined, gap: space.md }} accessibilityRole="list">
+        <View
+          style={{ flex: wide ? 1 : undefined, gap: space.md }}
+          accessibilityRole="list"
+        >
           {steps.map((s, i) => (
             <StepCard key={s.title} step={s} n={i + 1} />
           ))}
@@ -69,9 +110,14 @@ export default function PlacementGuideScreen() {
         icon="arrow-forward"
         iconRight
         size="lg"
-        onPress={() => router.push({ pathname: '/track/session', params: { motion, method } })}
+        onPress={() =>
+          router.push({
+            pathname: "/track/session",
+            params: { motion, method },
+          })
+        }
         fullWidth={!wide}
-        style={wide ? { alignSelf: 'flex-end' } : undefined}
+        style={wide ? { alignSelf: "flex-end" } : undefined}
       />
     </ScreenContainer>
   );
@@ -79,8 +125,22 @@ export default function PlacementGuideScreen() {
 
 function StepCard({ step, n }: { step: PlacementStep; n: number }) {
   return (
-    <Card padding={space.lg} style={{ flexDirection: 'row', gap: space.md, alignItems: 'flex-start' }} accessible accessibilityLabel={`Step ${n}: ${step.title}. ${step.detail}`}>
-      <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.seagrass, alignItems: 'center', justifyContent: 'center' }}>
+    <Card
+      padding={space.lg}
+      style={{ flexDirection: "row", gap: space.md, alignItems: "flex-start" }}
+      accessible
+      accessibilityLabel={`Step ${n}: ${step.title}. ${step.detail}`}
+    >
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          backgroundColor: colors.seagrass,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <Text variant="callout" weight={800} color={colors.onSeagrass}>
           {n}
         </Text>
@@ -93,7 +153,18 @@ function StepCard({ step, n }: { step: PlacementStep; n: number }) {
           {step.detail}
         </Text>
       </View>
-      <Ionicons name={step.icon} size={22} color={colors.seagrass} style={{ paddingTop: 4 }} />
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: colors.burntorangeTint,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Ionicons name={step.icon} size={20} color={colors.burntorange} />
+      </View>
     </Card>
   );
 }
