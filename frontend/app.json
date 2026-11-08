@@ -9,11 +9,13 @@
     "backgroundColor": "#D0E1D1",
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.movementtrackingteam.imu",
       "infoPlist": {
         "NSCameraUsageDescription": "I'M U uses the camera to measure your movement on this phone."
       }
     },
     "android": {
+      "package": "com.movementtrackingteam.imu",
       "permissions": ["android.permission.CAMERA"]
     },
     "web": {
