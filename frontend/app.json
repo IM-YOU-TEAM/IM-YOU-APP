@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "I'M U",
+    "slug": "im-u",
+    "version": "1.0.0",
+    "scheme": "imu",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#D0E1D1",
+    "ios": {
+      "supportsTablet": true
+    },
+    "web": {
+      "output": "single",
+      "name": "I'M U",
+      "backgroundColor": "#D0E1D1",
+      "themeColor": "#269F86"
+    },
+    "plugins": ["expo-router", "expo-font"]
+  }
+}
