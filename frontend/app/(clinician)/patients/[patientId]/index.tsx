@@ -118,6 +118,17 @@ export default function PatientDetailScreen() {
         )}
       </Card>
 
+      {patient.status === 'linked' ? (
+        <PillButton
+          label="Watch live joint angles"
+          icon="pulse"
+          size="lg"
+          fullWidth={!wide}
+          style={wide ? { alignSelf: 'flex-start' } : undefined}
+          onPress={() => router.push(`/patients/${patient.id}/live`)}
+        />
+      ) : null}
+
       <Card style={{ gap: space.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
           <Text variant="headline">Recent sessions</Text>

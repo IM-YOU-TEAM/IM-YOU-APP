@@ -3,37 +3,29 @@ import Svg, { Line, Path } from 'react-native-svg';
 import { Text } from '@/components';
 import { smoothPath } from '@/lib/smoothPath';
 import { colors, radii, space } from '@/lib/theme';
-import type { JointName } from './liveTypes';
+import type { ImuSample } from './protocol';
 
 type Props = {
-  /** Newest window of predicted joint angles, or undefined before the first one. */
-  angles?: Record<JointName, number[]>;
-  /** Shown instead of the trace when there is nothing to draw. */
+  samples: ImuSample[];
   caption?: string;
 };
 
 const W = 320;
 const H = 200;
-/** Enough detail to see the gait cycle without drawing all 250 points. */
 const POINTS = 64;
 
-const TRACES: { joint: JointName; label: string; color: string; opacity?: number }[] = [
-  { joint: 'hip_flexion_r', label: 'Hip', color: colors.seagrass },
-  { joint: 'knee_angle_r', label: 'Knee', color: colors.white },
-  { joint: 'ankle_angle_r', label: 'Ankle', color: colors.honeydew, opacity: 0.55 },
+const TRACES: { key: 'ax' | 'ay' | 'az'; label: string; color: string; opacity?: number }[] = [
+  { key: 'ax', label: 'Ax', color: colors.seagrass },
+  { key: 'ay', label: 'Ay', color: colors.white },
+  { key: 'az', label: 'Az', color: colors.honeydew, opacity: 0.55 },
 ];
 
-/** Thin a series to POINTS evenly spaced samples. */
 function thin(series: number[]): number[] {
   if (series.length <= POINTS) return series;
   const step = (series.length - 1) / (POINTS - 1);
   return Array.from({ length: POINTS }, (_, i) => series[Math.round(i * step)]);
 }
 
-/**
- * One trace scaled into its own horizontal band, so three joints with different
- * ranges stay readable together. A flat line means the angle did not change.
- */
 function tracePath(series: number[], index: number, total: number): string {
   const points = thin(series);
   const band = H / total;
@@ -52,17 +44,15 @@ function tracePath(series: number[], index: number, total: number): string {
   );
 }
 
-/** Live view of the model's predicted joint angles for the last window. */
-export function LiveWaveform({ angles, caption }: Props) {
-  const ready = angles != null && TRACES.every((t) => (angles[t.joint]?.length ?? 0) > 1);
+/** Live accelerometer from this phone. Joint angles belong on the clinician page. */
+export function SensorTrace({ samples, caption }: Props) {
+  const ready = samples.length > 8;
 
   return (
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={
-        ready ? 'Live predicted hip, knee and ankle angles' : caption ?? 'Waiting for sensor data'
-      }
+      accessibilityLabel={ready ? 'Live accelerometer from this phone' : caption ?? 'Waiting for sensors'}
       style={{
         flex: 1,
         minHeight: 300,
@@ -73,11 +63,19 @@ export function LiveWaveform({ angles, caption }: Props) {
       }}
     >
       <View style={{ flexDirection: 'row', gap: space.lg }}>
-        {TRACES.map((t) => (
-          <View key={t.label} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
-            <View style={{ width: 14, height: 4, borderRadius: 2, backgroundColor: t.color, opacity: t.opacity ?? 1 }} />
+        {TRACES.map((trace) => (
+          <View key={trace.label} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
+            <View
+              style={{
+                width: 14,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: trace.color,
+                opacity: trace.opacity ?? 1,
+              }}
+            />
             <Text variant="caption" color={colors.onDarkMuted}>
-              {t.label}
+              {trace.label}
             </Text>
           </View>
         ))}
@@ -97,12 +95,16 @@ export function LiveWaveform({ angles, caption }: Props) {
                 strokeWidth={1}
               />
             ))}
-            {TRACES.map((t, i) => (
+            {TRACES.map((trace, i) => (
               <Path
-                key={t.label}
-                d={tracePath(angles![t.joint], i, TRACES.length)}
-                stroke={t.color}
-                strokeOpacity={t.opacity ?? 1}
+                key={trace.label}
+                d={tracePath(
+                  samples.map((sample) => sample[trace.key]),
+                  i,
+                  TRACES.length,
+                )}
+                stroke={trace.color}
+                strokeOpacity={trace.opacity ?? 1}
                 strokeWidth={2.5}
                 fill="none"
                 strokeLinecap="round"
