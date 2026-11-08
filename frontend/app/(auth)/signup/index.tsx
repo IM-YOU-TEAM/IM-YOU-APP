@@ -1,69 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Logo, PillButton, ScreenContainer, Text, TextField } from '@/components';
-import type { Role } from '@/features/auth/AuthProvider';
 import { supabase } from '@/lib/supabase/client';
-import { colors, continuous, MIN_HIT, radii, space } from '@/lib/theme';
-import type { IconName } from '@/types';
+import { colors, MIN_HIT, space } from '@/lib/theme';
 
-const ROLE_OPTIONS = [
-  {
-    value: 'patient',
-    label: 'Patient',
-    description: 'Track sessions and view progress',
-    icon: 'walk',
-  },
-  {
-    value: 'clinician',
-    label: 'Professional',
-    description: 'Clinicians, researchers, and organizations',
-    icon: 'people',
-  },
-] as const;
-
-type RoleOptionProps = {
-  value: Role;
-  label: string;
-  description: string;
-  icon: IconName;
-  selected: boolean;
-  onPress: (value: Role) => void;
-};
-
-function RoleOption({ value, label, description, icon, selected, onPress }: RoleOptionProps) {
-  return (
-    <Pressable
-      onPress={() => onPress(value)}
-      accessibilityRole="radio"
-      accessibilityState={{ checked: selected }}
-      accessibilityLabel={`${label}. ${description}`}
-      style={({ pressed }) => [
-        styles.roleOption,
-        selected && styles.roleOptionSelected,
-        pressed && styles.pressed,
-      ]}
-    >
-      <Ionicons name={icon} size={22} color={colors.seagrass} />
-      <View style={styles.roleCopy}>
-        <Text variant="headline">{label}</Text>
-        <Text variant="callout" muted>
-          {description}
-        </Text>
-      </View>
-      <View style={styles.checkSlot}>
-        <View style={[styles.selectionRing, selected ? styles.selectionRingOn : styles.selectionRingOff]}>
-          {selected ? <View style={styles.selectionDot} /> : null}
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
+// Account first, role second. profiles.role starts null and only
+// complete_onboarding() can set it, which needs a session, so the role choice
+// lives on /onboarding after the account exists.
 export default function SignupScreen() {
-  const [role, setRole] = useState<Role>('patient');
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -76,7 +21,6 @@ export default function SignupScreen() {
     const { data, error: failure } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { role, full_name: fullName.trim() } },
     });
     setBusy(false);
 
@@ -84,10 +28,10 @@ export default function SignupScreen() {
       setError(failure.message);
       return;
     }
-    // With email confirmation on, signUp returns no session: the account is not
-    // usable until the link is clicked. With it off, we are already signed in.
+    // With email confirmation on, signUp returns no session and the role has to
+    // wait until the link is clicked. With it off, we can onboard right away.
     if (data.session) {
-      router.replace('/');
+      router.replace('/onboarding');
       return;
     }
     setConfirmSent(true);
@@ -109,7 +53,7 @@ export default function SignupScreen() {
               Confirm your email
             </Text>
             <Text variant="callout" muted align="center">
-              We sent a link to {email.trim()}. Open it, then sign in.
+              We sent a link to {email.trim()}. Open it, then sign in to finish setting up.
             </Text>
           </View>
           <PillButton label="Back to sign in" fullWidth onPress={() => router.replace('/login')} />
@@ -132,32 +76,11 @@ export default function SignupScreen() {
             Create your account
           </Text>
           <Text variant="callout" muted align="center">
-            Select how you'll use I'M U.
+            You'll pick how you use I'M U next.
           </Text>
         </View>
 
-        <View accessibilityRole="radiogroup" style={styles.roleGroup}>
-          {ROLE_OPTIONS.map((option, index) => (
-            <View key={option.value}>
-              {index > 0 ? <View style={styles.separator} /> : null}
-              <RoleOption
-                {...option}
-                selected={role === option.value}
-                onPress={setRole}
-              />
-            </View>
-          ))}
-        </View>
-
         <View style={styles.fields}>
-          <TextField
-            label="Full name"
-            value={fullName}
-            onChangeText={setFullName}
-            placeholder="Optional"
-            autoComplete="name"
-            textContentType="name"
-          />
           <TextField
             label="Email"
             value={email}
@@ -223,59 +146,6 @@ const styles = StyleSheet.create({
   heading: {
     alignItems: 'center',
     gap: space.xs,
-  },
-  roleGroup: {
-    width: '100%',
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    backgroundColor: colors.white,
-    ...continuous,
-  },
-  roleOption: {
-    minHeight: 76,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
-  },
-  roleOptionSelected: {
-    backgroundColor: colors.seagrassTint,
-  },
-  roleCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  checkSlot: {
-    width: 22,
-    alignItems: 'center',
-  },
-  selectionRing: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  selectionRingOn: {
-    borderColor: colors.seagrass,
-  },
-  selectionRingOff: {
-    borderColor: colors.border,
-  },
-  selectionDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.seagrass,
-  },
-  separator: {
-    height: StyleSheet.hairlineWidth,
-    marginLeft: 54,
-    backgroundColor: colors.separator,
   },
   fields: {
     width: '100%',

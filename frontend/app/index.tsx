@@ -10,6 +10,8 @@ export default function Index() {
   if (!session) return <Redirect href="/login" />;
   // The profile lookup lands a moment after the session does.
   if (!roleReady) return null;
+  // Signed in but never finished setup: the role is still null in the database.
+  if (role == null) return <Redirect href="/onboarding" />;
 
   return <Redirect href={homeFor(role)} />;
 }

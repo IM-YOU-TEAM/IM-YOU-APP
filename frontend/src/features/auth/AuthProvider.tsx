@@ -1,5 +1,13 @@
 import type { Session } from '@supabase/supabase-js';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { supabase } from '@/lib/supabase/client';
 
 export type Role = 'patient' | 'clinician';
@@ -16,6 +24,12 @@ type AuthValue = {
    * profile still lands somewhere instead of staring at a blank screen.
    */
   roleReady: boolean;
+  /**
+   * Re-reads the role. Onboarding needs this: it sets the role through an RPC,
+   * which the session does not change, so nothing would otherwise refetch and
+   * the index route would bounce straight back to onboarding.
+   */
+  refreshRole: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthValue>({
@@ -23,6 +37,7 @@ const AuthContext = createContext<AuthValue>({
   role: null,
   ready: false,
   roleReady: false,
+  refreshRole: async () => undefined,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -49,6 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const userId = session?.user.id;
 
+  const readRole = useCallback(async (id: string): Promise<Role | null> => {
+    const { data } = await supabase.from('profiles').select('role').eq('id', id).maybeSingle();
+    return (data?.role as Role | undefined) ?? null;
+  }, []);
+
   useEffect(() => {
     if (!userId) {
       setRole(null);
@@ -58,25 +78,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let current = true;
     setRoleReady(false);
-    supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!current) return;
-        setRole((data?.role as Role | undefined) ?? null);
-        setRoleReady(true);
-      });
+    readRole(userId).then((next) => {
+      if (!current) return;
+      setRole(next);
+      setRoleReady(true);
+    });
 
     return () => {
       current = false;
     };
-  }, [userId]);
+  }, [userId, readRole]);
+
+  const refreshRole = useCallback(async () => {
+    if (!userId) return;
+    setRole(await readRole(userId));
+    setRoleReady(true);
+  }, [userId, readRole]);
 
   const value = useMemo(
-    () => ({ session, role, ready, roleReady }),
-    [session, role, ready, roleReady],
+    () => ({ session, role, ready, roleReady, refreshRole }),
+    [session, role, ready, roleReady, refreshRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
