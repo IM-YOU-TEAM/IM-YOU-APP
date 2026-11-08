@@ -9,28 +9,31 @@ const BUCKET = 'exercise-clips';
 let loaded: Map<string, ExerciseClip> | null = null;
 let request: Promise<Map<string, ExerciseClip>> | null = null;
 
+async function fetchClips(): Promise<Map<string, ExerciseClip>> {
+  const { data, error } = await supabase
+    .from('exercise_clips')
+    .select('movement_type, video_path, poster_path, credit');
+  const clips = new Map<string, ExerciseClip>();
+  if (error) {
+    request = null;
+    return clips;
+  }
+  for (const row of data) {
+    const video = supabase.storage.from(BUCKET).getPublicUrl(row.video_path).data.publicUrl;
+    const poster = row.poster_path
+      ? supabase.storage.from(BUCKET).getPublicUrl(row.poster_path).data.publicUrl
+      : null;
+    clips.set(row.movement_type, { video, poster, credit: row.credit });
+  }
+  loaded = clips;
+  return clips;
+}
+
 // The table holds one row per movement, so fetch it once and reuse it on every screen.
 function loadClips(): Promise<Map<string, ExerciseClip>> {
-  request ??= supabase
-    .from('exercise_clips')
-    .select('movement_type, video_path, poster_path, credit')
-    .then(({ data, error }) => {
-    const clips = new Map<string, ExerciseClip>();
-    if (error) {
-      request = null;
-      return clips;
-    }
-    for (const row of data) {
-      const video = supabase.storage.from(BUCKET).getPublicUrl(row.video_path).data.publicUrl;
-      const poster = row.poster_path
-        ? supabase.storage.from(BUCKET).getPublicUrl(row.poster_path).data.publicUrl
-        : null;
-      clips.set(row.movement_type, { video, poster, credit: row.credit });
-    }
-    loaded = clips;
-    return clips;
-    });
-  return request;
+  const pending = request ?? fetchClips();
+  request = pending;
+  return pending;
 }
 
 /** The demonstration clip for a movement: undefined while loading, null when it has none. */
