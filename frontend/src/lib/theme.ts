@@ -20,26 +20,31 @@ export const colors = {
   onDark: '#FFFFFF', // text on graphite
   onDarkMuted: 'rgba(255, 255, 255, 0.74)', // secondary text on graphite
 
-  // Lines and tints
+  // Lines and fills (iOS-style: hairline separators, tinted neutral fills)
   border: 'rgba(60, 55, 68, 0.10)',
   divider: 'rgba(60, 55, 68, 0.08)',
+  separator: 'rgba(60, 55, 68, 0.14)', // hairline (StyleSheet.hairlineWidth)
+  fill: 'rgba(60, 55, 68, 0.06)', // segmented-control tracks, quiet buttons
   seagrassTint: 'rgba(38, 159, 134, 0.12)', // icon bubbles, soft highlights
   whiteTint: 'rgba(255, 255, 255, 0.20)', // icon bubbles / active pills on seagrass
 
   // Gloss
-  glass: 'rgba(255, 255, 255, 0.72)', // translucent fill behind blur
+  glass: 'rgba(255, 255, 255, 0.68)', // translucent fill behind blur (iOS "regular material")
   glassBorder: 'rgba(255, 255, 255, 0.85)', // 1px top highlight on glass
   gloss: 'rgba(255, 255, 255, 0.16)', // soft top sheen on seagrass surfaces
 } as const;
 
 // ---------- Shape ----------
 export const radii = {
-  sm: 12,
-  md: 18,
-  card: 26,
-  lg: 32,
+  sm: 10,
+  md: 16,
+  card: 22,
+  lg: 28,
   pill: 999,
 } as const;
+
+/** iOS "squircle" corners. Spread into any rounded, non-pill surface: { ...continuous }. */
+export const continuous = { borderCurve: 'continuous' } as const satisfies ViewStyle;
 
 // ---------- Spacing ----------
 export const space = {
@@ -77,12 +82,13 @@ function shadow(y: number, blur: number, opacity: number, elevation: number): Vi
 }
 
 export const shadows = {
-  card: shadow(8, 24, 0.08, 3), // cards, list cards
-  raised: shadow(12, 32, 0.12, 6), // buttons, floating bars, tooltips
+  card: shadow(2, 14, 0.06, 2), // cards: barely there, like iOS grouped content
+  raised: shadow(10, 30, 0.12, 6), // floating bars, tooltips, segmented thumbs
   none: {} as ViewStyle,
 } as const;
 
 // ---------- Type ----------
+// Sizes follow the iOS Dynamic Type defaults (Large Title 34, Title 2 22, Headline 17, Body 17, Subheadline 15, Footnote 13).
 // Font: Plus Jakarta Sans. To swap the font, change the families here and the useFonts call in app/_layout.tsx.
 export const fonts = {
   400: 'PlusJakartaSans_400Regular',
@@ -97,12 +103,12 @@ export type FontWeight = keyof typeof fonts;
 type TypeStep = { fontSize: number; lineHeight: number; weight: FontWeight; letterSpacing?: number };
 
 export const type = {
-  display: { fontSize: 34, lineHeight: 40, weight: 800, letterSpacing: -0.6 },
-  title: { fontSize: 26, lineHeight: 32, weight: 700, letterSpacing: -0.4 },
-  headline: { fontSize: 19, lineHeight: 24, weight: 700, letterSpacing: -0.2 },
-  body: { fontSize: 16, lineHeight: 23, weight: 400 },
-  callout: { fontSize: 14, lineHeight: 20, weight: 500 },
-  caption: { fontSize: 12, lineHeight: 16, weight: 600, letterSpacing: 0.1 },
+  display: { fontSize: 34, lineHeight: 41, weight: 700, letterSpacing: -0.8 }, // large title
+  title: { fontSize: 22, lineHeight: 28, weight: 700, letterSpacing: -0.4 }, // section / card title
+  headline: { fontSize: 17, lineHeight: 22, weight: 600, letterSpacing: -0.2 },
+  body: { fontSize: 17, lineHeight: 24, weight: 400, letterSpacing: -0.2 },
+  callout: { fontSize: 15, lineHeight: 20, weight: 500, letterSpacing: -0.1 }, // subheadline
+  caption: { fontSize: 13, lineHeight: 18, weight: 500 }, // footnote
 } as const satisfies Record<string, TypeStep>;
 
 export type TypeVariant = keyof typeof type;

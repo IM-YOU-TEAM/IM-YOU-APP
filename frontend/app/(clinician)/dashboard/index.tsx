@@ -4,7 +4,7 @@ import { ScreenContainer, Text } from '@/components';
 export default function DashboardScreen() {
   return (
     <ScreenContainer>
-      <Text variant="title">Dashboard</Text>
+      <Text variant="display">Dashboard</Text>
     </ScreenContainer>
   );
 }

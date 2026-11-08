@@ -11,7 +11,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { colors } from '@/lib/theme';
 import { applyWebStyles } from '@/lib/webStyles';
 
@@ -37,8 +37,11 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);
   }, [ready]);
 
-  // The Stack stays mounted (so deep links like /patients/p1 keep their route);
-  // a plain Honeydew cover hides it until the fonts are ready.
+  // Native: wait for fonts, or text is measured with the fallback font and gets cut off.
+  if (!ready && Platform.OS !== 'web') return null;
+
+  // Web: keep the Stack mounted so deep links like /patients/p1 keep their route,
+  // and hide it behind a plain Honeydew cover until the fonts are ready.
   return (
     <>
       <StatusBar style="dark" />

@@ -8,7 +8,7 @@ export default function PatientDetailScreen() {
   const patient = getPatient(patientId);
   return (
     <ScreenContainer>
-      <Text variant="title">{patient?.name ?? 'Patient not found'}</Text>
+      <Text variant="display">{patient?.name ?? 'Patient not found'}</Text>
     </ScreenContainer>
   );
 }

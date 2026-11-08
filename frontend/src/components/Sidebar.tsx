@@ -3,11 +3,12 @@ import { Link, router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, MIN_HIT, radii, shadows, SIDEBAR_WIDTH, space } from '@/lib/theme';
+import { outlineIcon } from '@/lib/icons';
+import { colors, continuous, MIN_HIT, radii, SIDEBAR_WIDTH, space } from '@/lib/theme';
 import type { IconName } from '@/types';
-import { Gloss } from './Gloss';
+import { GlassCard } from './GlassCard';
 import { Logo } from './Logo';
-import { OnDark, Text } from './Text';
+import { Text } from './Text';
 
 export type NavItem = {
   label: string;
@@ -24,23 +25,21 @@ type Props = {
 
 export const logout = () => router.replace('/login');
 
-/** Glossy Seagrass navigation column for the clinician side on wide screens (>= WIDE). */
+/** iPadOS-style sidebar for the clinician side on wide screens (>= WIDE): glass panel, Seagrass selection. */
 export function Sidebar({ items, onLogout = logout }: Props) {
   const insets = useSafeAreaInsets();
   return (
-    <OnDark>
-      <View
-        accessibilityRole="navigation"
-        style={[styles.bar, { marginTop: insets.top + space.lg, marginBottom: insets.bottom + space.lg }, shadows.raised]}
-      >
-        {/* Fill + gloss in a clipped layer so the shadow is not clipped */}
-        <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.fill]}>
-          <Gloss />
+    <GlassCard
+      padding={0}
+      radius={radii.lg}
+      intensity={50}
+      style={[styles.panel, { marginTop: insets.top + space.lg, marginBottom: insets.bottom + space.lg }]}
+    >
+      <View accessibilityRole="navigation" style={styles.inner}>
+        <View style={styles.logo}>
+          <Logo size={32} />
         </View>
-        <View style={{ paddingHorizontal: space.sm, paddingBottom: space.xxl }}>
-          <Logo onDark size={36} />
-        </View>
-        <View style={{ gap: space.xs }}>
+        <View style={{ gap: 2 }}>
           {items.map((item) => (
             <Link key={item.label} href={item.href} asChild>
               <SidebarRow label={item.label} icon={item.icon} active={item.active} />
@@ -50,7 +49,7 @@ export function Sidebar({ items, onLogout = logout }: Props) {
         <View style={{ flex: 1 }} />
         <SidebarRow label="Log out" icon="log-out-outline" onPress={onLogout} />
       </View>
-    </OnDark>
+    </GlassCard>
   );
 }
 
@@ -68,10 +67,14 @@ function SidebarRow({ label, icon, active = false, onPress, ...linkProps }: RowP
       accessibilityRole={linkProps.href ? 'link' : 'button'}
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      style={[styles.row, { backgroundColor: active ? colors.white : hovered ? colors.whiteTint : 'transparent' }]}
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: active ? colors.seagrass : hovered ? colors.fill : 'transparent', opacity: pressed ? 0.75 : 1 },
+      ]}
     >
-      <Ionicons name={icon} size={22} color={active ? colors.seagrass : colors.onSeagrass} />
-      <Text weight={700} color={active ? colors.graphite : colors.onSeagrass}>
+      <Ionicons name={active ? icon : outlineIcon(icon)} size={21} color={active ? colors.onSeagrass : colors.seagrass} />
+      {/* White on Seagrass stays bold (brand contrast rule). */}
+      <Text variant="body" weight={active ? 700 : 500} color={active ? colors.onSeagrass : colors.text}>
         {label}
       </Text>
     </Pressable>
@@ -79,20 +82,16 @@ function SidebarRow({ label, icon, active = false, onPress, ...linkProps }: RowP
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    width: SIDEBAR_WIDTH,
-    marginLeft: space.lg,
-    padding: space.lg,
-    paddingTop: space.xl,
-    borderRadius: radii.lg,
-  },
-  fill: { borderRadius: radii.lg, overflow: 'hidden', backgroundColor: colors.seagrass },
+  panel: { width: SIDEBAR_WIDTH, marginLeft: space.lg },
+  inner: { flex: 1, padding: space.md, paddingTop: space.xl },
+  logo: { paddingHorizontal: space.md, paddingBottom: space.xl },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    minHeight: MIN_HIT + 4,
+    minHeight: MIN_HIT,
     paddingHorizontal: space.md,
-    borderRadius: radii.pill,
+    borderRadius: radii.sm + 2,
+    ...continuous,
   },
 });

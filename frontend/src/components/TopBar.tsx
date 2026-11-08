@@ -3,12 +3,13 @@ import { Link } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, MAX_CONTENT_WIDTH, MIN_HIT, radii, shadows, space } from '@/lib/theme';
+import { outlineIcon } from '@/lib/icons';
+import { colors, MAX_CONTENT_WIDTH, radii, shadows, space } from '@/lib/theme';
 import type { IconName } from '@/types';
-import { Gloss } from './Gloss';
+import { GlassCard } from './GlassCard';
 import { Logo } from './Logo';
 import { logout, type NavItem } from './Sidebar';
-import { OnDark, Text } from './Text';
+import { Text } from './Text';
 
 type Props = {
   items: NavItem[];
@@ -16,36 +17,39 @@ type Props = {
   onLogout?: () => void;
 };
 
-/** Glossy Seagrass navigation bar across the top, for the patient side on wide screens (>= WIDE). */
+/**
+ * Top navigation for the patient side on wide screens (>= WIDE): logo on the left,
+ * a centered glass capsule of tabs (selected tab on a white thumb), and Log out on the right.
+ */
 export function TopBar({ items, onLogout = logout }: Props) {
   const insets = useSafeAreaInsets();
   return (
-    <OnDark>
-      <View style={{ paddingTop: insets.top + space.lg, paddingHorizontal: space.xxl, zIndex: 1 }}>
-        <View accessibilityRole="navigation" style={[styles.bar, shadows.raised]}>
-          {/* Fill + gloss in a clipped layer so the shadow is not clipped */}
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.fill]}>
-            <Gloss />
-          </View>
-          <Logo onDark size={32} />
-          <View style={styles.items}>
+    <View style={[styles.wrap, { paddingTop: insets.top + space.lg }]}>
+      <View accessibilityRole="navigation" style={styles.inner}>
+        <View style={styles.side}>
+          <Logo size={32} />
+        </View>
+        <GlassCard padding={4} radius={radii.pill} intensity={60}>
+          <View style={styles.tabs}>
             {items.map((item) => (
               <Link key={item.label} href={item.href} asChild>
-                <TopBarButton label={item.label} icon={item.icon} active={item.active} />
+                <TabButton label={item.label} icon={item.icon} active={item.active} />
               </Link>
             ))}
           </View>
-          <TopBarButton label="Log out" icon="log-out-outline" onPress={onLogout} />
+        </GlassCard>
+        <View style={[styles.side, { alignItems: 'flex-end' }]}>
+          <TabButton label="Log out" icon="log-out-outline" onPress={onLogout} />
         </View>
       </View>
-    </OnDark>
+    </View>
   );
 }
 
 type ButtonProps = { label: string; icon: IconName; active?: boolean; onPress?: () => void };
 
 // Link (asChild) injects onPress/href, so this accepts and forwards extra props.
-function TopBarButton({ label, icon, active = false, onPress, ...linkProps }: ButtonProps & Record<string, unknown>) {
+function TabButton({ label, icon, active = false, onPress, ...linkProps }: ButtonProps & Record<string, unknown>) {
   const [hovered, setHovered] = useState(false);
   return (
     <Pressable
@@ -56,10 +60,14 @@ function TopBarButton({ label, icon, active = false, onPress, ...linkProps }: Bu
       accessibilityRole={linkProps.href ? 'link' : 'button'}
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      style={[styles.button, { backgroundColor: active ? colors.white : hovered ? colors.whiteTint : 'transparent' }]}
+      style={({ pressed }) => [
+        styles.button,
+        active ? [styles.active, shadows.card] : hovered && { backgroundColor: colors.fill },
+        { opacity: pressed ? 0.7 : 1 },
+      ]}
     >
-      <Ionicons name={icon} size={20} color={active ? colors.seagrass : colors.onSeagrass} />
-      <Text weight={700} color={active ? colors.graphite : colors.onSeagrass}>
+      <Ionicons name={active ? icon : outlineIcon(icon)} size={18} color={active ? colors.seagrass : colors.textMuted} />
+      <Text variant="callout" weight={active ? 600 : 500} muted={!active}>
         {label}
       </Text>
     </Pressable>
@@ -67,26 +75,18 @@ function TopBarButton({ label, icon, active = false, onPress, ...linkProps }: Bu
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    width: '100%',
-    maxWidth: MAX_CONTENT_WIDTH,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.xl,
-    paddingVertical: space.sm,
-    paddingLeft: space.xl,
-    paddingRight: space.sm,
-    borderRadius: radii.pill,
-  },
-  fill: { borderRadius: radii.pill, overflow: 'hidden', backgroundColor: colors.seagrass },
-  items: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: space.xs },
+  // zIndex keeps the glass shadow above the page content below it.
+  wrap: { paddingHorizontal: space.xxl, paddingBottom: space.xs, zIndex: 1 },
+  inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', flexDirection: 'row', alignItems: 'center' },
+  side: { flex: 1 },
+  tabs: { flexDirection: 'row', gap: 2 },
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.sm,
-    minHeight: MIN_HIT + 4,
+    minHeight: 40,
     paddingHorizontal: space.lg,
     borderRadius: radii.pill,
   },
+  active: { backgroundColor: colors.white },
 });

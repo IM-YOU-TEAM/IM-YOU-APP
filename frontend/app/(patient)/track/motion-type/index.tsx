@@ -4,7 +4,7 @@ import { ScreenContainer, Text } from '@/components';
 export default function MotionTypeScreen() {
   return (
     <ScreenContainer>
-      <Text variant="title">Choose a motion</Text>
+      <Text variant="display">Choose a motion</Text>
     </ScreenContainer>
   );
 }

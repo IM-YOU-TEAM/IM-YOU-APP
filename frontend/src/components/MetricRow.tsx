@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, space } from '@/lib/theme';
 import { Text } from './Text';
 
@@ -16,13 +16,13 @@ export function MetricRow({ items, style }: Props) {
     <View style={[{ flexDirection: 'row', alignItems: 'stretch' }, style]}>
       {items.map((m, i) => (
         <Fragment key={m.label}>
-          {i > 0 && <View style={{ width: 1, backgroundColor: colors.border, marginHorizontal: space.md }} />}
+          {i > 0 && <View style={{ width: StyleSheet.hairlineWidth * 2, backgroundColor: colors.separator, marginHorizontal: space.lg }} />}
           <View
             style={{ flex: 1, gap: 2 }}
             accessible
             accessibilityLabel={`${m.label}: ${m.value}`}
           >
-            <Text variant="headline" numberOfLines={1}>
+            <Text variant="title" numberOfLines={1} style={{ fontVariant: ['tabular-nums'] }}>
               {m.value}
             </Text>
             <Text variant="caption" muted numberOfLines={1}>
