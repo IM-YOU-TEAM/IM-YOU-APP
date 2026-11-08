@@ -72,7 +72,7 @@ function SidebarRow({ label, icon, active = false, onPress, ...linkProps }: RowP
         { backgroundColor: active ? colors.seagrass : hovered ? colors.fill : 'transparent', opacity: pressed ? 0.75 : 1 },
       ]}
     >
-      <Ionicons name={active ? icon : outlineIcon(icon)} size={21} color={active ? colors.onSeagrass : colors.seagrass} />
+      <Ionicons name={active ? icon : outlineIcon(icon)} size={21} color={active ? colors.onSeagrass : colors.burntOrange} />
       {/* White on Seagrass stays bold (brand contrast rule). */}
       <Text variant="body" weight={active ? 700 : 500} color={active ? colors.onSeagrass : colors.text}>
         {label}

@@ -72,8 +72,8 @@ export default function HomeScreen() {
 
         <Card tone="dark" style={{ flex: 1, gap: space.md, minHeight: 160 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.whiteTint, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={focus?.icon ?? 'flag'} size={20} color={colors.onDark} />
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={focus?.icon ?? 'flag'} size={20} color={colors.burntOrange} />
             </View>
             <Text variant="callout" weight={700} muted>
               Today's focus

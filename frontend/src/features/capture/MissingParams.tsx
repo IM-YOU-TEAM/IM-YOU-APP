@@ -9,8 +9,8 @@ export function MissingParams() {
   return (
     <ScreenContainer maxWidth={560} contentStyle={{ flexGrow: 1, justifyContent: 'center' }}>
       <Card style={{ alignItems: 'center', gap: space.lg, paddingVertical: space.xxl }}>
-        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.seagrassTint, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="compass" size={30} color={colors.seagrass} />
+        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="compass" size={30} color={colors.burntOrange} />
         </View>
         <View style={{ gap: space.xs }}>
           <Text variant="title" align="center">
@@ -20,7 +20,7 @@ export function MissingParams() {
             Pick what you're tracking and how, then we'll set up your phone.
           </Text>
         </View>
-        <PillButton label="Choose a motion" icon="arrow-forward" iconRight size="lg" style={{ alignSelf: 'center' }} onPress={() => router.replace('/track/motion-type')} />
+        <PillButton label="Choose a motion" icon="chevron-forward" iconRight size="lg" style={{ alignSelf: 'center' }} onPress={() => router.replace('/track/motion-type')} />
       </Card>
     </ScreenContainer>
   );

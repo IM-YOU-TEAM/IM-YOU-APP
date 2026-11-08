@@ -27,7 +27,6 @@ const WAVE_HEIGHT = 44;
 export function StatTile({ label, value, unit, icon, waveform, tone = 'hero', style }: Props) {
   const hero = tone === 'hero';
   const [width, setWidth] = useState(0);
-  const ink = hero ? colors.onSeagrass : colors.seagrass;
 
   let wave = '';
   if (waveform && waveform.length > 1 && width > 0) {
@@ -53,8 +52,8 @@ export function StatTile({ label, value, unit, icon, waveform, tone = 'hero', st
       </View>
       <View style={styles.header}>
         {icon && (
-          <View style={[styles.bubble, { backgroundColor: hero ? colors.whiteTint : colors.seagrassTint }]}>
-            <Ionicons name={icon} size={20} color={ink} />
+          <View style={[styles.bubble, { backgroundColor: colors.burntOrangeTint }]}>
+            <Ionicons name={icon} size={20} color={colors.burntOrange} />
           </View>
         )}
         <Text variant="callout" weight={700} muted={!hero}>

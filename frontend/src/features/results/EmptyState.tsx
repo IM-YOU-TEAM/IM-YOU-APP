@@ -23,12 +23,12 @@ export function EmptyState({ icon, title, line, action = true, style }: Props) {
           width: 64,
           height: 64,
           borderRadius: 32,
-          backgroundColor: colors.seagrassTint,
+          backgroundColor: colors.burntOrangeTint,
           alignItems: 'center',
           justifyContent: 'center',
         }}
       >
-        <Ionicons name={icon} size={28} color={colors.seagrass} />
+        <Ionicons name={icon} size={28} color={colors.burntOrange} />
       </View>
       <View style={{ gap: space.xs, alignItems: 'center', maxWidth: 320 }}>
         <Text variant="headline" align="center">
