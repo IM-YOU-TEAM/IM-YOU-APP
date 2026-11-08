@@ -1,7 +1,48 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-const LINE = 'rgba(60, 55, 68, 0.052)';
+const LINE = 'rgba(60, 55, 68, 0.042)';
+const VIEWBOX_SIZE = 1000;
+const CONTOUR_COUNT = 20;
+const POINT_COUNT = 72;
+
+type Point = readonly [number, number];
+
+function midpoint(a: Point, b: Point): Point {
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+}
+
+function makeContour(level: number): string {
+  const radius = 34 + level * 50;
+  const centerX = 448 + level * 2.5;
+  const centerY = 438 - level * 1.4;
+  const points: Point[] = Array.from({ length: POINT_COUNT }, (_, index) => {
+    const angle = (index / POINT_COUNT) * Math.PI * 2;
+    const sharedShape =
+      1 +
+      Math.sin(angle * 2 + 0.4) * 0.11 +
+      Math.sin(angle * 3 - 0.8) * 0.065 +
+      Math.sin(angle * 5 + 1.2) * 0.025;
+    const gradualDrift = Math.sin(angle * 4 + level * 0.16) * 5;
+    const shapedRadius = radius * sharedShape + gradualDrift;
+
+    return [
+      centerX + Math.cos(angle) * shapedRadius * 0.94,
+      centerY + Math.sin(angle) * shapedRadius * 1.06,
+    ];
+  });
+
+  const start = midpoint(points[points.length - 1], points[0]);
+  const commands = points.map((point, index) => {
+    const next = points[(index + 1) % points.length];
+    const end = midpoint(point, next);
+    return `Q ${point[0].toFixed(1)} ${point[1].toFixed(1)} ${end[0].toFixed(1)} ${end[1].toFixed(1)}`;
+  });
+
+  return `M ${start[0].toFixed(1)} ${start[1].toFixed(1)} ${commands.join(' ')} Z`;
+}
+
+const CONTOURS = Array.from({ length: CONTOUR_COUNT }, (_, level) => makeContour(level));
 
 /**
  * Quiet contour-map texture for the patient and professional workspaces.
@@ -10,57 +51,15 @@ const LINE = 'rgba(60, 55, 68, 0.052)';
 export function TopographicBackground() {
   return (
     <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}>
-      <Svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
-        <Path
-          d="M-90 126C70 45 172 71 286 142c92 57 184 70 306 24 145-55 282-53 499 70"
-          fill="none"
-          stroke={LINE}
-          strokeWidth={2}
-        />
-        <Path
-          d="M-106 183C61 99 162 117 272 184c103 63 210 76 337 28 145-55 286-42 510 99"
-          fill="none"
-          stroke={LINE}
-          strokeWidth={2}
-        />
-        <Path
-          d="M-121 245C42 167 147 169 256 235c112 68 229 83 367 32 151-56 299-26 520 127"
-          fill="none"
-          stroke={LINE}
-          strokeWidth={2}
-        />
-
-        <Path
-          d="M683-54c-99 43-157 118-143 210 17 109 112 137 127 222 15 87-49 151-149 201-109 55-137 144-81 218 61 80 200 69 281 7"
-          fill="none"
-          stroke={LINE}
-          strokeWidth={1.7}
-        />
-        <Path
-          d="M757-44c-104 58-143 128-119 210 26 89 106 112 121 190 17 91-41 165-139 220-95 54-111 128-54 180 53 48 144 43 214-3"
-          fill="none"
-          stroke={LINE}
-          strokeWidth={1.7}
-        />
-        <Path
-          d="M829-24c-91 66-111 131-77 197 38 75 100 96 112 170 15 91-36 172-120 224-70 43-77 99-28 132 40 27 103 22 156-17"
-          fill="none"
-          stroke={LINE}
-          strokeWidth={1.7}
-        />
-
-        <Path
-          d="M-90 801c119-89 239-100 344-27 82 57 128 142 235 151 116 10 201-80 302-65 85 13 155 75 230 176"
-          fill="none"
-          stroke={LINE}
-          strokeWidth={2}
-        />
-        <Path
-          d="M-91 872c125-91 245-99 348-23 76 56 124 128 228 137 113 10 198-71 299-55 91 14 159 79 232 176"
-          fill="none"
-          stroke={LINE}
-          strokeWidth={2}
-        />
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
+        preserveAspectRatio="xMidYMid slice"
+      >
+        {CONTOURS.map((path, index) => (
+          <Path key={index} d={path} fill="none" stroke={LINE} strokeWidth={1.6} />
+        ))}
       </Svg>
     </View>
   );
