@@ -40,7 +40,7 @@ export default function SessionScreen() {
   const [seconds, setSeconds] = useState(0);
   const [paused, setPaused] = useState(false);
   const pose = usePoseSession(motion, paused);
-  const imu = useImuSession(method === 'imu' ? motion : null, paused);
+  const imu = useImuSession(method === 'imu' ? motion : null, paused, setPaused);
   const [gate, setGate] = useState<CameraGate>('starting');
   const { patient } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -71,6 +71,10 @@ export default function SessionScreen() {
   if (!motion || !method) return <MissingParams />;
 
   const stop = async () => {
+    if (method === 'imu' && imu.stoppedElsewhere) {
+      router.replace('/results');
+      return;
+    }
     if (method === 'cv') finishedPose.current ??= pose.finish(seconds);
     else finishedImu.current ??= imu.finish(seconds);
 
@@ -174,7 +178,10 @@ export default function SessionScreen() {
             onPress={() => void imu.requestSensors()}
           />
         ) : null}
-        {method === 'imu' && imu.gate === 'ready' && !imu.recording && !captureFinished ? (
+        {method === 'imu' && imu.stoppedElsewhere ? null : method === 'imu' &&
+          imu.gate === 'ready' &&
+          !imu.recording &&
+          !captureFinished ? (
           <PillButton label="Start" icon="play" size="lg" fullWidth onPress={imu.start} />
         ) : (
           <PillButton
@@ -183,13 +190,21 @@ export default function SessionScreen() {
             variant="secondary"
             size="lg"
             fullWidth
-            disabled={!captureStarted || saving || saveError !== null}
+            disabled={!captureStarted || saving || saveError !== null || (method === 'imu' && imu.settling)}
             onPress={() => setPaused((p) => !p)}
           />
         )}
         <PillButton
-          label={saving ? 'Saving…' : saveError ? 'Try saving again' : 'Stop'}
-          icon={saveError ? 'refresh' : 'stop'}
+          label={
+            method === 'imu' && imu.stoppedElsewhere
+              ? 'See results'
+              : saving
+                ? 'Saving…'
+                : saveError
+                  ? 'Try saving again'
+                  : 'Stop'
+          }
+          icon={method === 'imu' && imu.stoppedElsewhere ? 'chevron-forward' : saveError ? 'refresh' : 'stop'}
           size="lg"
           fullWidth
           disabled={saving}
@@ -229,9 +244,10 @@ export default function SessionScreen() {
 function sensorPrompt(
   motion: MotionType,
   paused: boolean,
-  imu: { gate: ImuGate; lowMotion: boolean; recording: boolean; modelConnected: boolean },
+  imu: { gate: ImuGate; lowMotion: boolean; recording: boolean; modelConnected: boolean; stoppedElsewhere: boolean },
 ): string {
-  if (paused) return 'Paused. Resume when you are ready.';
+  if (imu.stoppedElsewhere) return 'Stopped on the other phone, which saves this session.';
+  if (paused) return 'Paused on both phones. Resume on either one.';
   switch (imu.gate) {
     case 'unsupported-motion':
       return `${MOTION_LABELS[motion]} cannot be measured by the phone sensors yet. Use the camera instead.`;
@@ -252,7 +268,7 @@ function sensorPrompt(
     case 'ready':
       if (!imu.recording) {
         return imu.modelConnected
-          ? 'Both phones are in. Tap Start on either phone when you are ready.'
+          ? 'Both phones are in. Tap Start on either phone and both start together.'
           : 'Both phones are in, but the model service is not reachable. Joint angles will wait for it.';
       }
       if (imu.lowMotion) return 'Not enough movement to measure. Keep going at your usual pace.';
