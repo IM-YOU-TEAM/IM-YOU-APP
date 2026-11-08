@@ -8,6 +8,7 @@ export default function LoginScreen() {
     <ScreenContainer
       maxWidth={560}
       gap={0}
+      showTopography={false}
       contentStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
     >
       <GlassCard
