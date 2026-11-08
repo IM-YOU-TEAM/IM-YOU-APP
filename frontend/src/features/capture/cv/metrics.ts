@@ -1,3 +1,4 @@
+import { localDateTime, sessionId } from '@/lib/session';
 import type { MotionType, Session } from '@/types';
 import { FramingTracker, type FramingStatus } from './framing';
 import { Joint, bodyInFrame, isVisible } from './landmarks';
@@ -187,7 +188,7 @@ export class PoseAccumulator {
     const gaitScore = Math.round(parts.reduce((sum, part) => sum + part, 0) / parts.length);
 
     const session: Session = {
-      id: sessionId(),
+      id: sessionId('cv'),
       patientId,
       date: localDateTime(),
       motion: this.motion,
@@ -387,13 +388,3 @@ function isReps(motion: MotionType): boolean {
   }
 }
 
-function sessionId(): string {
-  const cryptoObj = globalThis.crypto;
-  if (cryptoObj && 'randomUUID' in cryptoObj) return `cv-${cryptoObj.randomUUID()}`;
-  return `cv-${Date.now()}`;
-}
-
-function localDateTime(d = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-}
