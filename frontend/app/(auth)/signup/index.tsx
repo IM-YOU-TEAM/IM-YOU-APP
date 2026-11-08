@@ -105,7 +105,7 @@ export default function SignupScreen() {
             Choose your role
           </Text>
           <Text variant="callout" muted align="center">
-            Select how you'll use I'M U.
+            Select how you'll use I'M YOU.
           </Text>
         </View>
 

@@ -1,4 +1,4 @@
-// Design tokens for I'M U. Every screen and component reads from here.
+// Design tokens for I'M YOU. Every screen and component reads from here.
 import { Platform, type TextStyle, type ViewStyle } from "react-native";
 
 // ---------- Color ----------

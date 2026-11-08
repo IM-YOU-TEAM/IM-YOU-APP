@@ -40,7 +40,7 @@ export function ChoiceCard({
   const [hovered, setHovered] = useState(false);
 
   const bg = selected
-    ? colors.seagrass
+    ? colors.burntorange
     : hovered
       ? colors.honeydewLight
       : colors.white;

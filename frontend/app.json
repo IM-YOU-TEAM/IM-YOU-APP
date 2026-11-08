@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "I'M U",
+    "name": "I'M YOU",
     "slug": "im-u",
     "version": "1.0.0",
     "scheme": "imu",
@@ -12,7 +12,7 @@
     },
     "web": {
       "output": "single",
-      "name": "I'M U",
+      "name": "I'M You",
       "backgroundColor": "#D0E1D1",
       "themeColor": "#269F86"
     },

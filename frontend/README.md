@@ -1,4 +1,4 @@
-# I'M U frontend
+# I'M YOU frontend
 
 Expo Router + React Native + TypeScript. One codebase for iOS, Android and web.
 

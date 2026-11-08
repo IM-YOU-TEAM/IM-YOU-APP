@@ -1,12 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
-import { colors } from '@/lib/theme';
-import { applyWebStyles } from '@/lib/webStyles';
+import { Ionicons } from "@expo/vector-icons";
+import { useFonts } from "expo-font";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
+import { Platform, StyleSheet, View } from "react-native";
+import { colors } from "@/lib/theme";
+import { applyWebStyles } from "@/lib/webStyles";
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -26,15 +26,28 @@ export default function RootLayout() {
   }, [ready]);
 
   // Native: wait for the icon font so controls do not shift after first paint.
-  if (!ready && Platform.OS !== 'web') return null;
+  if (!ready && Platform.OS !== "web") return null;
 
   // Web: keep the Stack mounted so deep links like /patients/p1 keep their route,
   // and hide it behind a plain Honeydew cover until the fonts are ready.
   return (
     <>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, title: "I'M U", contentStyle: { backgroundColor: colors.honeydew } }} />
-      {!ready && <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.honeydew }]} />}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          title: "I'M YOU",
+          contentStyle: { backgroundColor: colors.honeydew },
+        }}
+      />
+      {!ready && (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            { backgroundColor: colors.honeydew },
+          ]}
+        />
+      )}
     </>
   );
 }

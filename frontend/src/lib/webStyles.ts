@@ -1,7 +1,7 @@
 // Web-only polish for browser surfaces the components don't draw:
 // keyboard focus ring, text selection, scrollbars, tab title. Native ignores this.
-import { Platform } from 'react-native';
-import { colors } from './theme';
+import { Platform } from "react-native";
+import { colors } from "./theme";
 
 const css = `
   :focus { outline: none; }
@@ -12,11 +12,11 @@ const css = `
 `;
 
 export function applyWebStyles(): void {
-  if (Platform.OS !== 'web' || typeof document === 'undefined') return;
-  document.title = "I'M U";
-  if (document.getElementById('imu-web-styles')) return;
-  const tag = document.createElement('style');
-  tag.id = 'imu-web-styles';
+  if (Platform.OS !== "web" || typeof document === "undefined") return;
+  document.title = "I'M YOU";
+  if (document.getElementById("imu-web-styles")) return;
+  const tag = document.createElement("style");
+  tag.id = "imu-web-styles";
   tag.textContent = css;
   document.head.appendChild(tag);
 }
