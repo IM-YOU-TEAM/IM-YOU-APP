@@ -47,10 +47,13 @@ export default function ResultsScreen() {
 
   const series = gaitSeries(sessionsFor(session.patientId), range, today());
   const notes = feedbackFor(session.id);
+  const symmetryHidden = session.symmetryMeasured === false;
+  const farLegHidden = session.farLegHidden === true;
+  const countBit = session.reps != null ? `${session.reps} reps` : session.stepCount != null ? `${session.stepCount} steps` : null;
   const metrics: Metric[] = [
     { label: 'Gait score', value: String(session.gaitScore) },
     { label: 'Cadence', value: `${session.cadence}/min` },
-    { label: 'Symmetry', value: `${session.symmetry}%` },
+    { label: 'Symmetry', value: symmetryHidden ? '—' : `${session.symmetry}%` },
     { label: 'Duration', value: formatDuration(session.durationSec) },
   ];
 
@@ -67,12 +70,13 @@ export default function ResultsScreen() {
           </Text>
           <Text variant="body" muted>
             {sessionWhen(session)} · {METHOD_LABELS[session.method]}
+            {countBit ? ` · ${countBit}` : ''}
           </Text>
         </View>
       </View>
 
       {/* Metrics: one row on wide screens, two rows of two on phones */}
-      <Card>
+      <Card style={{ gap: space.md }}>
         {wide ? (
           <MetricRow items={metrics} />
         ) : (
@@ -82,6 +86,11 @@ export default function ResultsScreen() {
             <MetricRow items={metrics.slice(2)} />
           </View>
         )}
+        {farLegHidden ? (
+          <Text variant="callout" muted>
+            The far leg was not visible, so left and right were not compared.
+          </Text>
+        ) : null}
       </Card>
 
       <BentoGrid weights={[2, 1]}>
