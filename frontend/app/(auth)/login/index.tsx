@@ -34,7 +34,7 @@ function RoleChoice({ onPick }: { onPick: (role: Role) => void }) {
       <Logo size={56} />
 
       <Text variant="display" align="center" accessibilityRole="header">
-        Welcome to I'M U
+        Welcome to I'M YOU
       </Text>
 
       <View style={styles.choiceButtons}>
@@ -264,7 +264,7 @@ export default function LoginScreen() {
                 style={({ pressed }) => [styles.switch, pressed && { opacity: 0.6 }]}
               >
                 <Text variant="callout" muted align="center">
-                  {signingUp ? 'Already have an account? ' : "New to I'M U? "}
+                  {signingUp ? 'Already have an account? ' : "New to I'M YOU? "}
                   <Text variant="callout" weight={600} color={colors.seagrass}>
                     {signingUp ? 'Sign in' : 'Create an account'}
                   </Text>

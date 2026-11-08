@@ -143,7 +143,7 @@ function TabButton({ label, icon, active = false, onPress, ...linkProps }: Butto
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
-      <Ionicons name={active ? icon : outlineIcon(icon)} size={18} color={active ? colors.seagrass : colors.textMuted} />
+      <Ionicons name={active ? icon : outlineIcon(icon)} size={18} color={active ? colors.burntOrange : colors.textMuted} />
       <Text variant="callout" weight={active ? 600 : 500} muted={!active}>
         {label}
       </Text>

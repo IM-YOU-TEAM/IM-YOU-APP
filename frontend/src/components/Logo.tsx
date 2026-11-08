@@ -7,7 +7,7 @@ import { Text } from './Text';
 type Props = {
   /** Height of the mark in px. Default 36. */
   size?: number;
-  /** 'full' = mark + "I'M U" wordmark, 'mark' = square mark only. Default 'full'. */
+  /** 'full' = mark + "I'M YOU" wordmark, 'mark' = square mark only. Default 'full'. */
   variant?: 'full' | 'mark';
   /** Use on Seagrass or Graphite surfaces: white mark, white wordmark. */
   onDark?: boolean;
@@ -21,7 +21,7 @@ export function Logo({ size = 36, variant = 'full', onDark = false }: Props) {
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel="I'M U"
+      accessibilityLabel="I'M YOU"
       style={{ flexDirection: 'row', alignItems: 'center', gap: size * 0.3 }}
     >
       <Svg width={size} height={size} viewBox="0 0 40 40">
@@ -42,7 +42,7 @@ export function Logo({ size = 36, variant = 'full', onDark = false }: Props) {
           color={onDark ? colors.white : colors.graphite}
           style={{ fontSize: size * 0.58, lineHeight: size * 0.8, letterSpacing: -0.2 }}
         >
-          I'M U
+          I'M YOU
         </Text>
       )}
     </View>

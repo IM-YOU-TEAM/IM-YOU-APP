@@ -54,7 +54,7 @@ export default function MethodScreen() {
 
       <PillButton
         label="Continue"
-        icon="arrow-forward"
+        icon="chevron-forward"
         iconRight
         size="lg"
         disabled={!method}

@@ -85,8 +85,8 @@ export default function ResultsScreen() {
     <ScreenContainer gap={wide ? 24 : 16}>
       {/* Header: motion + date */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.lg }}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name={MOTION_ICONS[session.motion]} size={26} color={colors.seagrass} />
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name={MOTION_ICONS[session.motion]} size={26} color={colors.burntOrange} />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="display" accessibilityRole="header">
@@ -134,7 +134,9 @@ export default function ResultsScreen() {
             />
           ) : (
             <View style={{ height: CHART_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
-              <Ionicons name="analytics" size={28} color={colors.textMuted} />
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="analytics" size={28} color={colors.burntOrange} />
+              </View>
               <Text variant="callout" muted align="center">
                 No sessions in the last {range === 'week' ? '7' : '30'} days.
               </Text>
@@ -145,8 +147,8 @@ export default function ResultsScreen() {
         {/* Clinician feedback (the screen's one Cherry Blossom highlight) */}
         <Card tone="accent" style={{ flex: 1, gap: space.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="chatbubble-ellipses" size={18} color={colors.graphite} />
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="chatbubble-ellipses" size={18} color={colors.burntOrange} />
             </View>
             <Text variant="headline">Clinician feedback</Text>
           </View>

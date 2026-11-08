@@ -13,7 +13,7 @@ const MESSAGES: Record<string, string> = {
   weak_password: 'Choose a longer password, at least 6 characters.',
   over_email_send_rate_limit: 'Too many emails were sent. Wait a minute, then try again.',
   email_address_invalid: "We can't send email to that address. Use an email you can open.",
-  email_address_not_authorized: "We can't send a confirmation email to that address yet. Use a different email, or ask your I'M U admin.",
+  email_address_not_authorized: "We can't send a confirmation email to that address yet. Use a different email, or ask your I'M YOU admin.",
   over_request_rate_limit: 'Too many attempts. Wait a minute, then try again.',
   signup_disabled: 'New accounts are paused right now.',
   invalid_code: "That care code doesn't match an open profile. Check it with your clinician.",
