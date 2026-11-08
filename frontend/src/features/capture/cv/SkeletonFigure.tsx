@@ -25,7 +25,7 @@ export function SkeletonFigure({ motion, t, bone, joint, scenery }: Props) {
   return (
     <G>
       <Line x1={10} x2={190} y1={GROUND_Y + 3} y2={GROUND_Y + 3} stroke={scenery} strokeWidth={2} strokeLinecap="round" />
-      {motion === 'sitToStand' && (
+      {(motion === 'chairStand') && (
         <G>
           <Rect x={SEAT.x - 34} y={SEAT.y + 6} width={46} height={6} rx={3} fill={scenery} />
           <Rect x={SEAT.x - 34} y={SEAT.y - 56} width={6} height={GROUND_Y - SEAT.y + 56} rx={3} fill={scenery} />
