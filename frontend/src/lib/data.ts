@@ -15,6 +15,14 @@ export const patients: Patient[] = [];
 export const sessions: Session[] = [];
 export const feedback: Feedback[] = [];
 
+/** Sessions recorded on this device before a signed-in patient exists. */
+export const LOCAL_PATIENT_ID = 'local';
+
+/** Keep a session in memory so Results can open it. Lost on reload, until the backend exists. */
+export function recordSession(session: Session): void {
+  sessions.push(session);
+}
+
 /** The signed-in clinician, once auth exists. */
 export const clinician: Clinician | null = null;
 

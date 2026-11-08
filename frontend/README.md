@@ -5,8 +5,9 @@ Expo Router + React Native + TypeScript. One codebase for iOS, Android and web.
 ## Run
 
 ```sh
-npm install
-npx expo start --web     # or: npx expo start, then open on a phone with Expo Go
+npm install              # also copies the pose runtime into public/mediapipe
+npx expo start --web     # camera tracking runs in the browser
+npx expo run:ios         # or run:android. Expo Go cannot load the pose camera
 npx tsc --noEmit         # type-check before pushing
 ```
 
@@ -19,5 +20,5 @@ npx tsc --noEmit         # type-check before pushing
 - `src/lib/format.ts` date/duration formatters
 - `src/types/` shared types
 
-No backend yet: there are no network calls, and login just routes by role.
-`src/lib/data.ts` holds no synthetic records. Its collections stay empty until real data is connected.
+No backend yet: login just routes by role. A camera session's numbers stay in memory until you reload.
+`src/lib/data.ts` holds no synthetic records. Its collections stay empty until a session is recorded or real data is connected.

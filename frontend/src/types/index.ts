@@ -38,9 +38,13 @@ export type Session = {
   motion: MotionType;
   method: CaptureMethod;
   durationSec: number;
-  gaitScore: number; // 0-100
+  gaitScore: number; // 0-100, in-app summary of this recording
   cadence: number; // steps/min (reps/min for sit-to-stand)
-  symmetry: number; // left/right symmetry, %
+  symmetry: number; // left/right symmetry, %. 0 when it was not measured
+  /** False when left and right were not compared. */
+  symmetryMeasured?: boolean;
+  /** True when a person was in frame but the far leg stayed hidden. */
+  farLegHidden?: boolean;
   stepCount?: number; // walking, running, stairs
   reps?: number; // sit-to-stand
 };
