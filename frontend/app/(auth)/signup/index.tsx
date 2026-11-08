@@ -136,8 +136,8 @@ export default function SignupScreen() {
             <>
               <AuthField
                 key="care-code"
-                label="Care code, optional"
-                placeholder="Care code (optional)"
+                label="Care code"
+                placeholder="Care code"
                 value={careCode}
                 onChangeText={setCareCode}
                 autoCapitalize="characters"
@@ -148,7 +148,7 @@ export default function SignupScreen() {
                 onSubmitEditing={continueToWorkspace}
               />
               <Text variant="caption" muted style={styles.hint}>
-                From your clinician, like K7QM-4XPR. It links your sessions to them without sharing your name or email.
+                From your doctor or researcher, like K7QM-4XPR. It links your sessions to them.
               </Text>
             </>
           ) : (

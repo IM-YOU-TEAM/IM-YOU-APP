@@ -1,10 +1,16 @@
 // Supabase auth errors carry a `code`; our database functions raise a short `message`.
 const MESSAGES: Record<string, string> = {
-  invalid_credentials: "That email and password don't match. Check them or create an account.",
+  invalid_credentials: "That username and password don't match. Check them and try again.",
   email_not_confirmed: 'Confirm your email first. The link is in your inbox.',
   user_already_exists: 'An account with this email already exists. Sign in instead.',
   email_exists: 'An account with this email already exists. Sign in instead.',
-  weak_password: 'Choose a longer password, at least 8 characters.',
+  login_taken: 'That username or email is already in use. Pick another one.',
+  invalid_username: 'Usernames are 3 to 24 letters or numbers, and may use . _ or -.',
+  invalid_email: 'Enter a valid email address.',
+  full_name_required: 'Enter a name.',
+  care_code_required: 'Enter the care code from your clinician.',
+  not_authenticated: 'Your session ended. Sign in again.',
+  weak_password: 'Choose a longer password, at least 6 characters.',
   over_email_send_rate_limit: 'Too many emails were sent. Wait a minute, then try again.',
   email_address_invalid: "We can't send email to that address. Use an email you can open.",
   email_address_not_authorized: "We can't send a confirmation email to that address yet. Use a different email, or ask your I'M U admin.",

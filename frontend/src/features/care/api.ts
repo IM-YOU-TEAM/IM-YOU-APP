@@ -1,13 +1,15 @@
-// Clinician <-> patient linking. Patients are only ever a random id plus a care code.
+// Clinician <-> patient records. Clinicians create their patients' logins and see them by name.
+import { createAccount } from '@/features/auth/auth';
 import { localIso } from '@/lib/format';
 import { supabase } from '@/lib/supabase/client';
 import type { Patient, PatientStatus } from '@/types';
 
 const ROSTER_COLUMNS =
-  'id, care_code, owner_link, created_at, linked_at, total:sessions(count), latest:sessions(started_at, gait_score)';
+  'id, full_name, care_code, owner_link, created_at, linked_at, total:sessions(count), latest:sessions(started_at, gait_score)';
 
 type RosterRow = {
   id: string;
+  full_name: string | null;
   care_code: string;
   owner_link: string | null;
   created_at: string;
@@ -25,6 +27,7 @@ function toPatient(row: RosterRow): Patient {
   const latest = row.latest[0];
   return {
     id: row.id,
+    name: row.full_name,
     careCode: row.care_code,
     status: statusOf(row.owner_link),
     createdAt: localIso(new Date(row.created_at)),
@@ -32,6 +35,11 @@ function toPatient(row: RosterRow): Patient {
     sessionCount: row.total[0]?.count ?? 0,
     latest: latest ? { date: localIso(new Date(latest.started_at)), gaitScore: latest.gait_score } : null,
   };
+}
+
+/** The name to show for a patient. */
+export function patientName(patient: Pick<Patient, 'name' | 'careCode'>): string {
+  return patient.name ?? `Patient ${patient.careCode}`;
 }
 
 /** The signed-in clinician's patients, newest profile first. */
@@ -59,11 +67,9 @@ export async function fetchRosterPatient(id: string): Promise<Patient | null> {
   return data ? toPatient(data) : null;
 }
 
-/** New unclaimed patient profile. Hand its care code to the patient so they can join. */
-export async function createPatientProfile(): Promise<{ id: string; careCode: string }> {
-  const { data, error } = await supabase.rpc('create_patient_profile');
-  if (error) throw error;
-  return { id: data.id, careCode: data.care_code };
+/** The signed-in clinician adds a patient with a ready-to-use login to hand over. */
+export async function addPatient(input: { fullName: string; login: string; password: string }): Promise<void> {
+  await createAccount({ kind: 'patient', ...input });
 }
 
 /** A signed-in patient redeems their clinician's care code. Earlier sessions move with them. */

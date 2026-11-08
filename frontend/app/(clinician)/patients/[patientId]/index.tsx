@@ -11,7 +11,7 @@ import {
   Text,
   type Metric,
 } from '@/components';
-import { fetchRosterPatient } from '@/features/care/api';
+import { fetchRosterPatient, patientName } from '@/features/care/api';
 import { fetchSessions } from '@/features/results/api';
 import { EmptyState } from '@/features/results/EmptyState';
 import { PATIENT_STATUS_LABELS, sessionRow } from '@/features/results/derive';
@@ -96,11 +96,11 @@ export default function PatientDetailScreen() {
           <Ionicons name={patient.status === 'waiting' ? 'hourglass' : 'person'} size={28} color={colors.seagrass} />
         </View>
         <View style={{ flex: 1, minWidth: 220, gap: space.xs }}>
-          <Text variant="display" accessibilityRole="header" selectable style={{ fontVariant: ['tabular-nums'] }}>
-            {patient.careCode}
+          <Text variant="display" accessibilityRole="header" selectable>
+            {patientName(patient)}
           </Text>
           <Text variant="body" muted>
-            {PATIENT_STATUS_LABELS[patient.status]}
+            {PATIENT_STATUS_LABELS[patient.status]} · {patient.careCode}
             {patient.linkedAt ? ` · since ${formatDate(patient.linkedAt)}` : ` · created ${formatDate(patient.createdAt)}`}
           </Text>
         </View>

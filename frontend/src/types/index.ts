@@ -12,12 +12,11 @@ export type CaptureMethod = 'cv' | 'imu';
 /** 'waiting' = created by a clinician, not claimed yet. 'closed' = the patient deleted their account. */
 export type PatientStatus = 'waiting' | 'linked' | 'closed';
 
-/**
- * A patient as their clinician sees them. Deliberately pseudonymous: no name, email, birth date
- * or diagnosis. The care code is the reference clinicians file in their own records.
- */
+/** A patient as their clinician sees them. Only the clinician and the patient can read the name. */
 export type Patient = {
   id: string;
+  /** Null only for profiles made before clinicians named their patients. */
+  name: string | null;
   careCode: string;
   status: PatientStatus;
   createdAt: string; // local ISO date-time

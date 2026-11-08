@@ -4,9 +4,11 @@ import { GlassCard, Logo, PillButton, ScreenContainer, Text } from '@/components
 import {
   chooseRole,
   getEnabledProviders,
-  signInWithEmail,
+  isValidLogin,
+  MIN_PASSWORD,
+  signIn,
   signInWithProvider,
-  signUpWithEmail,
+  signUpClinician,
   type ProviderFlags,
   type Role,
   type SocialProvider,
@@ -20,11 +22,10 @@ import { colors, MIN_HIT, radii, space } from '@/lib/theme';
 type Mode = 'signIn' | 'signUp';
 
 const PROVIDERS: SocialProvider[] = ['apple', 'google', 'azure'];
-const MIN_PASSWORD = 8;
 
-const TITLES: Record<Role, Record<Mode, string>> = {
-  patient: { signIn: 'Patient sign in', signUp: 'Create a patient account' },
-  clinician: { signIn: 'Professional sign in', signUp: 'Create a professional account' },
+const SIGN_IN_TITLES: Record<Role, string> = {
+  patient: 'Patient sign in',
+  clinician: 'Professional sign in',
 };
 
 function RoleChoice({ onPick }: { onPick: (role: Role) => void }) {
@@ -60,11 +61,13 @@ export default function LoginScreen() {
   const compact = useWindowDimensions().width < 420;
   const [role, setRole] = useState<Role | null>(null);
   const [mode, setMode] = useState<Mode>('signIn');
-  const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
-  const [busy, setBusy] = useState<SocialProvider | 'email' | null>(null);
+  const [busy, setBusy] = useState<SocialProvider | 'password' | null>(null);
   const [notice, setNotice] = useState<NoticeMessage | null>(null);
   const [enabled, setEnabled] = useState<ProviderFlags | null>(null);
+  const loginRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
 
   useEffect(() => {
@@ -79,6 +82,8 @@ export default function LoginScreen() {
 
   // Only providers switched on in Supabase get a button.
   const providers = PROVIDERS.filter((provider) => enabled?.[provider]);
+  // Patients never sign up themselves: their clinician creates their login.
+  const signingUp = mode === 'signUp' && role === 'clinician';
 
   const pickRole = (next: Role) => {
     chooseRole(next);
@@ -104,13 +109,16 @@ export default function LoginScreen() {
     }
   };
 
-  const submit = async (as: Role) => {
-    const address = email.trim();
-    if (!/^\S+@\S+\.\S+$/.test(address)) {
-      setNotice({ tone: 'error', text: 'Enter a valid email address.' });
+  const submit = async () => {
+    if (signingUp && !displayName.trim()) {
+      setNotice({ tone: 'error', text: 'Enter the name your patients will see.' });
       return;
     }
-    if (mode === 'signUp' && password.length < MIN_PASSWORD) {
+    if (!isValidLogin(login)) {
+      setNotice({ tone: 'error', text: 'Enter your username or email.' });
+      return;
+    }
+    if (signingUp && password.length < MIN_PASSWORD) {
       setNotice({ tone: 'error', text: `Use at least ${MIN_PASSWORD} characters for your password.` });
       return;
     }
@@ -120,15 +128,10 @@ export default function LoginScreen() {
     }
 
     setNotice(null);
-    setBusy('email');
+    setBusy('password');
     try {
-      if (mode === 'signIn') {
-        await signInWithEmail(address, password);
-      } else if ((await signUpWithEmail(address, password, as)) === 'confirmEmail') {
-        setMode('signIn');
-        setPassword('');
-        setNotice({ tone: 'info', text: `We sent a confirmation link to ${address}. Open it, then sign in.` });
-      }
+      if (signingUp) await signUpClinician({ login, password, displayName });
+      else await signIn(login, password);
     } catch (error) {
       setNotice({ tone: 'error', text: friendlyError(error) });
     } finally {
@@ -140,8 +143,6 @@ export default function LoginScreen() {
     setMode((m) => (m === 'signIn' ? 'signUp' : 'signIn'));
     setNotice(null);
   };
-
-  const signingUp = mode === 'signUp';
 
   return (
     <ScreenContainer
@@ -172,7 +173,7 @@ export default function LoginScreen() {
             <View style={styles.brand}>
               <Logo size={52} />
               <Text variant="title" align="center" accessibilityRole="header">
-                {TITLES[role][mode]}
+                {signingUp ? 'Create a professional account' : SIGN_IN_TITLES[role]}
               </Text>
             </View>
 
@@ -193,7 +194,7 @@ export default function LoginScreen() {
                 <View style={styles.divider} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
                   <View style={styles.rule} />
                   <Text variant="caption" muted>
-                    or use email
+                    or use your username
                   </Text>
                   <View style={styles.rule} />
                 </View>
@@ -201,17 +202,31 @@ export default function LoginScreen() {
             ) : null}
 
             <View style={styles.group}>
+              {signingUp ? (
+                <AuthField
+                  label="Name patients see"
+                  placeholder="Name patients see, e.g. Dr. Rivera"
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  textContentType="name"
+                  maxLength={80}
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={() => loginRef.current?.focus()}
+                />
+              ) : null}
               <AuthField
-                label="Email"
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
+                ref={loginRef}
+                label="Username or email"
+                placeholder="Username or email"
+                value={login}
+                onChangeText={setLogin}
                 autoCapitalize="none"
                 autoCorrect={false}
-                autoComplete="email"
-                inputMode="email"
-                keyboardType="email-address"
-                textContentType="emailAddress"
+                autoComplete="username"
+                textContentType="username"
                 returnKeyType="next"
                 submitBehavior="submit"
                 onSubmitEditing={() => passwordRef.current?.focus()}
@@ -228,32 +243,38 @@ export default function LoginScreen() {
                 autoComplete={signingUp ? 'new-password' : 'current-password'}
                 textContentType={signingUp ? 'newPassword' : 'password'}
                 returnKeyType="go"
-                onSubmitEditing={() => submit(role)}
+                onSubmitEditing={submit}
               />
               {notice ? <Notice {...notice} /> : null}
               <PillButton
-                label={busy === 'email' ? (signingUp ? 'Creating account…' : 'Signing in…') : signingUp ? 'Create account' : 'Sign in'}
+                label={busy === 'password' ? (signingUp ? 'Creating account…' : 'Signing in…') : signingUp ? 'Create account' : 'Sign in'}
                 size="lg"
                 fullWidth
                 disabled={busy !== null}
-                onPress={() => submit(role)}
+                onPress={submit}
                 style={{ marginTop: space.xs }}
               />
             </View>
 
-            <Pressable
-              onPress={switchMode}
-              accessibilityRole="button"
-              hitSlop={6}
-              style={({ pressed }) => [styles.switch, pressed && { opacity: 0.6 }]}
-            >
-              <Text variant="callout" muted align="center">
-                {signingUp ? 'Already have an account? ' : "New to I'M U? "}
-                <Text variant="callout" weight={600} color={colors.seagrass}>
-                  {signingUp ? 'Sign in' : 'Create an account'}
+            {role === 'clinician' ? (
+              <Pressable
+                onPress={switchMode}
+                accessibilityRole="button"
+                hitSlop={6}
+                style={({ pressed }) => [styles.switch, pressed && { opacity: 0.6 }]}
+              >
+                <Text variant="callout" muted align="center">
+                  {signingUp ? 'Already have an account? ' : "New to I'M U? "}
+                  <Text variant="callout" weight={600} color={colors.seagrass}>
+                    {signingUp ? 'Sign in' : 'Create an account'}
+                  </Text>
                 </Text>
+              </Pressable>
+            ) : (
+              <Text variant="caption" muted align="center">
+                Your doctor or researcher gives you your username and password.
               </Text>
-            </Pressable>
+            )}
           </View>
         )}
       </GlassCard>
