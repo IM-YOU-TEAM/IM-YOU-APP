@@ -15,4 +15,5 @@ export { ScreenContainer } from './ScreenContainer';
 export { SegmentedToggle, type SegmentOption } from './SegmentedToggle';
 export { Sidebar, logout, type NavItem } from './Sidebar';
 export { StatTile } from './StatTile';
+export { TopBar } from './TopBar';
 export { OnDark, Text, type TextProps } from './Text';

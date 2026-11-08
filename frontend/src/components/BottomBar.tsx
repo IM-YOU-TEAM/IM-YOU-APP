@@ -26,7 +26,7 @@ type Props = {
   onLogout?: () => void;
 };
 
-/** Floating glass tab bar for narrow screens (< WIDE). Ends with a Log out button. */
+/** Floating glass tab bar for phones (< WIDE), both sides. Ends with a Log out button. */
 export function BottomBar({ items, onLogout = logout }: Props) {
   const insets = useSafeAreaInsets();
   return (

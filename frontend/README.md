@@ -14,7 +14,7 @@ npx tsc --noEmit         # type-check before pushing
 
 - `app/` screens (folder = route): `(auth)` login/signup, `(patient)` home/track/results, `(clinician)` dashboard/patients
 - `src/lib/theme.ts` design tokens: colors, radii, spacing, shadows, type scale, font, `WIDE` breakpoint
-- `src/components/` shared UI (`Text`, `Card`, `PillButton`, charts, `Sidebar`, `BottomBar`, `ScreenContainer`...), exported from `index.ts`
+- `src/components/` shared UI (`Text`, `Card`, `PillButton`, charts, `TopBar`, `Sidebar`, `BottomBar`, `ScreenContainer`...), exported from `index.ts`
 - `src/lib/data.ts` app data, labels and lookup helpers
 - `src/lib/format.ts` date/duration formatters
 - `src/types/` shared types

@@ -24,7 +24,7 @@ type Props = {
 
 export const logout = () => router.replace('/login');
 
-/** Glossy Seagrass navigation column for wide screens (>= WIDE). */
+/** Glossy Seagrass navigation column for the clinician side on wide screens (>= WIDE). */
 export function Sidebar({ items, onLogout = logout }: Props) {
   const insets = useSafeAreaInsets();
   return (
