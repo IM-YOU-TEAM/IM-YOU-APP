@@ -1,6 +1,4 @@
-import { useId } from 'react';
-import { StyleSheet } from 'react-native';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
+import { StyleSheet, View } from 'react-native';
 
 type Props = {
   /** Peak white opacity at the top edge. Default 0.2. */
@@ -8,21 +6,23 @@ type Props = {
 };
 
 /**
- * Soft glossy sheen: white fading to clear over the top half.
+ * Soft inner-edge sheen for a colored material.
  * Place as the first child of a Seagrass surface that clips (overflow: 'hidden' + borderRadius).
- * Used by PillButton, StatTile and Sidebar. Decorative only.
+ * A native View avoids percentage-sized SVG seams on rounded iOS controls.
  */
 export function Gloss({ strength = 0.2 }: Props) {
-  const id = `gloss${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
-    <Svg pointerEvents="none" style={StyleSheet.absoluteFill} width="100%" height="100%">
-      <Defs>
-        <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={strength} />
-          <Stop offset="0.55" stopColor="#FFFFFF" stopOpacity={0} />
-        </LinearGradient>
-      </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${id})`} />
-    </Svg>
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: StyleSheet.hairlineWidth * 2,
+          backgroundColor: `rgba(255, 255, 255, ${strength})`,
+        }}
+      />
+    </View>
   );
 }
