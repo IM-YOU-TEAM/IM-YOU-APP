@@ -2,11 +2,11 @@
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { localIso, parseLocal } from '@/lib/format';
 import { supabase } from '@/lib/supabase/client';
-import type { Tables } from '@/lib/supabase/database.types';
-import type { Feedback, Session } from '@/types';
+import type { Json, Tables } from '@/lib/supabase/database.types';
+import type { Feedback, Session, SessionAssessmentMetric } from '@/types';
 
 const SESSION_COLUMNS =
-  'id, patient_id, motion, method, started_at, duration_sec, gait_score, cadence, symmetry, far_leg_hidden, step_count, reps';
+  'id, patient_id, motion, method, started_at, duration_sec, gait_score, cadence, symmetry, far_leg_hidden, step_count, reps, metrics';
 
 type SessionRow = Pick<
   Tables<'sessions'>,
@@ -22,12 +22,14 @@ type SessionRow = Pick<
   | 'far_leg_hidden'
   | 'step_count'
   | 'reps'
+  | 'metrics'
 >;
 
 function toSession(row: SessionRow): Session {
   const motion = parseMotion(row.motion);
   const method = parseMethod(row.method);
   if (!motion || !method) throw new Error(`Session ${row.id} has an unknown motion or method.`);
+  const assessment = parseAssessment(row.metrics);
   return {
     id: row.id,
     patientId: row.patient_id,
@@ -42,6 +44,7 @@ function toSession(row: SessionRow): Session {
     farLegHidden: row.far_leg_hidden,
     ...(row.step_count != null ? { stepCount: row.step_count } : {}),
     ...(row.reps != null ? { reps: row.reps } : {}),
+    ...assessment,
   };
 }
 
@@ -74,11 +77,53 @@ export async function saveSession(session: Session, patientId: string): Promise<
       far_leg_hidden: session.farLegHidden ?? false,
       step_count: session.stepCount ?? null,
       reps: session.reps ?? null,
+      metrics: {
+        movementVerified: session.movementVerified ?? null,
+        detectedMotion: session.detectedMotion ?? null,
+        movementMatch: session.movementMatch ?? null,
+        assessmentMetrics: session.assessmentMetrics ?? [],
+      },
     })
     .select(SESSION_COLUMNS)
     .single();
   if (error) throw error;
   return toSession(data);
+}
+
+function parseAssessment(metrics: Json): Partial<Session> {
+  if (!isJsonRecord(metrics)) return {};
+
+  const detectedMotion =
+    typeof metrics.detectedMotion === 'string' ? parseMotion(metrics.detectedMotion) : null;
+  const assessmentMetrics = Array.isArray(metrics.assessmentMetrics)
+    ? metrics.assessmentMetrics.map(parseAssessmentMetric).filter((metric): metric is SessionAssessmentMetric => metric != null)
+    : [];
+
+  return {
+    ...(typeof metrics.movementVerified === 'boolean'
+      ? { movementVerified: metrics.movementVerified }
+      : {}),
+    ...(detectedMotion ? { detectedMotion } : {}),
+    ...(typeof metrics.movementMatch === 'number' ? { movementMatch: metrics.movementMatch } : {}),
+    ...(assessmentMetrics.length > 0 ? { assessmentMetrics } : {}),
+  };
+}
+
+function parseAssessmentMetric(value: Json): SessionAssessmentMetric | null {
+  if (
+    !isJsonRecord(value) ||
+    typeof value.key !== 'string' ||
+    typeof value.label !== 'string' ||
+    typeof value.value !== 'number' ||
+    typeof value.unit !== 'string'
+  ) {
+    return null;
+  }
+  return { key: value.key, label: value.label, value: value.value, unit: value.unit };
+}
+
+function isJsonRecord(value: Json): value is { [key: string]: Json | undefined } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /** Clinician notes on a session, oldest first. */

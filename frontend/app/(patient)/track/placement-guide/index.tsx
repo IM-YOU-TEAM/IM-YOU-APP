@@ -7,6 +7,8 @@ import { CameraSetup } from '@/features/capture/cv/CameraSetup';
 import { DemoClip } from '@/features/capture/DemoClip';
 import { FlowHeader } from '@/features/capture/FlowHeader';
 import { BodyPlacement } from '@/features/capture/imu/BodyPlacement';
+import { TwoPhonePlacement } from '@/features/capture/imu/TwoPhonePlacement';
+import { IMU_SUPPORTED } from '@/features/capture/imu/liveTypes';
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { BODY_SPOT_LABELS, CV_DISTANCE_M, IMU_SPOT, placementSteps, type PlacementStep } from '@/features/capture/placementSteps';
@@ -24,14 +26,18 @@ export default function PlacementGuideScreen() {
   if (!motion || !method) return <MissingParams />;
 
   const steps = placementSteps(motion, method);
+  // The live model reads a thigh phone and a shin phone, so that layout beats a demo clip.
+  const twoPhones = method === 'imu' && IMU_SUPPORTED.includes(motion);
   const caption =
     method === 'cv'
       ? `Phone on the floor, ${CV_DISTANCE_M[motion]} m away, side view`
-      : `${BODY_SPOT_LABELS[IMU_SPOT[motion]]}${IMU_SPOT[motion] === 'lowerBack' ? ' (back view)' : ''}`;
+      : twoPhones
+        ? 'Phone 1 on the right thigh, phone 2 on the right shin'
+        : `${BODY_SPOT_LABELS[IMU_SPOT[motion]]}${IMU_SPOT[motion] === 'lowerBack' ? ' (back view)' : ''}`;
 
   // A movement with a clip in Supabase shows it. The rest keep the setup drawing.
   const drawing =
-    clip === null ? (
+    clip === null || twoPhones ? (
       <Card style={{ gap: space.md, flex: wide ? 1 : undefined }}>
         <View
           accessible
@@ -39,7 +45,13 @@ export default function PlacementGuideScreen() {
           accessibilityLabel={`Drawing: ${caption}`}
           style={{ height: method === 'cv' ? 220 : 280, flexGrow: wide ? 1 : 0 }}
         >
-          {method === 'cv' ? <CameraSetup motion={motion} /> : <BodyPlacement spot={IMU_SPOT[motion]} />}
+          {method === 'cv' ? (
+            <CameraSetup motion={motion} />
+          ) : twoPhones ? (
+            <TwoPhonePlacement />
+          ) : (
+            <BodyPlacement spot={IMU_SPOT[motion]} />
+          )}
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
           <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>

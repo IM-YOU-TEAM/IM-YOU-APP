@@ -107,8 +107,8 @@ export default function HomeScreen() {
                     title={row.title}
                     subtitle={row.subtitle}
                     icon={MOTION_ICONS[s.motion]}
-                    trailing={String(s.gaitScore)}
-                    accessibilityLabel={`${row.title}, ${row.subtitle}, gait score ${s.gaitScore}`}
+                    trailing={s.movementVerified === false ? '—' : String(s.gaitScore)}
+                    accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${s.movementVerified === false ? 'not available' : s.gaitScore}`}
                     onPress={() => router.push(`/results?sessionId=${s.id}`)}
                   />
                 );

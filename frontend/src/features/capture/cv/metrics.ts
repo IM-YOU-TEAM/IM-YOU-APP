@@ -1,5 +1,15 @@
+import { localDateTime, sessionId } from '@/lib/session';
 import type { MotionType, Session } from '@/types';
+import { FramingTracker, type FramingStatus } from './framing';
 import { Joint, bodyInFrame, isInFrame, isVisible } from './landmarks';
+import {
+  assessMovement,
+  movementState as movementStateFor,
+  signalFromFrame,
+  type AssessmentInput,
+  type MotionSignal,
+  type MovementState,
+} from './motionAssessment';
 import type { PoseFrame, PoseSample, Vec3 } from './poseTypes';
 
 /**
@@ -27,7 +37,7 @@ import type { PoseFrame, PoseSample, Vec3 } from './poseTypes';
  * - Steadiness is how even the gaps between steps (or reps) are: 100 when the gaps match,
  *   falling as their spread grows. Pauses are left out. It needs at least three gaps.
  * - In-frame rate is the share of frames showing the upper body, a hip, and a foot.
- * - Gait score is the average of the in-frame rate and whichever of symmetry and steadiness
+ * - Movement score is the average of the in-frame rate and whichever of symmetry and steadiness
  *   were measured. It summarizes this recording. It is not a clinical index.
  */
 
@@ -55,6 +65,8 @@ const ARMS_OFF_FRAMES = 3;
 
 const BOTH_LEGS_FRACTION = 0.5;
 const MIN_GAPS_FOR_STEADINESS = 3;
+const LIVE_SIGNAL_WINDOW = 300;
+const LIVE_EVENT_WINDOW = 30;
 const MIN_RUN_GAPS_FOR_SYMMETRY = 4;
 
 const SIDES = [
@@ -77,6 +89,10 @@ export type LiveReadout = {
   unit: 'steps' | 'reps';
   inFrame: boolean;
   seenPerson: boolean;
+  framing: FramingStatus;
+  movementState: MovementState;
+  detectedMotion?: MotionType;
+  captureStarted: boolean;
   /** Sit-to-stand only: how the latest attempt went. Null until there is one. */
   cue: FormCue | null;
 };
@@ -104,6 +120,8 @@ type Rises = {
   extreme: number;
   armsOffFrames: number;
   reps: number[];
+  durations: number[];
+  riseStartedAt: number | null;
   goodReps: number;
   cue: FormCue | null;
   kneeDiffSum: number;
@@ -118,6 +136,15 @@ export class PoseAccumulator {
   private latestInFrame = false;
   private person = false;
   private readonly samples: PoseSample[] = [];
+  private readonly signals: MotionSignal[] = [];
+  private readonly framingTracker = new FramingTracker();
+  private framing: FramingStatus = 'no-person';
+  private captureStarted = false;
+  private assessedCycleCount = -1;
+  private liveMovementState: MovementState = 'waiting';
+  private liveDetectedMotion: MotionType | undefined;
+  private activeElapsedMs = 0;
+  private lastSignalAt: number | null = null;
   private readonly strides: Strides = { smooth: null, lastT: null, rising: false, extreme: 0, extremeT: 0, steps: [] };
   private readonly rises: Rises = {
     phase: 'unknown',
@@ -126,6 +153,8 @@ export class PoseAccumulator {
     extreme: 0,
     armsOffFrames: 0,
     reps: [],
+    durations: [],
+    riseStartedAt: null,
     goodReps: 0,
     cue: null,
     kneeDiffSum: 0,
@@ -137,13 +166,19 @@ export class PoseAccumulator {
   }
 
   push(frame: PoseFrame | null): LiveReadout {
-    this.total += 1;
     if (frame == null) {
       this.latestInFrame = false;
+      this.framing = this.framingTracker.push(null, this.motion);
+      if (this.captureStarted) this.total += 1;
       return this.readout();
     }
 
     this.person = true;
+    this.framing = this.framingTracker.push(frame.image, this.motion);
+    if (this.framing === 'ready') this.captureStarted = true;
+    if (!this.captureStarted) return this.readout();
+
+    this.total += 1;
     this.samples.push({ tMs: frame.tMs, world: frame.world.map((point) => ({ ...point })) });
 
     const inside = bodyInFrame(frame.image);
@@ -153,24 +188,43 @@ export class PoseAccumulator {
     this.inFrame += 1;
     if (isVisible(frame.image, Joint.leftAnkle) && isVisible(frame.image, Joint.rightAnkle)) this.bothAnkles += 1;
 
+    if (this.lastSignalAt != null) this.activeElapsedMs += Math.max(0, frame.tMs - this.lastSignalAt);
+    this.lastSignalAt = frame.tMs;
+    this.signals.push(signalFromFrame(frame));
     if (this.motion === 'sitToStand') pushRise(this.rises, frame);
     else pushStride(this.strides, frame.tMs, ankleSeparation(frame), STEP_SWING[this.motion]);
     return this.readout();
   }
 
   readout(): LiveReadout {
+    const cycleCount = this.count();
+    if (cycleCount !== this.assessedCycleCount) {
+      const input = this.assessmentInput(this.elapsedSeconds(), true);
+      const assessment = assessMovement(input);
+      this.liveMovementState = movementStateFor(input, assessment);
+      this.liveDetectedMotion = assessment.detectedMotion;
+      this.assessedCycleCount = cycleCount;
+    }
     return {
       count: this.count(),
       unit: isReps(this.motion) ? 'reps' : 'steps',
       inFrame: this.latestInFrame,
       seenPerson: this.person,
+      framing: this.framing,
+      movementState: this.liveMovementState,
+      detectedMotion: this.liveDetectedMotion,
+      captureStarted: this.captureStarted,
       cue: isReps(this.motion) ? this.rises.cue : null,
     };
   }
 
-  /** Null when the camera never delivered a frame, so we do not invent a score. */
+  setPaused(paused: boolean): void {
+    if (paused) this.lastSignalAt = null;
+  }
+
+  /** Null when the camera never delivered a complete body pose, so we do not invent a score. */
   finish(durationSec: number, patientId: string): RecordedSession | null {
-    if (this.total === 0) return null;
+    if (this.samples.length === 0 || this.inFrame === 0) return null;
 
     const reps = isReps(this.motion);
     const count = this.count();
@@ -178,6 +232,7 @@ export class PoseAccumulator {
     const inFrameRate = Math.round((100 * this.inFrame) / this.total);
     const symmetry = this.symmetry();
     const steady = steadiness(withoutPauses(gaps(reps ? this.rises.reps : this.strides.steps)));
+    const assessment = assessMovement(this.assessmentInput(durationSec));
 
     const parts = [inFrameRate];
     if (symmetry.measured) parts.push(symmetry.value);
@@ -185,7 +240,7 @@ export class PoseAccumulator {
     const gaitScore = Math.round(parts.reduce((sum, part) => sum + part, 0) / parts.length);
 
     const session: Session = {
-      id: sessionId(),
+      id: sessionId('cv'),
       patientId,
       date: localDateTime(),
       motion: this.motion,
@@ -197,6 +252,10 @@ export class PoseAccumulator {
       symmetryMeasured: symmetry.measured,
       farLegHidden: symmetry.farLegHidden,
       ...(reps ? { reps: count } : { stepCount: count }),
+      movementVerified: assessment.verified,
+      detectedMotion: assessment.detectedMotion,
+      movementMatch: assessment.match,
+      assessmentMetrics: assessment.metrics,
     };
     return { session, samples: this.samples };
   }
@@ -218,6 +277,27 @@ export class PoseAccumulator {
     if (this.bothAnkles / this.inFrame < BOTH_LEGS_FRACTION) return { measured: false, farLegHidden: true, value: 0 };
     const value = stepSymmetry(this.strides.steps);
     return value == null ? { measured: false, farLegHidden: false, value: 0 } : { measured: true, farLegHidden: false, value };
+  }
+
+  private assessmentInput(durationSec: number, recentSignals = false): AssessmentInput {
+    const stepTimes = recentSignals ? this.strides.steps.slice(-LIVE_EVENT_WINDOW) : this.strides.steps;
+    const repTimes = recentSignals ? this.rises.reps.slice(-LIVE_EVENT_WINDOW) : this.rises.reps;
+    const stepCount = stepTimes.length;
+    const reps = repTimes.length;
+    return {
+      selected: this.motion,
+      stepCount,
+      stepCadence: durationSec > 0 ? Math.round((stepCount / durationSec) * 60) : 0,
+      reps,
+      repCadence: durationSec > 0 ? Math.round((reps / durationSec) * 60) : 0,
+      riseDurationsMs: recentSignals ? this.rises.durations.slice(-LIVE_EVENT_WINDOW) : this.rises.durations,
+      stepRegularity: steadiness(withoutPauses(gaps(stepTimes))),
+      signals: recentSignals ? this.signals.slice(-LIVE_SIGNAL_WINDOW) : this.signals,
+    };
+  }
+
+  private elapsedSeconds(): number {
+    return this.activeElapsedMs / 1000;
   }
 }
 
@@ -348,10 +428,12 @@ function pushRise(r: Rises, frame: PoseFrame): void {
       else if (angle >= STANDING_KNEE) enterStanding(r, angle);
       return;
     case 'seated':
+      if (angle > SEATED_KNEE && r.riseStartedAt == null) r.riseStartedAt = t;
       if (angle >= STANDING_KNEE) {
         const last = r.reps.at(-1);
         if (last == null || t - last >= MIN_REP_GAP_MS) {
           r.reps.push(t);
+          if (r.riseStartedAt != null) r.durations.push(t - r.riseStartedAt);
           const usedArms = r.armsOffFrames >= ARMS_OFF_FRAMES;
           if (!usedArms) r.goodReps += 1;
           r.cue = usedArms ? FORM_CUES.armsUsed : FORM_CUES.good;
@@ -385,11 +467,13 @@ function enterSeat(r: Rises, angle: number): void {
   r.phase = 'seated';
   r.extreme = angle;
   r.armsOffFrames = 0;
+  r.riseStartedAt = null;
 }
 
 function enterStanding(r: Rises, angle: number): void {
   r.phase = 'standing';
   r.extreme = angle;
+  r.riseStartedAt = null;
 }
 
 /**
@@ -565,13 +649,3 @@ function isReps(motion: MotionType): boolean {
   }
 }
 
-function sessionId(): string {
-  const cryptoObj = globalThis.crypto;
-  if (cryptoObj && 'randomUUID' in cryptoObj) return `cv-${cryptoObj.randomUUID()}`;
-  return `cv-${Date.now()}`;
-}
-
-function localDateTime(d = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-}
