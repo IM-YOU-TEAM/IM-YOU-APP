@@ -89,16 +89,14 @@ export const shadows = {
 
 // ---------- Type ----------
 // Sizes follow the iOS Dynamic Type defaults (Large Title 34, Title 2 22, Headline 17, Body 17, Subheadline 15, Footnote 13).
-// Font: Plus Jakarta Sans. To swap the font, change the families here and the useFonts call in app/_layout.tsx.
-export const fonts = {
-  400: 'PlusJakartaSans_400Regular',
-  500: 'PlusJakartaSans_500Medium',
-  600: 'PlusJakartaSans_600SemiBold',
-  700: 'PlusJakartaSans_700Bold',
-  800: 'PlusJakartaSans_800ExtraBold',
-} as const;
+// Native platforms use their system UI face (San Francisco on iOS, Roboto on Android).
+const SYSTEM_FONT = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif',
+});
 
-export type FontWeight = keyof typeof fonts;
+export type FontWeight = 400 | 500 | 600 | 700 | 800;
 
 type TypeStep = { fontSize: number; lineHeight: number; weight: FontWeight; letterSpacing?: number };
 
@@ -116,8 +114,10 @@ export type TypeVariant = keyof typeof type;
 /** Style object for a type step, with an optional weight override. */
 export function typeStyle(variant: TypeVariant, weight?: FontWeight): TextStyle {
   const step: TypeStep = type[variant];
+  const resolvedWeight = weight ?? step.weight;
   return {
-    fontFamily: fonts[weight ?? step.weight],
+    fontFamily: SYSTEM_FONT,
+    fontWeight: String(resolvedWeight) as TextStyle['fontWeight'],
     fontSize: step.fontSize,
     lineHeight: step.lineHeight,
     letterSpacing: step.letterSpacing ?? 0,
