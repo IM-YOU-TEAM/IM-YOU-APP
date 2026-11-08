@@ -4,15 +4,17 @@ import { Text } from '@/components';
 import { colors, radii, shadows, space } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 
-type Props = { paused: boolean };
+type RecordingStatus = 'setting-up' | 'recording' | 'paused' | 'camera-blocked';
+type Props = { status: RecordingStatus };
 
-/** "Recording" pill with a pulsing Cherry Blossom dot (static under Reduce Motion or when paused). */
-export function RecordingBadge({ paused }: Props) {
+/** Capture-state pill; only the active recording state pulses. */
+export function RecordingBadge({ status }: Props) {
   const reduce = useReduceMotion();
   const pulse = useRef(new Animated.Value(1)).current;
+  const recording = status === 'recording';
 
   useEffect(() => {
-    if (paused || reduce) {
+    if (!recording || reduce) {
       pulse.setValue(1);
       return;
     }
@@ -25,13 +27,16 @@ export function RecordingBadge({ paused }: Props) {
     );
     loop.start();
     return () => loop.stop();
-  }, [paused, reduce, pulse]);
+  }, [recording, reduce, pulse]);
+
+  const label = statusLabel(status);
+  const dot = statusColor(status);
 
   return (
     <View
       accessible
       accessibilityRole="text"
-      accessibilityLabel={paused ? 'Paused' : 'Recording'}
+      accessibilityLabel={label}
       accessibilityLiveRegion="polite"
       style={[
         { flexDirection: 'row', alignItems: 'center', gap: space.sm, alignSelf: 'flex-start', backgroundColor: colors.white, borderRadius: radii.pill, paddingVertical: space.sm, paddingHorizontal: space.lg },
@@ -39,11 +44,45 @@ export function RecordingBadge({ paused }: Props) {
       ]}
     >
       <Animated.View
-        style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: paused ? colors.textMuted : colors.cherry, opacity: pulse }}
+        style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: dot, opacity: pulse }}
       />
       <Text variant="callout" weight={700}>
-        {paused ? 'Paused' : 'Recording'}
+        {label}
       </Text>
     </View>
   );
+}
+
+function statusLabel(status: RecordingStatus): string {
+  switch (status) {
+    case 'setting-up':
+      return 'Setting up';
+    case 'recording':
+      return 'Recording';
+    case 'paused':
+      return 'Paused';
+    case 'camera-blocked':
+      return 'Camera unavailable';
+    default: {
+      const unexpected: never = status;
+      return unexpected;
+    }
+  }
+}
+
+function statusColor(status: RecordingStatus): string {
+  switch (status) {
+    case 'setting-up':
+      return colors.seagrass;
+    case 'recording':
+      return colors.cherry;
+    case 'paused':
+      return colors.textMuted;
+    case 'camera-blocked':
+      return colors.graphite;
+    default: {
+      const unexpected: never = status;
+      return unexpected;
+    }
+  }
 }

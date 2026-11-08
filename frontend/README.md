@@ -5,10 +5,15 @@ Expo Router + React Native + TypeScript. One codebase for iOS, Android and web.
 ## Run
 
 ```sh
-npm install
-npx expo start --web     # or: npx expo start, then open on a phone with Expo Go
+npm install              # also copies the pose runtime into public/mediapipe
+npx expo start --web     # camera tracking runs in the browser
+npm run ios -- --device  # physical iPhone; requires macOS and Xcode
+npm run android -- --device
 npx tsc --noEmit         # type-check before pushing
 ```
+
+The phone camera uses native modules, so it requires one of these development
+builds. Expo Go cannot load the pose camera.
 
 ## Where things live
 
@@ -19,5 +24,11 @@ npx tsc --noEmit         # type-check before pushing
 - `src/lib/format.ts` date/duration formatters
 - `src/types/` shared types
 
-No backend yet: there are no network calls, and login just routes by role.
-`src/lib/data.ts` holds no synthetic records. Its collections stay empty until real data is connected.
+No backend yet: login just routes by role. A camera session's numbers stay in memory until you reload.
+`src/lib/data.ts` holds no synthetic records. Its collections stay empty until a session is recorded or real data is connected.
+
+Camera guidance estimates whether the person is too small, clipped or off-centre
+from pose landmarks. Walking, running, stairs and sit-to-stand each have a
+separate heuristic pattern check and descriptive measurements. These prototype
+measurements are not clinically validated and must not be treated as a diagnosis
+or pass/fail rehabilitation result.

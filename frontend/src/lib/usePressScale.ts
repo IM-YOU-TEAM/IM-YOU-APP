@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Animated, Platform } from 'react-native';
+import { Animated, Easing, Platform } from 'react-native';
 import { useReduceMotion } from './useReduceMotion';
 
 /**
@@ -9,20 +9,34 @@ import { useReduceMotion } from './useReduceMotion';
 export function usePressScale(pressedScale = 0.97) {
   const scale = useRef(new Animated.Value(1)).current;
   const reduce = useReduceMotion();
+  const useNativeDriver = Platform.OS !== 'web';
 
-  const to = (value: number) => {
+  const pressIn = () => {
     if (reduce) return;
+    scale.stopAnimation();
+    Animated.timing(scale, {
+      toValue: pressedScale,
+      duration: 95,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver,
+    }).start();
+  };
+
+  const pressOut = () => {
+    if (reduce) return;
+    scale.stopAnimation();
     Animated.spring(scale, {
-      toValue: value,
-      useNativeDriver: Platform.OS !== 'web',
-      speed: 40,
-      bounciness: 6,
+      toValue: 1,
+      stiffness: 360,
+      damping: 22,
+      mass: 0.72,
+      useNativeDriver,
     }).start();
   };
 
   return {
     scale,
-    onPressIn: () => to(pressedScale),
-    onPressOut: () => to(1),
+    onPressIn: pressIn,
+    onPressOut: pressOut,
   };
 }

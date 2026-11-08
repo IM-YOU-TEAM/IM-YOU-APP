@@ -11,6 +11,8 @@ export const colors = {
   cherry: '#EDAFB8', // accent ONLY (one highlight per screen)
   graphite: '#3C3744', // text, icons, dark bento tile
   white: '#FFFFFF', // main cards
+  burntOrange: '#CF4F27', // warm icon accent; passes 3:1 on its tint and Honeydew
+  burntOrangeTint: '#FBE3D8', // soft icon bubble behind Burnt Orange glyphs
 
   // Text
   text: '#3C3744',
@@ -61,9 +63,8 @@ export const space = {
 export const GAP = 16;
 
 // ---------- Layout ----------
-export const WIDE = 768; // >= this width: sidebar + multi-column layouts
+export const WIDE = 768; // >= this width: top widget + multi-column layouts
 export const MAX_CONTENT_WIDTH = 1120;
-export const SIDEBAR_WIDTH = 240;
 export const MIN_HIT = 44; // minimum touch target
 
 // ---------- Shadow ----------

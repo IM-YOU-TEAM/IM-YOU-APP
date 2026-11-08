@@ -1,22 +1,8 @@
-// App data. No synthetic data: these collections start empty and get filled
-// from the real backend (Supabase) later. Screens must handle the empty state.
-import type {
-  CaptureMethod,
-  Clinician,
-  Feedback,
-  IconName,
-  Labels,
-  MotionType,
-  Patient,
-  Session,
-} from '@/types';
+// Labels, icons and small helpers. Records live in Supabase: see features/results/api.ts and features/care/api.ts.
+import type { CaptureMethod, IconName, Labels, MotionType } from '@/types';
 
-export const patients: Patient[] = [];
-export const sessions: Session[] = [];
-export const feedback: Feedback[] = [];
-
-/** The signed-in clinician, once auth exists. */
-export const clinician: Clinician | null = null;
+/** Placeholder patient id on a freshly recorded session. Saving swaps in the signed-in patient's id. */
+export const LOCAL_PATIENT_ID = 'local';
 
 /** Today's date as "YYYY-MM-DD" (local time). */
 export function today(): string {
@@ -48,25 +34,3 @@ export const METHOD_ICONS: Record<CaptureMethod, IconName> = {
   cv: 'camera',
   imu: 'phone-portrait',
 };
-
-// ---------- Helpers ----------
-export function getPatient(id: string): Patient | undefined {
-  return patients.find((p) => p.id === id);
-}
-
-export function getSession(id: string): Session | undefined {
-  return sessions.find((x) => x.id === id);
-}
-
-/** A patient's sessions, oldest first. */
-export function sessionsFor(patientId: string): Session[] {
-  return sessions.filter((x) => x.patientId === patientId).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-export function latestSession(patientId: string): Session | undefined {
-  return sessionsFor(patientId).at(-1);
-}
-
-export function feedbackFor(sessionId: string): Feedback[] {
-  return feedback.filter((f) => f.sessionId === sessionId);
-}
