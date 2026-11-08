@@ -1,76 +1,183 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
-import { Card, Logo, PillButton, ScreenContainer, SegmentedToggle, Text } from '@/components';
-import { space } from '@/lib/theme';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Logo, PillButton, ScreenContainer, Text } from '@/components';
+import { colors, continuous, MIN_HIT, radii, space } from '@/lib/theme';
+import type { IconName } from '@/types';
 
 type Role = 'patient' | 'clinician';
 
 const ROLE_OPTIONS = [
-  { value: 'patient', label: 'Patient' },
-  { value: 'clinician', label: 'Clinician' },
+  {
+    value: 'patient',
+    label: 'Patient',
+    description: 'Track sessions and view progress',
+    icon: 'walk',
+  },
+  {
+    value: 'clinician',
+    label: 'Clinician',
+    description: 'Review patients and care plans',
+    icon: 'medkit',
+  },
 ] as const;
+
+type RoleOptionProps = {
+  value: Role;
+  label: string;
+  description: string;
+  icon: IconName;
+  selected: boolean;
+  onPress: (value: Role) => void;
+};
+
+function RoleOption({ value, label, description, icon, selected, onPress }: RoleOptionProps) {
+  return (
+    <Pressable
+      onPress={() => onPress(value)}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={`${label}. ${description}`}
+      style={({ pressed }) => [
+        styles.roleOption,
+        selected && styles.roleOptionSelected,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Ionicons name={icon} size={22} color={colors.seagrass} />
+      <View style={styles.roleCopy}>
+        <Text variant="headline">{label}</Text>
+        <Text variant="callout" muted>
+          {description}
+        </Text>
+      </View>
+      <View style={styles.checkSlot}>
+        {selected ? <Ionicons name="checkmark-circle" size={22} color={colors.seagrass} /> : null}
+      </View>
+    </Pressable>
+  );
+}
 
 export default function SignupScreen() {
   const [role, setRole] = useState<Role>('patient');
-  const roleCopy =
-    role === 'patient'
-      ? 'Track guided movement sessions and review your progress.'
-      : 'Review assigned patients and follow their recent progress.';
 
   const continueToPreview = () => {
     router.replace(role === 'patient' ? '/home' : '/dashboard');
   };
 
   return (
-    <ScreenContainer maxWidth={480} contentStyle={{ flex: 1, justifyContent: 'center' }}>
-      <Card style={{ gap: space.xxl, padding: space.xxl }}>
-        <View style={{ gap: space.lg }}>
-          <Logo size={52} />
-          <View style={{ gap: space.sm }}>
-            <Text variant="display" accessibilityRole="header">
-              Preview your workspace
-            </Text>
-            <Text variant="body" muted>
-              Pick a role to explore the experience before account setup is available.
-            </Text>
-          </View>
-        </View>
+    <ScreenContainer
+      maxWidth={400}
+      gap={0}
+      contentStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+    >
+      <View style={styles.content}>
+        <Logo size={46} />
 
-        <View style={{ gap: space.md }}>
-          <SegmentedToggle
-            options={ROLE_OPTIONS}
-            value={role}
-            onChange={setRole}
-            accessibilityLabel="Preview role"
-            style={{ alignSelf: 'stretch' }}
-          />
-          <Text variant="callout" muted accessibilityLiveRegion="polite">
-            {roleCopy}
+        <View style={styles.heading}>
+          <Text variant="title" align="center" accessibilityRole="header">
+            How will you use I'M U?
+          </Text>
+          <Text variant="callout" muted align="center">
+            Select a workspace to preview.
           </Text>
         </View>
 
-        <View style={{ gap: space.md }}>
+        <View accessibilityRole="radiogroup" style={styles.roleGroup}>
+          {ROLE_OPTIONS.map((option, index) => (
+            <View key={option.value}>
+              {index > 0 ? <View style={styles.separator} /> : null}
+              <RoleOption
+                {...option}
+                selected={role === option.value}
+                onPress={setRole}
+              />
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.actions}>
           <PillButton
-            label={`Continue as ${role}`}
-            icon={role === 'patient' ? 'walk' : 'medkit'}
-            size="lg"
+            label="Continue"
+            icon="arrow-forward"
+            iconRight
             fullWidth
             onPress={continueToPreview}
           />
-          <PillButton
-            label="Back"
-            icon="arrow-back"
-            variant="ghost"
-            fullWidth
-            onPress={() => router.replace('/login')}
-          />
-        </View>
 
-        <Text variant="caption" muted align="center">
-          Preview activity stays on this device and is not saved.
-        </Text>
-      </Card>
+          <Pressable
+            onPress={() => router.replace('/login')}
+            accessibilityRole="button"
+            accessibilityLabel="Back to sign in"
+            hitSlop={8}
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+          >
+            <Text variant="callout" weight={600} color={colors.seagrass}>
+              Back
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     </ScreenContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  content: {
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    gap: space.xxl,
+  },
+  heading: {
+    alignItems: 'center',
+    gap: space.xs,
+  },
+  roleGroup: {
+    width: '100%',
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.white,
+    ...continuous,
+  },
+  roleOption: {
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+  },
+  roleOptionSelected: {
+    backgroundColor: colors.seagrassTint,
+  },
+  roleCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  checkSlot: {
+    width: 22,
+    alignItems: 'center',
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 54,
+    backgroundColor: colors.separator,
+  },
+  actions: {
+    width: '100%',
+    alignItems: 'center',
+    gap: space.sm,
+  },
+  backButton: {
+    minHeight: MIN_HIT,
+    justifyContent: 'center',
+    paddingHorizontal: space.lg,
+  },
+  pressed: {
+    opacity: 0.65,
+  },
+});
