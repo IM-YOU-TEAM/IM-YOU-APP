@@ -1,12 +1,5 @@
-import {
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-  useFonts,
-} from '@expo-google-fonts/plus-jakarta-sans';
 import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -18,14 +11,9 @@ import { applyWebStyles } from '@/lib/webStyles';
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 export default function RootLayout() {
-  // Brand font. To swap it, change these imports and `fonts` in src/lib/theme.ts.
+  // Text uses each platform's system UI font; only the icon glyph font needs loading.
   const [loaded, error] = useFonts({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
-    ...Ionicons.font, // icons ready on first paint
+    ...Ionicons.font,
   });
   const ready = loaded || !!error;
 
@@ -37,7 +25,7 @@ export default function RootLayout() {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);
   }, [ready]);
 
-  // Native: wait for fonts, or text is measured with the fallback font and gets cut off.
+  // Native: wait for the icon font so controls do not shift after first paint.
   if (!ready && Platform.OS !== 'web') return null;
 
   // Web: keep the Stack mounted so deep links like /patients/p1 keep their route,

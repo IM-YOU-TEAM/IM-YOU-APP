@@ -6,14 +6,14 @@ import { space } from '@/lib/theme';
 export default function LoginScreen() {
   return (
     <ScreenContainer
-      maxWidth={400}
+      maxWidth={480}
       gap={0}
       contentStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
     >
-      <View style={{ width: '100%', maxWidth: 360, alignItems: 'center', gap: space.xxl }}>
-        <Logo size={46} />
+      <View style={{ width: '100%', maxWidth: 420, alignItems: 'center', gap: space.xxxl }}>
+        <Logo size={56} />
 
-        <Text variant="title" align="center" accessibilityRole="header">
+        <Text variant="display" align="center" accessibilityRole="header">
           Welcome to I'M U
         </Text>
 
@@ -21,6 +21,7 @@ export default function LoginScreen() {
           <PillButton
             label="Continue as patient"
             icon="walk"
+            size="lg"
             fullWidth
             onPress={() => router.replace('/home')}
           />
@@ -28,6 +29,7 @@ export default function LoginScreen() {
             label="Professional portal"
             icon="people"
             variant="secondary"
+            size="lg"
             fullWidth
             onPress={() => router.replace('/dashboard')}
             accessibilityLabel="Professional portal for clinicians, researchers, and organizations"
