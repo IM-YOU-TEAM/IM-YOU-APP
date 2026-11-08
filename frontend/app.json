@@ -41,7 +41,9 @@
         {
           "assetsPaths": ["./public/models/"]
         }
-      ]
+      ],
+      "expo-video",
+      "expo-web-browser"
     ]
   }
 }

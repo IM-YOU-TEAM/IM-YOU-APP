@@ -5,7 +5,14 @@ import { createPoseAccumulator, type LiveReadout, type PoseAccumulator, type Rec
 import type { PoseFrame } from './poseTypes';
 
 function sameReadout(a: LiveReadout, b: LiveReadout): boolean {
-  return a.count === b.count && a.unit === b.unit && a.inFrame === b.inFrame && a.seenPerson === b.seenPerson;
+  return (
+    a.count === b.count &&
+    a.unit === b.unit &&
+    a.inFrame === b.inFrame &&
+    a.seenPerson === b.seenPerson &&
+    a.cue?.text === b.cue?.text &&
+    a.cue?.tone === b.cue?.tone
+  );
 }
 
 /** Records landmark frames for one session and turns them into the numbers Results shows. */
