@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useWindowDimensions, View } from 'react-native';
 import { Card, ListCard, ScreenContainer, Text } from '@/components';
+import { useCareRoster } from '@/features/care/useCareRoster';
 import { EmptyState } from '@/features/results/EmptyState';
-import { clinician, patients, sessionsFor } from '@/lib/data';
 import { space, WIDE } from '@/lib/theme';
 
 export default function DashboardScreen() {
   const wide = useWindowDimensions().width >= WIDE;
+  const { patients } = useCareRoster();
 
   return (
     <ScreenContainer gap={wide ? space.xl : space.lg}>
@@ -15,9 +16,7 @@ export default function DashboardScreen() {
           Patients
         </Text>
         <Text variant="body" muted>
-          {clinician
-            ? `${clinician.name}, review your assigned patients and their latest activity.`
-            : 'Review assigned patients and their latest activity.'}
+          Review assigned patients and watch a live sensor session.
         </Text>
       </View>
 
@@ -38,28 +37,23 @@ export default function DashboardScreen() {
 
         {patients.length > 0 ? (
           <View style={{ gap: space.sm }}>
-            {patients.map((patient) => {
-              const sessionCount = sessionsFor(patient.id).length;
-              const sessionLabel = sessionCount === 1 ? '1 session' : `${sessionCount} sessions`;
-
-              return (
-                <ListCard
-                  key={patient.id}
-                  title={patient.name}
-                  subtitle={`${patient.condition} · ${sessionLabel}`}
-                  icon="person"
-                  trailing={`${patient.adherence}%`}
-                  accessibilityLabel={`${patient.name}, ${patient.condition}, ${sessionLabel}, ${patient.adherence}% adherence`}
-                  onPress={() => router.push(`/patients/${patient.id}`)}
-                />
-              );
-            })}
+            {patients.map((patient) => (
+              <ListCard
+                key={patient.id}
+                title={patient.careCode}
+                subtitle={patient.linked ? 'Linked · two-phone IMU ready' : 'Waiting to be claimed'}
+                icon="person"
+                trailing={patient.linked ? 'Live' : '—'}
+                accessibilityLabel={`${patient.careCode}, ${patient.linked ? 'linked' : 'unclaimed'}`}
+                onPress={() => router.push(`/patients/${patient.id}`)}
+              />
+            ))}
           </View>
         ) : (
           <EmptyState
             icon="people"
             title="No patients assigned"
-            line="Assigned patients will appear here with their activity and adherence."
+            line="Assigned patients will appear here with their activity and a live view."
             action={false}
           />
         )}

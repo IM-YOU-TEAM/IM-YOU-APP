@@ -31,6 +31,7 @@ export default function ClinicianLayout() {
             <Tabs.Screen name="dashboard/index" />
             {/* Detail route (dashboard -> patient). Our custom bars only show `items`, so it never appears as a tab. */}
             <Tabs.Screen name="patients/[patientId]/index" />
+            <Tabs.Screen name="patients/[patientId]/live/index" />
           </Tabs>
         </View>
       </BottomBarInsetProvider>
