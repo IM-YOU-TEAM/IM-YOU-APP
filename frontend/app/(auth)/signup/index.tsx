@@ -17,9 +17,9 @@ const ROLE_OPTIONS = [
   },
   {
     value: 'clinician',
-    label: 'Clinician',
-    description: 'Review patients and care plans',
-    icon: 'medkit',
+    label: 'Professional',
+    description: 'Clinicians, researchers, and organizations',
+    icon: 'people',
   },
 ] as const;
 
@@ -62,7 +62,7 @@ function RoleOption({ value, label, description, icon, selected, onPress }: Role
 export default function SignupScreen() {
   const [role, setRole] = useState<Role>('patient');
 
-  const continueToPreview = () => {
+  const continueToWorkspace = () => {
     router.replace(role === 'patient' ? '/home' : '/dashboard');
   };
 
@@ -77,10 +77,10 @@ export default function SignupScreen() {
 
         <View style={styles.heading}>
           <Text variant="title" align="center" accessibilityRole="header">
-            How will you use I'M U?
+            Choose your role
           </Text>
           <Text variant="callout" muted align="center">
-            Select a workspace to preview.
+            Select how you'll use I'M U.
           </Text>
         </View>
 
@@ -103,7 +103,7 @@ export default function SignupScreen() {
             icon="arrow-forward"
             iconRight
             fullWidth
-            onPress={continueToPreview}
+            onPress={continueToWorkspace}
           />
 
           <Pressable
