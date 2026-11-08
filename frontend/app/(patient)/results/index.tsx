@@ -9,6 +9,7 @@ import { METHOD_LABELS, MOTION_ICONS, MOTION_LABELS, today } from '@/lib/data';
 import { formatDate, formatDuration } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
+import type { SessionAssessmentMetric } from '@/types';
 import { EmptyState } from '@/features/results/EmptyState';
 import { gaitSeries, sessionWhen, type Range } from '@/features/results/derive';
 
@@ -62,7 +63,7 @@ export default function ResultsScreen() {
             line={
               sessionId
                 ? "We couldn't find that session. Track a new one to see fresh results."
-                : 'Track a session and your gait score, cadence and symmetry will show up here.'
+                : 'Track a session and your movement score, cadence and symmetry will show up here.'
             }
           />
         </Card>
@@ -73,9 +74,10 @@ export default function ResultsScreen() {
   const series = gaitSeries(all, range, today());
   const symmetryHidden = session.symmetryMeasured === false;
   const farLegHidden = session.farLegHidden === true;
+  const movementNotVerified = session.movementVerified === false;
   const countBit = session.reps != null ? `${session.reps} reps` : session.stepCount != null ? `${session.stepCount} steps` : null;
   const metrics: Metric[] = [
-    { label: 'Gait score', value: String(session.gaitScore) },
+    { label: 'Movement score', value: movementNotVerified ? '—' : String(session.gaitScore) },
     { label: 'Cadence', value: `${session.cadence}/min` },
     { label: 'Symmetry', value: symmetryHidden ? '—' : `${session.symmetry}%` },
     { label: 'Duration', value: formatDuration(session.durationSec) },
@@ -117,11 +119,19 @@ export default function ResultsScreen() {
         ) : null}
       </Card>
 
+      <AssessmentDetails
+        motion={session.motion}
+        verified={session.movementVerified}
+        detectedMotion={session.detectedMotion}
+        match={session.movementMatch}
+        metrics={session.assessmentMetrics ?? []}
+      />
+
       <BentoGrid weights={[2, 1]}>
-        {/* Gait score over time */}
+        {/* Movement score over time */}
         <Card style={{ flex: 1, gap: space.lg }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
-            <Text variant="headline">Gait score over time</Text>
+            <Text variant="headline">Movement score over time</Text>
             <SegmentedToggle options={RANGES} value={range} onChange={setRange} accessibilityLabel="Chart range" />
           </View>
           {series.length > 0 ? (
@@ -130,7 +140,7 @@ export default function ResultsScreen() {
               height={CHART_HEIGHT}
               yDomain={[0, 100]}
               formatValue={(v) => `${v} / 100`}
-              accessibilityLabel={`Gait score over the last ${range === 'week' ? '7' : '30'} days`}
+              accessibilityLabel={`Movement score over the last ${range === 'week' ? '7' : '30'} days`}
             />
           ) : (
             <View style={{ height: CHART_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
@@ -138,7 +148,7 @@ export default function ResultsScreen() {
                 <Ionicons name="analytics" size={28} color={colors.burntOrange} />
               </View>
               <Text variant="callout" muted align="center">
-                No sessions in the last {range === 'week' ? '7' : '30'} days.
+                No verified movement scores in the last {range === 'week' ? '7' : '30'} days.
               </Text>
             </View>
           )}
@@ -170,4 +180,77 @@ export default function ResultsScreen() {
       </BentoGrid>
     </ScreenContainer>
   );
+}
+
+function AssessmentDetails({
+  motion,
+  verified,
+  detectedMotion,
+  match,
+  metrics,
+}: {
+  motion: keyof typeof MOTION_LABELS;
+  verified?: boolean;
+  detectedMotion?: keyof typeof MOTION_LABELS;
+  match?: number;
+  metrics: SessionAssessmentMetric[];
+}) {
+  const title =
+    verified === true
+      ? `${MOTION_LABELS[motion]} pattern matched`
+      : verified === false
+        ? `${MOTION_LABELS[motion]} was not confirmed`
+        : 'Movement assessment unavailable';
+  const detail =
+    verified === true
+      ? 'The recorded joint pattern matched the movement you selected.'
+      : verified === false && detectedMotion && detectedMotion !== motion
+        ? `The recording looked closer to ${MOTION_LABELS[detectedMotion].toLowerCase()}. Check the selected movement and camera position before recording again.`
+        : verified === false && detectedMotion === motion
+          ? 'The selected movement was visible, but the pattern match was not strong enough to confirm the session. Keep your whole body in frame and record again.'
+        : verified === false
+          ? 'Not enough complete movement cycles were visible. Record again with your whole body in frame.'
+          : 'This session was recorded before movement verification was available.';
+
+  return (
+    <Card style={{ gap: space.lg }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: space.md }}>
+        <Ionicons name={verified === true ? 'checkmark-circle' : 'alert-circle'} size={26} color={verified === true ? colors.seagrass : colors.graphite} />
+        <View style={{ flex: 1, gap: space.xs }}>
+          <Text variant="headline">{title}</Text>
+          <Text variant="callout" muted>
+            {detail}
+          </Text>
+          {match != null ? (
+            <Text variant="caption" muted>
+              Pattern match {match}%
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      {metrics.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xl }}>
+          {metrics.map((metric) => (
+            <View key={metric.key} style={{ minWidth: 130, flexGrow: 1, flexBasis: 0 }} accessible accessibilityLabel={`${metric.label}: ${formatAssessmentMetric(metric)}`}>
+              <Text variant="title" style={{ fontVariant: ['tabular-nums'] }}>
+                {formatAssessmentMetric(metric)}
+              </Text>
+              <Text variant="caption" muted>
+                {metric.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      <Text variant="caption" muted>
+        Camera measurements describe this recording only. They are not a clinical diagnosis or a pass/fail result.
+      </Text>
+    </Card>
+  );
+}
+
+function formatAssessmentMetric(metric: SessionAssessmentMetric): string {
+  return `${metric.value}${metric.unit}`;
 }

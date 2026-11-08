@@ -25,6 +25,13 @@ export type Patient = {
   latest: { date: string; gaitScore: number } | null;
 };
 
+export type SessionAssessmentMetric = {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+};
+
 export type Session = {
   id: string;
   patientId: string;
@@ -32,7 +39,7 @@ export type Session = {
   motion: MotionType;
   method: CaptureMethod;
   durationSec: number;
-  gaitScore: number; // 0-100, in-app summary of this recording
+  gaitScore: number; // 0-100 movement summary retained under the legacy field name
   cadence: number; // steps/min (reps/min for sit-to-stand)
   symmetry: number; // left/right symmetry, %. 0 when it was not measured
   /** False when left and right were not compared. */
@@ -41,6 +48,14 @@ export type Session = {
   farLegHidden?: boolean;
   stepCount?: number; // walking, running, stairs
   reps?: number; // sit-to-stand
+  /** Whether the captured pose matched the movement selected before recording. */
+  movementVerified?: boolean;
+  /** Best heuristic match when enough movement was visible. */
+  detectedMotion?: MotionType;
+  /** 0-100 strength of the movement-pattern match; not a clinical confidence score. */
+  movementMatch?: number;
+  /** Motion-specific, descriptive measurements. They have no clinical pass/fail thresholds. */
+  assessmentMetrics?: SessionAssessmentMetric[];
 };
 
 export type Feedback = {

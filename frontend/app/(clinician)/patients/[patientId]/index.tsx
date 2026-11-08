@@ -82,7 +82,7 @@ export default function PatientDetailScreen() {
   const recent = [...sessions].reverse().slice(0, 5);
   const metrics: Metric[] = [
     { label: 'Sessions', value: String(sessions.length) },
-    { label: 'Gait score', value: latest ? String(latest.gaitScore) : '—' },
+    { label: 'Movement score', value: latest && latest.movementVerified !== false ? String(latest.gaitScore) : '—' },
     { label: 'Cadence', value: latest ? `${latest.cadence}/min` : '—' },
     { label: 'Last session', value: latest ? formatDate(latest.date) : '—' },
   ];
@@ -118,6 +118,17 @@ export default function PatientDetailScreen() {
         )}
       </Card>
 
+      {patient.status === 'linked' ? (
+        <PillButton
+          label="Watch live joint angles"
+          icon="pulse"
+          size="lg"
+          fullWidth={!wide}
+          style={wide ? { alignSelf: 'flex-start' } : undefined}
+          onPress={() => router.push(`/patients/${patient.id}/live`)}
+        />
+      ) : null}
+
       <Card style={{ gap: space.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
           <Text variant="headline">Recent sessions</Text>
@@ -136,9 +147,9 @@ export default function PatientDetailScreen() {
                   title={row.title}
                   subtitle={row.subtitle}
                   icon={MOTION_ICONS[session.motion]}
-                  trailing={`${session.gaitScore}`}
+                  trailing={session.movementVerified === false ? '—' : `${session.gaitScore}`}
                   chevron={false}
-                  accessibilityLabel={`${row.title}, ${row.subtitle}, gait score ${session.gaitScore}`}
+                  accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${session.movementVerified === false ? 'not available' : session.gaitScore}`}
                 />
               );
             })}

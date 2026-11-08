@@ -1,31 +1,39 @@
 import { useEffect, useState } from 'react';
-import { publicFileUrl, selectRows } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase/client';
 import type { MotionType } from '@/types';
 
 export type ExerciseClip = { video: string; poster: string | null; credit: string };
-
-type ClipRow = { movement_type: string; video_path: string; poster_path: string | null; credit: string };
 
 const BUCKET = 'exercise-clips';
 
 let loaded: Map<string, ExerciseClip> | null = null;
 let request: Promise<Map<string, ExerciseClip>> | null = null;
 
+async function fetchClips(): Promise<Map<string, ExerciseClip>> {
+  const { data, error } = await supabase
+    .from('exercise_clips')
+    .select('movement_type, video_path, poster_path, credit');
+  const clips = new Map<string, ExerciseClip>();
+  if (error) {
+    request = null;
+    return clips;
+  }
+  for (const row of data) {
+    const video = supabase.storage.from(BUCKET).getPublicUrl(row.video_path).data.publicUrl;
+    const poster = row.poster_path
+      ? supabase.storage.from(BUCKET).getPublicUrl(row.poster_path).data.publicUrl
+      : null;
+    clips.set(row.movement_type, { video, poster, credit: row.credit });
+  }
+  loaded = clips;
+  return clips;
+}
+
 // The table holds one row per movement, so fetch it once and reuse it on every screen.
 function loadClips(): Promise<Map<string, ExerciseClip>> {
-  request ??= selectRows<ClipRow>('exercise_clips', 'select=movement_type,video_path,poster_path,credit').then((rows) => {
-    const clips = new Map<string, ExerciseClip>();
-    for (const row of rows ?? []) {
-      const video = publicFileUrl(BUCKET, row.video_path);
-      if (!video) continue;
-      const poster = row.poster_path ? publicFileUrl(BUCKET, row.poster_path) : null;
-      clips.set(row.movement_type, { video, poster, credit: row.credit });
-    }
-    if (rows) loaded = clips;
-    else request = null; // offline or misconfigured: try again on the next screen
-    return clips;
-  });
-  return request;
+  const pending = request ?? fetchClips();
+  request = pending;
+  return pending;
 }
 
 /** The demonstration clip for a movement: undefined while loading, null when it has none. */

@@ -227,6 +227,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      my_imu_topic: { Args: never; Returns: string }
+      patient_imu_topic: { Args: { p_patient_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
