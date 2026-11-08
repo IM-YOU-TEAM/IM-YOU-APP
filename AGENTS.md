@@ -11,6 +11,10 @@ Read this before making changes. It applies to humans and AI agents.
 - **ML model:** lives in the separate `Movement-Tracking-Machine-Learning` repo. Do not add models, datasets, or training code here.
 - **Hosting:** web build deployed on Vercel.
 - **Package manager:** npm. Do not use yarn, pnpm, or bun.
+<<<<<<< HEAD
+=======
+- **Design:** Apple-style, bubbly, glossy, fresh health look. For UI refinement use the project skill in `.claude/skills/impeccable/`, which holds the design brief.
+>>>>>>> main
 
 ## Structure
 
