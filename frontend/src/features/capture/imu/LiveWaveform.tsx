@@ -18,7 +18,7 @@ const H = 200;
 const POINTS = 48;
 
 /** Steps (or reps) per second, so the trace roughly matches the movement. */
-const RATE: Record<MotionType, number> = { chairStand: 0.45 };
+const RATE: Record<MotionType, number> = { walking: 1.8, running: 2.8, stairs: 1.4, sitToStand: 0.3 };
 
 const AXES = [
   { label: 'X', color: colors.seagrass, amp: 26, harmonic: 1, shift: 0 },

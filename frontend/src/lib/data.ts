@@ -26,7 +26,10 @@ export function today(): string {
 
 // ---------- Labels and icons ----------
 export const MOTION_LABELS: Labels<MotionType> = {
-  chairStand: '30-second chair stand',
+  walking: 'Walking',
+  running: 'Running',
+  stairs: 'Stairs',
+  sitToStand: 'Sit-to-stand',
 };
 
 export const METHOD_LABELS: Labels<CaptureMethod> = {
@@ -35,7 +38,10 @@ export const METHOD_LABELS: Labels<CaptureMethod> = {
 };
 
 export const MOTION_ICONS: Record<MotionType, IconName> = {
-  chairStand: 'timer',
+  walking: 'walk',
+  running: 'speedometer',
+  stairs: 'trending-up',
+  sitToStand: 'repeat',
 };
 
 export const METHOD_ICONS: Record<CaptureMethod, IconName> = {

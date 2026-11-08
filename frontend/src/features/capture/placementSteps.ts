@@ -7,7 +7,10 @@ export type PlacementStep = { icon: IconName; title: string; detail: string };
 export type BodySpot = 'pocket' | 'waist' | 'thigh' | 'lowerBack';
 
 export const IMU_SPOT: Record<MotionType, BodySpot> = {
-  chairStand: 'waist',
+  walking: 'pocket',
+  running: 'waist',
+  stairs: 'thigh',
+  sitToStand: 'lowerBack',
 };
 
 export const BODY_SPOT_LABELS: Record<BodySpot, string> = {
@@ -19,24 +22,60 @@ export const BODY_SPOT_LABELS: Record<BodySpot, string> = {
 
 /** How far the phone stands from you for camera tracking, in meters. Drawn by cv/CameraSetup. */
 export const CV_DISTANCE_M: Record<MotionType, number> = {
-  chairStand: 3,
+  walking: 3,
+  running: 3,
+  stairs: 2,
+  sitToStand: 2,
 };
 
 const CV_STEPS: Record<MotionType, PlacementStep[]> = {
-  chairStand: [
-    { icon: 'cube', title: 'Firm chair, no armrests', detail: 'Back of the chair against a wall. No wheels.' },
-    { icon: 'phone-portrait', title: 'Phone on the floor, 3 m to the side', detail: 'Upright on a small tripod, level with the chair.' },
+  walking: [
+    { icon: 'resize', title: 'Clear a 5 m path', detail: 'A hallway or room where you can walk in a straight line.' },
+    { icon: 'phone-portrait', title: 'Phone on the floor, 3 m away', detail: 'Stand it upright on a small tripod or lean it on something steady.' },
+    { icon: 'swap-horizontal', title: 'Walk across the frame', detail: 'The camera should see your side as you pass.' },
+    { icon: 'body', title: 'Head to feet in view', detail: 'Bright, even light and no one else in the shot.' },
+  ],
+  running: [
+    { icon: 'speedometer', title: 'Set up beside a treadmill', detail: 'It keeps you in frame the whole time.' },
+    { icon: 'phone-portrait', title: 'Phone on the floor, 3 m away', detail: 'Upright on a small tripod, level with the treadmill belt.' },
+    { icon: 'eye', title: 'Side-on to the camera', detail: 'It should see your side, not your front or back.' },
+    { icon: 'body', title: 'Head to feet in view', detail: 'Check your feet and head stay in frame at full stride.' },
+  ],
+  stairs: [
+    { icon: 'trending-up', title: 'Pick 4 or more steps', detail: 'With a handrail you can hold the whole way.' },
+    { icon: 'phone-portrait', title: 'Phone on the floor, 2 m to the side', detail: 'Upright on a small tripod at the bottom step.' },
+    { icon: 'body', title: 'Every step in view', detail: 'Your whole body, from the bottom step to the top.' },
+  ],
+  sitToStand: [
+    { icon: 'cube', title: 'Use a firm chair', detail: 'No wheels or armrests, with its back against a wall.' },
+    { icon: 'phone-portrait', title: 'Phone on the floor, 2 m away', detail: 'Upright on a small tripod, facing the side of the chair.' },
     { icon: 'eye', title: 'Sit side-on to the camera', detail: 'It should see your side, not your front.' },
-    { icon: 'body', title: 'Head to feet in view', detail: 'Stand up once and check your head stays in frame. You will keep going for 30 seconds.' },
+    { icon: 'body', title: 'Head to feet in view', detail: 'Stand up once to check your head stays in frame.' },
   ],
 };
 
 const IMU_STEPS: Record<MotionType, PlacementStep[]> = {
-  chairStand: [
-    { icon: 'phone-portrait', title: 'Snug at the front of your waist', detail: 'A belt or waistband over your belly. Tighten it so the phone cannot shift.' },
+  walking: [
+    { icon: 'phone-portrait', title: 'Front trouser pocket', detail: 'A snug pocket, so the phone does not swing.' },
+    { icon: 'arrow-up', title: 'Top of the phone pointing up', detail: 'Screen facing your leg.' },
+    { icon: 'walk', title: 'Walk a straight path', detail: 'At your normal pace. Turn around at the end and keep going.' },
+  ],
+  running: [
+    { icon: 'phone-portrait', title: 'Running belt at the waist', detail: 'Phone at the front, over your belly button.' },
     { icon: 'arrow-up', title: 'Top of the phone pointing up', detail: 'Screen facing out.' },
-    { icon: 'body', title: 'Arms folded, feet flat', detail: 'Firm chair, no armrests. Sit up. Do not lean back or perch on the edge.' },
-    { icon: 'repeat', title: 'Thirty seconds', detail: 'Stand and sit as many times as you can until 30 seconds is up.' },
+    { icon: 'contract', title: 'Pull the belt snug', detail: 'The phone should not bounce when you jog on the spot.' },
+    { icon: 'speedometer', title: 'Run at your usual pace', detail: 'Warm up first, then keep a steady speed.' },
+  ],
+  stairs: [
+    { icon: 'phone-portrait', title: 'Outer thigh', detail: 'A tight side pocket or a sports armband around your thigh.' },
+    { icon: 'arrow-up', title: 'Top of the phone pointing up', detail: 'Screen facing your leg.' },
+    { icon: 'hand-left', title: 'Hold the handrail', detail: 'Go up and back down at least one full flight.' },
+  ],
+  sitToStand: [
+    { icon: 'phone-portrait', title: 'Middle of your lower back', detail: 'Tucked into your waistband or a belt clip.' },
+    { icon: 'arrow-up', title: 'Top of the phone pointing up', detail: 'Screen facing out.' },
+    { icon: 'cube', title: 'Sit on a firm chair', detail: 'Feet flat, arms crossed over your chest.' },
+    { icon: 'repeat', title: 'Stand up fully, sit back down', detail: 'Repeat at a steady pace until you tap Stop.' },
   ],
 };
 
