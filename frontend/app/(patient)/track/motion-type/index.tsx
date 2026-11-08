@@ -1,0 +1,10 @@
+import { ScreenContainer, Text } from '@/components';
+
+// Placeholder: replaced by the screen build.
+export default function MotionTypeScreen() {
+  return (
+    <ScreenContainer>
+      <Text variant="title">Choose a motion</Text>
+    </ScreenContainer>
+  );
+}
