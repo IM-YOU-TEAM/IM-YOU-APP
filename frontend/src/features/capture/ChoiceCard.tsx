@@ -49,8 +49,8 @@ export function ChoiceCard({ title, description, icon, selected, onPress, style 
           {description}
         </Text>
       </View>
-      <View style={[styles.check, wide && styles.checkCorner, selected ? styles.checkOn : styles.checkOff]}>
-        {selected && <Ionicons name="checkmark" size={18} color={colors.seagrass} />}
+      <View style={[styles.selectionRing, wide && styles.selectionCorner, selected ? styles.selectionRingOn : styles.selectionRingOff]}>
+        {selected ? <View style={styles.selectionDot} /> : null}
       </View>
     </Pressable>
   );
@@ -68,8 +68,9 @@ const styles = StyleSheet.create({
   tile: { gap: space.lg, minHeight: 168, justifyContent: 'flex-end' },
   bubble: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
   bubbleLarge: { width: 64, height: 64, borderRadius: 32, marginBottom: 'auto' },
-  check: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  checkCorner: { position: 'absolute', top: space.xl - 4, right: space.xl - 4 },
-  checkOn: { backgroundColor: colors.white },
-  checkOff: { borderWidth: 2, borderColor: colors.border },
+  selectionRing: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  selectionCorner: { position: 'absolute', top: space.xl - 4, right: space.xl - 4 },
+  selectionRingOn: { borderColor: colors.white },
+  selectionRingOff: { borderColor: colors.border },
+  selectionDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.white },
 });
