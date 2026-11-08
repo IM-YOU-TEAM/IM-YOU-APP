@@ -26,6 +26,7 @@ public/mediapipe/
 
 # misc
 npm-debug.*
+*.log
 .DS_Store
 *.tsbuildinfo
 .env*.local

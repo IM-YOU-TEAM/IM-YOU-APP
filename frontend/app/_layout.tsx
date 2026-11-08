@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
+import { AuthProvider } from '@/features/auth/AuthProvider';
 import { colors } from '@/lib/theme';
 import { applyWebStyles } from '@/lib/webStyles';
 
@@ -33,7 +34,9 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false, title: "I'M U", contentStyle: { backgroundColor: colors.honeydew } }} />
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false, title: "I'M U", contentStyle: { backgroundColor: colors.honeydew } }} />
+      </AuthProvider>
       {!ready && <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.honeydew }]} />}
     </>
   );

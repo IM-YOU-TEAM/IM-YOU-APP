@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { outlineIcon } from '@/lib/icons';
+import { supabase } from '@/lib/supabase/client';
 import { colors, continuous, MIN_HIT, radii, SIDEBAR_WIDTH, space } from '@/lib/theme';
 import type { IconName } from '@/types';
 import { GlassCard } from './GlassCard';
@@ -23,7 +24,11 @@ type Props = {
   onLogout?: () => void;
 };
 
-export const logout = () => router.replace('/login');
+export const logout = () => {
+  // Clear the stored session before leaving, or the index route sends the next
+  // visitor straight back into the workspace they just left.
+  void supabase.auth.signOut().finally(() => router.replace('/login'));
+};
 
 /** iPadOS-style sidebar for the clinician side on wide screens (>= WIDE): glass panel, Seagrass selection. */
 export function Sidebar({ items, onLogout = logout }: Props) {

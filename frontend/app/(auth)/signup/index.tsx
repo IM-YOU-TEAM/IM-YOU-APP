@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Logo, PillButton, ScreenContainer, Text } from '@/components';
+import { Logo, PillButton, ScreenContainer, Text, TextField } from '@/components';
+import type { Role } from '@/features/auth/AuthProvider';
+import { supabase } from '@/lib/supabase/client';
 import { colors, continuous, MIN_HIT, radii, space } from '@/lib/theme';
 import type { IconName } from '@/types';
-
-type Role = 'patient' | 'clinician';
 
 const ROLE_OPTIONS = [
   {
@@ -63,10 +63,60 @@ function RoleOption({ value, label, description, icon, selected, onPress }: Role
 
 export default function SignupScreen() {
   const [role, setRole] = useState<Role>('patient');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [confirmSent, setConfirmSent] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const continueToWorkspace = () => {
-    router.replace(role === 'patient' ? '/home' : '/dashboard');
+  const createAccount = async () => {
+    setError('');
+    setBusy(true);
+    const { data, error: failure } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { role, full_name: fullName.trim() } },
+    });
+    setBusy(false);
+
+    if (failure) {
+      setError(failure.message);
+      return;
+    }
+    // With email confirmation on, signUp returns no session: the account is not
+    // usable until the link is clicked. With it off, we are already signed in.
+    if (data.session) {
+      router.replace('/');
+      return;
+    }
+    setConfirmSent(true);
   };
+
+  const ready = email.trim().length > 0 && password.length >= 6 && !busy;
+
+  if (confirmSent) {
+    return (
+      <ScreenContainer
+        maxWidth={400}
+        gap={0}
+        contentStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+      >
+        <View style={styles.content}>
+          <Logo size={46} />
+          <View style={styles.heading}>
+            <Text variant="title" align="center" accessibilityRole="header">
+              Confirm your email
+            </Text>
+            <Text variant="callout" muted align="center">
+              We sent a link to {email.trim()}. Open it, then sign in.
+            </Text>
+          </View>
+          <PillButton label="Back to sign in" fullWidth onPress={() => router.replace('/login')} />
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   return (
     <ScreenContainer
@@ -79,7 +129,7 @@ export default function SignupScreen() {
 
         <View style={styles.heading}>
           <Text variant="title" align="center" accessibilityRole="header">
-            Choose your role
+            Create your account
           </Text>
           <Text variant="callout" muted align="center">
             Select how you'll use I'M U.
@@ -99,13 +149,51 @@ export default function SignupScreen() {
           ))}
         </View>
 
+        <View style={styles.fields}>
+          <TextField
+            label="Full name"
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Optional"
+            autoComplete="name"
+            textContentType="name"
+          />
+          <TextField
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@example.com"
+            autoCapitalize="none"
+            autoComplete="email"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            inputMode="email"
+          />
+          <TextField
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            placeholder="At least 6 characters"
+            autoCapitalize="none"
+            autoComplete="new-password"
+            textContentType="newPassword"
+            secureTextEntry
+            onSubmitEditing={() => {
+              if (ready) void createAccount();
+            }}
+            returnKeyType="go"
+            error={error || undefined}
+          />
+        </View>
+
         <View style={styles.actions}>
           <PillButton
-            label="Continue"
+            label={busy ? 'Creating account…' : 'Continue'}
             icon="arrow-forward"
             iconRight
             fullWidth
-            onPress={continueToWorkspace}
+            disabled={!ready}
+            onPress={() => void createAccount()}
           />
 
           <Pressable
@@ -188,6 +276,10 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
     marginLeft: 54,
     backgroundColor: colors.separator,
+  },
+  fields: {
+    width: '100%',
+    gap: space.lg,
   },
   actions: {
     width: '100%',
