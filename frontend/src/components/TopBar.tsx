@@ -1,15 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Platform, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { outlineIcon } from '@/lib/icons';
 import { colors, MAX_CONTENT_WIDTH, radii, shadows, space } from '@/lib/theme';
+import { useReduceMotion } from '@/lib/useReduceMotion';
 import type { IconName } from '@/types';
 import { GlassCard } from './GlassCard';
 import { Logo } from './Logo';
 import { logout, type NavItem } from './Sidebar';
 import { Text } from './Text';
+
+const TAB_WIDTH = 108;
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 type Props = {
   items: NavItem[];
@@ -23,6 +27,65 @@ type Props = {
  */
 export function TopBar({ items, onLogout = logout }: Props) {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
+  const selectedIndex = Math.max(
+    items.findIndex((item) => item.active),
+    0,
+  );
+  const [tabsWidth, setTabsWidth] = useState(0);
+  const offset = useRef(new Animated.Value(0)).current;
+  const stretch = useRef(new Animated.Value(1)).current;
+  const previousIndex = useRef(selectedIndex);
+  const measured = useRef(false);
+  const slotWidth = tabsWidth > 0 ? tabsWidth / items.length : 0;
+
+  useEffect(() => {
+    if (slotWidth === 0) return;
+
+    const target = selectedIndex * slotWidth;
+    if (!measured.current || reduceMotion) {
+      offset.setValue(target);
+      stretch.setValue(1);
+      previousIndex.current = selectedIndex;
+      measured.current = true;
+      return;
+    }
+
+    const distance = Math.max(Math.abs(selectedIndex - previousIndex.current), 1);
+    previousIndex.current = selectedIndex;
+    offset.stopAnimation();
+    stretch.stopAnimation();
+
+    Animated.parallel([
+      Animated.spring(offset, {
+        toValue: target,
+        stiffness: distance > 1 ? 540 : 430,
+        damping: distance > 1 ? 40 : 34,
+        mass: 0.72,
+        useNativeDriver: USE_NATIVE_DRIVER,
+      }),
+      Animated.sequence([
+        Animated.timing(stretch, {
+          toValue: 1 + Math.min(distance, 2) * 0.06,
+          duration: 90,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+        Animated.spring(stretch, {
+          toValue: 1,
+          stiffness: 420,
+          damping: 30,
+          mass: 0.68,
+          useNativeDriver: USE_NATIVE_DRIVER,
+        }),
+      ]),
+    ]).start();
+  }, [offset, reduceMotion, selectedIndex, slotWidth, stretch]);
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    setTabsWidth(event.nativeEvent.layout.width);
+  };
+
   return (
     <View style={[styles.wrap, { paddingTop: insets.top + space.lg }]}>
       <View accessibilityRole="navigation" style={styles.inner}>
@@ -30,7 +93,20 @@ export function TopBar({ items, onLogout = logout }: Props) {
           <Logo size={32} />
         </View>
         <GlassCard padding={4} radius={radii.pill} intensity={60}>
-          <View style={styles.tabs}>
+          <View style={[styles.tabs, { width: items.length * TAB_WIDTH }]} onLayout={handleLayout}>
+            {slotWidth > 0 ? (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.indicator,
+                  shadows.card,
+                  {
+                    width: slotWidth,
+                    transform: [{ translateX: offset }, { scaleX: stretch }],
+                  },
+                ]}
+              />
+            ) : null}
             {items.map((item) => (
               <Link key={item.label} href={item.href} asChild>
                 <TabButton label={item.label} icon={item.icon} active={item.active} />
@@ -62,7 +138,7 @@ function TabButton({ label, icon, active = false, onPress, ...linkProps }: Butto
       accessibilityState={{ selected: active }}
       style={({ pressed }) => [
         styles.button,
-        active ? [styles.active, shadows.card] : hovered && { backgroundColor: colors.fill },
+        !active && hovered && { backgroundColor: colors.fill },
         { opacity: pressed ? 0.7 : 1 },
       ]}
     >
@@ -79,14 +155,24 @@ const styles = StyleSheet.create({
   wrap: { paddingHorizontal: space.xxl, paddingBottom: space.xs, zIndex: 1 },
   inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center', flexDirection: 'row', alignItems: 'center' },
   side: { flex: 1 },
-  tabs: { flexDirection: 'row', gap: 2 },
+  tabs: { position: 'relative', flexDirection: 'row' },
+  indicator: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: radii.pill,
+    backgroundColor: colors.white,
+  },
   button: {
+    flex: 1,
+    zIndex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: space.sm,
     minHeight: 40,
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.md,
     borderRadius: radii.pill,
   },
-  active: { backgroundColor: colors.white },
 });
