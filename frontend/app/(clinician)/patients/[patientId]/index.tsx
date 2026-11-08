@@ -60,7 +60,7 @@ export default function PatientDetailScreen() {
     { label: 'Age', value: String(patient.age) },
     { label: 'Adherence', value: `${patient.adherence}%` },
     { label: 'Sessions', value: String(patientSessions.length) },
-    { label: 'Gait score', value: latest ? String(latest.gaitScore) : '—' },
+    { label: 'Movement score', value: latest && latest.movementVerified !== false ? String(latest.gaitScore) : '—' },
   ];
 
   return (
@@ -129,9 +129,9 @@ export default function PatientDetailScreen() {
                     title={row.title}
                     subtitle={row.subtitle}
                     icon={MOTION_ICONS[session.motion]}
-                    trailing={`${session.gaitScore}`}
+                    trailing={session.movementVerified === false ? '—' : `${session.gaitScore}`}
                     chevron={false}
-                    accessibilityLabel={`${row.title}, ${row.subtitle}, gait score ${session.gaitScore}`}
+                    accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${session.movementVerified === false ? 'not available' : session.gaitScore}`}
                   />
                 );
               })}

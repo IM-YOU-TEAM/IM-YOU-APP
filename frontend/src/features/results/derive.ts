@@ -56,11 +56,11 @@ export function cadenceTrend(list: Session[], count = 12): number[] {
 
 export type Range = 'week' | 'month';
 
-/** Gait score per session within the last 7 or 30 days ending on `endDay`, oldest first. */
+/** Movement score per verified session within the last 7 or 30 days ending on `endDay`, oldest first. */
 export function gaitSeries(list: Session[], range: Range, endDay: string): ChartPoint[] {
   const start = addDays(endDay, range === 'week' ? -6 : -29);
   return list
-    .filter((x) => dayKey(x.date) >= start && dayKey(x.date) <= endDay)
+    .filter((x) => dayKey(x.date) >= start && dayKey(x.date) <= endDay && x.movementVerified !== false)
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((x) => ({
       label: range === 'week' ? formatWeekday(x.date) : formatDate(x.date),

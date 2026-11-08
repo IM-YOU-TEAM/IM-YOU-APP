@@ -2,6 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { Card, PillButton, ScreenContainer, Text } from '@/components';
+import { framingInstruction, type FramingStatus } from '@/features/capture/cv/framing';
+import { movementInstruction, type MovementState } from '@/features/capture/cv/motionAssessment';
 import { PoseCamera } from '@/features/capture/cv/PoseCamera';
 import { savePoseLog } from '@/features/capture/cv/poseLog';
 import type { CameraGate } from '@/features/capture/cv/poseTypes';
@@ -23,12 +25,15 @@ export default function SessionScreen() {
   const params = useLocalSearchParams();
   const motion = parseMotion(params.motion);
   const method = parseMethod(params.method);
-  const pose = usePoseSession(motion);
   const [seconds, setSeconds] = useState(0);
   const [paused, setPaused] = useState(false);
+  const pose = usePoseSession(motion, paused);
   const [gate, setGate] = useState<CameraGate>('starting');
 
-  const clockOn = method === 'imu' || (method === 'cv' && gate === 'ready');
+  const captureStarted = method === 'imu' || (method === 'cv' && pose.captureStarted);
+  const clockOn = method === 'imu' || (method === 'cv' && gate === 'ready' && captureStarted);
+  const cameraBlocked = method === 'cv' && (gate === 'denied' || gate === 'unavailable' || gate === 'model-error');
+  const recordingStatus = cameraBlocked ? 'camera-blocked' : !captureStarted ? 'setting-up' : paused ? 'paused' : 'recording';
 
   useEffect(() => {
     if (paused || !clockOn) return;
@@ -51,12 +56,12 @@ export default function SessionScreen() {
     router.replace('/results');
   };
 
-  const prompt = sessionPrompt(method, motion, paused, gate, pose.seenPerson, pose.inFrame);
+  const prompt = sessionPrompt(method, motion, paused, gate, pose.framing, pose.movementState, pose.detectedMotion);
   const live =
     method === 'cv' ? (
       <PoseCamera
         paused={paused}
-        caption={paused || pose.inFrame ? undefined : 'Step back so your head and feet stay in view.'}
+        caption={paused ? undefined : prompt}
         countLabel={`${pose.count} ${pose.unit}`}
         onFrame={pose.onFrame}
         onGate={setGate}
@@ -91,6 +96,7 @@ export default function SessionScreen() {
           variant="secondary"
           size="lg"
           fullWidth
+          disabled={!captureStarted}
           onPress={() => setPaused((p) => !p)}
         />
         <PillButton label="Stop" icon="stop" size="lg" fullWidth onPress={stop} />
@@ -106,7 +112,7 @@ export default function SessionScreen() {
           <Text variant="display">{MOTION_LABELS[motion]}</Text>
           <Text muted>Tracking with your {METHOD_LABELS[method].toLowerCase()}</Text>
         </View>
-        <RecordingBadge paused={paused} />
+        <RecordingBadge status={recordingStatus} />
       </View>
 
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: GAP }}>
@@ -122,8 +128,9 @@ function sessionPrompt(
   motion: 'walking' | 'running' | 'stairs' | 'sitToStand',
   paused: boolean,
   gate: CameraGate,
-  seenPerson: boolean,
-  inFrame: boolean,
+  framing: FramingStatus,
+  movementState: MovementState,
+  detectedMotion: 'walking' | 'running' | 'stairs' | 'sitToStand' | undefined,
 ): string {
   if (paused) return 'Paused. Resume when you are ready.';
   if (method === 'imu') return `Keep ${motion === 'sitToStand' ? 'going' : 'moving'} at your usual pace`;
@@ -137,8 +144,8 @@ function sessionPrompt(
     case 'starting':
       return 'Opening the camera…';
     case 'ready':
-      if (!seenPerson || !inFrame) return 'Step back so your head and feet stay in view.';
-      return motion === 'sitToStand' ? 'Keep going at your usual pace' : 'Keep moving at your usual pace';
+      if (framing !== 'ready') return framingInstruction(framing);
+      return movementInstruction(movementState, motion, detectedMotion);
     default: {
       const unexpected: never = gate;
       return unexpected;
