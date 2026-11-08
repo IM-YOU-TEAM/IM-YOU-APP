@@ -17,14 +17,14 @@ type Props = {
 
 /**
  * Big selectable card for the track flow (motion type, method). Acts as a radio button.
- * Selected = solid Seagrass with white bold text. Tall tile on wide screens, a row on phones.
+ * Selected = solid Burnt Orange with white bold text. Tall tile on wide screens, a row on phones.
  */
 export function ChoiceCard({ title, description, icon, selected, onPress, style }: Props) {
   const wide = useWindowDimensions().width >= WIDE;
   const { scale, onPressIn, onPressOut } = usePressScale(0.98);
   const [hovered, setHovered] = useState(false);
 
-  const bg = selected ? colors.seagrass : hovered ? colors.honeydewLight : colors.white;
+  const bg = selected ? colors.burntOrange : hovered ? colors.honeydewLight : colors.white;
 
   const body = (
     <Pressable
@@ -39,12 +39,12 @@ export function ChoiceCard({ title, description, icon, selected, onPress, style 
       accessibilityLabel={`${title}. ${description}`}
       style={[styles.card, wide ? styles.tile : styles.row, { backgroundColor: bg }]}
     >
-      <View style={[styles.bubble, wide && styles.bubbleLarge, { backgroundColor: colors.burntOrangeTint }]}>
-        <Ionicons name={icon} size={wide ? 30 : 26} color={colors.burntOrange} />
+      <View style={[styles.bubble, wide && styles.bubbleLarge, { backgroundColor: selected ? colors.whiteTint : colors.burntOrangeTint }]}>
+        <Ionicons name={icon} size={wide ? 30 : 26} color={selected ? colors.white : colors.burntOrange} />
       </View>
       <View style={{ flex: wide ? undefined : 1, gap: space.xs }}>
         <Text variant="headline">{title}</Text>
-        {/* On Seagrass, secondary text stays bold so white passes contrast. */}
+        {/* On Burnt Orange, secondary text stays bold so white passes contrast. */}
         <Text variant="callout" weight={selected ? 700 : 500} color={selected ? colors.onSeagrassMuted : undefined} muted>
           {description}
         </Text>

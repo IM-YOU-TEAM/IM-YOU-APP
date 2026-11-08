@@ -22,7 +22,7 @@ export default function PatientLayout() {
         <BottomBarInsetProvider value={wide ? 0 : BOTTOM_BAR_SPACE}>
           <View style={{ flex: 1 }}>
             <Tabs
-              screenOptions={{ headerShown: false, title: "I'M U", sceneStyle: { backgroundColor: colors.honeydew } }}
+              screenOptions={{ headerShown: false, title: "I'M YOU", sceneStyle: { backgroundColor: colors.honeydew } }}
               tabBar={() => (wide ? null : <BottomBar items={items} />)}
             >
               <Tabs.Screen name="home/index" />

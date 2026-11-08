@@ -1,5 +1,5 @@
 import type { ExpoConfig } from 'expo/config';
-import { withPodfile, withPodfileProperties } from 'expo/config-plugins';
+import { withPodfile } from 'expo/config-plugins';
 import appJson from './app.json';
 
 const WORKLETS_POD =
@@ -18,17 +18,4 @@ function withWorkletsModularHeaders(config: ExpoConfig): ExpoConfig {
   });
 }
 
-/**
- * VisionCamera 4 and the native pose plugin still include React Native's legacy
- * bridge headers. Expo's precompiled RN framework does not export those private
- * headers, so native camera builds must compile React Native from source.
- */
-function withReactNativeSourceBuild(config: ExpoConfig): ExpoConfig {
-  return withPodfileProperties(config, (mod) => {
-    mod.modResults['ios.buildReactNativeFromSource'] = 'true';
-    mod.modResults.EXPO_USE_PRECOMPILED_MODULES = 'false';
-    return mod;
-  });
-}
-
-export default withWorkletsModularHeaders(withReactNativeSourceBuild(appJson.expo as ExpoConfig));
+export default withWorkletsModularHeaders(appJson.expo as ExpoConfig);

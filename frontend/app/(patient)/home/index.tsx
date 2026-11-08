@@ -38,6 +38,7 @@ export default function HomeScreen() {
         <View style={{ gap: space.xs }}>
           <Text variant="display" accessibilityRole="header">
             {greetingFor(new Date().getHours())}
+            {patient?.fullName ? `, ${patient.fullName.split(' ')[0]}` : ''}
           </Text>
           <Text variant="body" muted>
             {formatLongDate(day)}

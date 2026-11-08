@@ -1,4 +1,4 @@
-import type { User } from '@supabase/supabase-js';
+import { FunctionsHttpError, type User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
@@ -95,20 +95,49 @@ export async function completeAuthFromUrl(url: string): Promise<boolean> {
   return true;
 }
 
-export async function signInWithEmail(email: string, password: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+// Keep in step with supabase/functions/create-account: a username signs in as <username>@users.imu.app.
+const USERNAME_DOMAIN = 'users.imu.app';
+export const MIN_PASSWORD = 6;
+
+/** A username or an email, as typed on the sign-in screen. */
+export function isValidLogin(login: string): boolean {
+  const value = login.trim().toLowerCase();
+  return value.includes('@') ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) : /^[a-z0-9][a-z0-9._-]{2,23}$/.test(value);
+}
+
+function loginEmail(login: string): string {
+  const value = login.trim().toLowerCase();
+  return value.includes('@') ? value : `${value}@${USERNAME_DOMAIN}`;
+}
+
+/** Sign in with a username or an email. */
+export async function signIn(login: string, password: string): Promise<void> {
+  const { error } = await supabase.auth.signInWithPassword({ email: loginEmail(login), password });
   if (error) throw error;
 }
 
-/** 'confirmEmail' when the project requires a confirmation click before the first sign-in. */
-export async function signUpWithEmail(email: string, password: string, role: Role): Promise<'signedIn' | 'confirmEmail'> {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { emailRedirectTo: authRedirectUrl(), data: { role } },
-  });
-  if (error) throw error;
-  return data.session ? 'signedIn' : 'confirmEmail';
+export type NewAccount =
+  | { kind: 'clinician'; login: string; password: string; displayName: string }
+  | { kind: 'patient'; login: string; password: string; fullName: string };
+
+/** Creates a confirmed login. Patients can only be added by their signed-in clinician. */
+export async function createAccount(account: NewAccount): Promise<void> {
+  const { error } = await supabase.functions.invoke('create-account', { body: account });
+  if (!error) return;
+  // The function answers refusals with { code }, which friendlyError understands.
+  if (error instanceof FunctionsHttpError) {
+    const body: unknown = await error.context.json().catch(() => null);
+    if (body && typeof body === 'object' && 'code' in body && typeof body.code === 'string') {
+      throw Object.assign(new Error(body.code), { code: body.code });
+    }
+  }
+  throw error;
+}
+
+/** A doctor or researcher creates their own account and is signed straight in. */
+export async function signUpClinician(input: { login: string; password: string; displayName: string }): Promise<void> {
+  await createAccount({ kind: 'clinician', ...input });
+  await signIn(input.login, input.password);
 }
 
 export async function signOut(): Promise<void> {
