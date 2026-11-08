@@ -2,37 +2,68 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { Card, PillButton, ScreenContainer, Text } from '@/components';
-import { LiveSkeleton } from '@/features/capture/cv/LiveSkeleton';
+import { PoseCamera } from '@/features/capture/cv/PoseCamera';
+import { savePoseLog } from '@/features/capture/cv/poseLog';
+import type { CameraGate } from '@/features/capture/cv/poseTypes';
+import { usePoseSession } from '@/features/capture/cv/usePoseSession';
 import { FlowHeader } from '@/features/capture/FlowHeader';
 import { LiveWaveform } from '@/features/capture/imu/LiveWaveform';
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { RecordingBadge } from '@/features/capture/RecordingBadge';
-import { METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
+import { METHOD_LABELS, MOTION_LABELS, recordSession } from '@/lib/data';
 import { formatDuration } from '@/lib/format';
 import { GAP, space, WIDE } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 
-// Step 4: the live session. A mock view only: no camera or sensors are read and nothing is stored.
+// Step 4: the live session. Camera sessions record pose on the device. Sensor sessions are still a preview.
 export default function SessionScreen() {
   const wide = useWindowDimensions().width >= WIDE;
   const reduce = useReduceMotion();
   const params = useLocalSearchParams();
   const motion = parseMotion(params.motion);
   const method = parseMethod(params.method);
+  const pose = usePoseSession(motion);
   const [seconds, setSeconds] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [gate, setGate] = useState<CameraGate>('starting');
+
+  const clockOn = method === 'imu' || (method === 'cv' && gate === 'ready');
 
   useEffect(() => {
-    if (paused) return;
+    if (paused || !clockOn) return;
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
-  }, [paused]);
+  }, [paused, clockOn]);
 
   if (!motion || !method) return <MissingParams />;
 
-  const animate = !paused && !reduce;
-  const live = method === 'cv' ? <LiveSkeleton motion={motion} running={animate} /> : <LiveWaveform motion={motion} running={animate} />;
+  const stop = () => {
+    if (method === 'cv') {
+      const done = pose.finish(seconds);
+      if (done) {
+        recordSession(done.session);
+        savePoseLog(done.session.id, done.samples);
+        router.replace({ pathname: '/results', params: { sessionId: done.session.id } });
+        return;
+      }
+    }
+    router.replace('/results');
+  };
+
+  const prompt = sessionPrompt(method, motion, paused, gate, pose.seenPerson, pose.inFrame);
+  const live =
+    method === 'cv' ? (
+      <PoseCamera
+        paused={paused}
+        caption={paused || pose.inFrame ? undefined : 'Step back so your head and feet stay in view.'}
+        countLabel={`${pose.count} ${pose.unit}`}
+        onFrame={pose.onFrame}
+        onGate={setGate}
+      />
+    ) : (
+      <LiveWaveform motion={motion} running={!paused && !reduce} />
+    );
 
   const controls = (
     <Card style={{ gap: space.xl, flex: wide ? 1 : undefined, justifyContent: 'center' }}>
@@ -44,11 +75,15 @@ export default function SessionScreen() {
         <Text variant="display" align="center" style={{ fontSize: 64, lineHeight: 72, letterSpacing: -1.5, fontVariant: ['tabular-nums'] }}>
           {formatDuration(seconds)}
         </Text>
+        {method === 'cv' && gate === 'ready' ? (
+          <Text variant="title" align="center" style={{ fontVariant: ['tabular-nums'] }}>
+            {pose.count} {pose.unit}
+          </Text>
+        ) : null}
         <Text variant="callout" muted align="center">
-          {paused ? 'Paused. Resume when you are ready.' : `Keep ${motion === 'sitToStand' ? 'going' : 'moving'} at your usual pace`}
+          {prompt}
         </Text>
       </View>
-      {/* Stacked so the labels never truncate in the narrow side card or on small phones. */}
       <View style={{ gap: space.md }}>
         <PillButton
           label={paused ? 'Resume' : 'Pause'}
@@ -58,7 +93,7 @@ export default function SessionScreen() {
           fullWidth
           onPress={() => setPaused((p) => !p)}
         />
-        <PillButton label="Stop" icon="stop" size="lg" fullWidth onPress={() => router.replace('/results')} />
+        <PillButton label="Stop" icon="stop" size="lg" fullWidth onPress={stop} />
       </View>
     </Card>
   );
@@ -80,4 +115,33 @@ export default function SessionScreen() {
       </View>
     </ScreenContainer>
   );
+}
+
+function sessionPrompt(
+  method: 'cv' | 'imu',
+  motion: 'walking' | 'running' | 'stairs' | 'sitToStand',
+  paused: boolean,
+  gate: CameraGate,
+  seenPerson: boolean,
+  inFrame: boolean,
+): string {
+  if (paused) return 'Paused. Resume when you are ready.';
+  if (method === 'imu') return `Keep ${motion === 'sitToStand' ? 'going' : 'moving'} at your usual pace`;
+  switch (gate) {
+    case 'denied':
+      return 'Allow the camera to measure this session.';
+    case 'model-error':
+      return 'The pose model did not load. Nothing was scored.';
+    case 'unavailable':
+      return 'No camera is available, so nothing was scored.';
+    case 'starting':
+      return 'Opening the camera…';
+    case 'ready':
+      if (!seenPerson || !inFrame) return 'Step back so your head and feet stay in view.';
+      return motion === 'sitToStand' ? 'Keep going at your usual pace' : 'Keep moving at your usual pace';
+    default: {
+      const unexpected: never = gate;
+      return unexpected;
+    }
+  }
 }
