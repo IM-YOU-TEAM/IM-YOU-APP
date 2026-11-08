@@ -14,7 +14,7 @@ const METHODS: CaptureMethod[] = ['cv', 'imu'];
 
 const DESCRIPTIONS: Record<CaptureMethod, string> = {
   cv: 'Prop your phone up and let the camera watch your movement',
-  imu: 'Keep your phone on your body; its motion sensors do the work',
+  imu: 'Two phones, same account: one on the right thigh, one on the right shin',
 };
 
 // Step 2: camera (computer vision) or phone sensors (IMU).
@@ -54,7 +54,7 @@ export default function MethodScreen() {
 
       <PillButton
         label="Continue"
-        icon="arrow-forward"
+        icon="chevron-forward"
         iconRight
         size="lg"
         disabled={!method}

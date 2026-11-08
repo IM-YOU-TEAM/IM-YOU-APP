@@ -52,8 +52,13 @@ export function StatTile({ label, value, unit, icon, waveform, tone = 'hero', st
       </View>
       <View style={styles.header}>
         {icon && (
+<<<<<<< HEAD
           <View style={[styles.bubble, { backgroundColor: colors.burntorangeTint }]}>
             <Ionicons name={icon} size={20} color={colors.burntorange} />
+=======
+          <View style={[styles.bubble, { backgroundColor: colors.burntOrangeTint }]}>
+            <Ionicons name={icon} size={20} color={colors.burntOrange} />
+>>>>>>> origin/main
           </View>
         )}
         <Text variant="callout" weight={700} muted={!hero}>

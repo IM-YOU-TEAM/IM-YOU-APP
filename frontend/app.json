@@ -8,19 +8,51 @@
     "userInterfaceStyle": "light",
     "backgroundColor": "#D0E1D1",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.movementtrackingteam.imu",
+      "infoPlist": {
+        "NSCameraUsageDescription": "I'M YOU uses the camera to measure your movement on this phone."
+      }
+    },
+    "android": {
+      "package": "com.movementtrackingteam.imu",
+      "permissions": ["android.permission.CAMERA"]
     },
     "web": {
       "output": "single",
+<<<<<<< HEAD
       "name": "I'M You",
+=======
+      "name": "I'M YOU",
+>>>>>>> origin/main
       "backgroundColor": "#D0E1D1",
       "themeColor": "#269F86"
     },
     "plugins": [
       "expo-router",
       "expo-font",
+<<<<<<< HEAD
       "expo-splash-screen",
       "expo-status-bar"
+=======
+      "expo-dev-client",
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "I'M YOU uses the camera to measure your movement on this phone.",
+          "enableMicrophonePermission": false,
+          "enableFrameProcessors": true
+        }
+      ],
+      [
+        "react-native-mediapipe-posedetection",
+        {
+          "assetsPaths": ["./public/models/"]
+        }
+      ],
+      "expo-video",
+      "expo-web-browser"
+>>>>>>> origin/main
     ]
   }
 }

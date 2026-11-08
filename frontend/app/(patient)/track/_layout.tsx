@@ -5,6 +5,7 @@ import { colors } from "@/lib/theme";
 export const unstable_settings = { anchor: "motion-type/index" };
 
 export default function TrackLayout() {
+<<<<<<< HEAD
   return (
     <Stack
       screenOptions={{
@@ -14,4 +15,7 @@ export default function TrackLayout() {
       }}
     />
   );
+=======
+  return <Stack screenOptions={{ headerShown: false, title: "I'M YOU", contentStyle: { backgroundColor: colors.honeydew } }} />;
+>>>>>>> origin/main
 }

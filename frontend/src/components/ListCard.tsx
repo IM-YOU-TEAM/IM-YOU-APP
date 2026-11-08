@@ -43,8 +43,13 @@ export function ListCard({ title, subtitle, icon, trailing, chevron, selected = 
       style={({ pressed }) => [styles.row, { backgroundColor: bg, opacity: pressed ? 0.8 : 1 }]}
     >
       {icon && (
+<<<<<<< HEAD
         <View style={[styles.bubble, { backgroundColor: colors.burntorangeTint }]}>
           <Ionicons name={icon} size={20} color={colors.burntorange} />
+=======
+        <View style={[styles.bubble, { backgroundColor: colors.burntOrangeTint }]}>
+          <Ionicons name={icon} size={20} color={colors.burntOrange} />
+>>>>>>> origin/main
         </View>
       )}
       <View style={{ flex: 1, gap: 2 }}>

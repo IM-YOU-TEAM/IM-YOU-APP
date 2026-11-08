@@ -25,7 +25,7 @@ type Props = {
 
 /**
  * Big selectable card for the track flow (motion type, method). Acts as a radio button.
- * Selected = solid Seagrass with white bold text. Tall tile on wide screens, a row on phones.
+ * Selected = solid Burnt Orange with white bold text. Tall tile on wide screens, a row on phones.
  */
 export function ChoiceCard({
   title,
@@ -39,11 +39,15 @@ export function ChoiceCard({
   const { scale, onPressIn, onPressOut } = usePressScale(0.98);
   const [hovered, setHovered] = useState(false);
 
+<<<<<<< HEAD
   const bg = selected
     ? colors.burntorange
     : hovered
       ? colors.honeydewLight
       : colors.white;
+=======
+  const bg = selected ? colors.burntOrange : hovered ? colors.honeydewLight : colors.white;
+>>>>>>> origin/main
 
   const body = (
     <Pressable
@@ -62,6 +66,7 @@ export function ChoiceCard({
         { backgroundColor: bg },
       ]}
     >
+<<<<<<< HEAD
       <View
         style={[
           styles.bubble,
@@ -84,6 +89,15 @@ export function ChoiceCard({
           color={selected ? colors.onSeagrassMuted : undefined}
           muted
         >
+=======
+      <View style={[styles.bubble, wide && styles.bubbleLarge, { backgroundColor: selected ? colors.whiteTint : colors.burntOrangeTint }]}>
+        <Ionicons name={icon} size={wide ? 30 : 26} color={selected ? colors.white : colors.burntOrange} />
+      </View>
+      <View style={{ flex: wide ? undefined : 1, gap: space.xs }}>
+        <Text variant="headline">{title}</Text>
+        {/* On Burnt Orange, secondary text stays bold so white passes contrast. */}
+        <Text variant="callout" weight={selected ? 700 : 500} color={selected ? colors.onSeagrassMuted : undefined} muted>
+>>>>>>> origin/main
           {description}
         </Text>
       </View>

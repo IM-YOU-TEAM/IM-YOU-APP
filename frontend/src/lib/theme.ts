@@ -1,9 +1,14 @@
 // Design tokens for I'M YOU. Every screen and component reads from here.
+<<<<<<< HEAD
 import { Platform, type TextStyle, type ViewStyle } from "react-native";
+=======
+import { Platform, type TextStyle, type ViewStyle } from 'react-native';
+>>>>>>> origin/main
 
 // ---------- Color ----------
 // Five brand colors, plus a few derived alpha variants. Light mode only.
 export const colors = {
+<<<<<<< HEAD
   seagrass: "#269F86", // primary: nav, selected pills, primary buttons, chart lines, hero tile
   seagrassDark: "#1E8571", // pressed / hover state of seagrass surfaces
   honeydew: "#D0E1D1", // app background
@@ -14,6 +19,17 @@ export const colors = {
   white: "#FFFFFF", // main cards
   burntorange: "#E8673C", // accent color
   burntorangeTint: "#FBE3D8", // accent color tint
+=======
+  seagrass: '#269F86', // primary: nav, selected pills, primary buttons, chart lines, hero tile
+  seagrassDark: '#1E8571', // pressed / hover state of seagrass surfaces
+  honeydew: '#D0E1D1', // app background
+  honeydewLight: '#E8F0E8', // pale cards, unselected list cards
+  cherry: '#EDAFB8', // accent ONLY (one highlight per screen)
+  graphite: '#3C3744', // text, icons, dark bento tile
+  white: '#FFFFFF', // main cards
+  burntOrange: '#CF4F27', // warm icon accent; passes 3:1 on its tint and Honeydew
+  burntOrangeTint: '#FBE3D8', // soft icon bubble behind Burnt Orange glyphs
+>>>>>>> origin/main
 
   // Text
   text: "#3C3744",
@@ -68,9 +84,8 @@ export const space = {
 export const GAP = 16;
 
 // ---------- Layout ----------
-export const WIDE = 768; // >= this width: sidebar + multi-column layouts
+export const WIDE = 768; // >= this width: top widget + multi-column layouts
 export const MAX_CONTENT_WIDTH = 1120;
-export const SIDEBAR_WIDTH = 240;
 export const MIN_HIT = 44; // minimum touch target
 
 // ---------- Shadow ----------

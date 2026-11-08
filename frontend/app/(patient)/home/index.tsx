@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useWindowDimensions, View } from "react-native";
@@ -24,17 +25,38 @@ import {
   sessionRow,
   weekCounts,
 } from "@/features/results/derive";
+=======
+import { router } from 'expo-router';
+import { useWindowDimensions, View } from 'react-native';
+import { BarChart, BentoGrid, Card, ListCard, LoadState, PillButton, ScreenContainer, StatTile, Text } from '@/components';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { CareTeamCard } from '@/features/care/CareTeamCard';
+import { fetchSessions } from '@/features/results/api';
+import { MOTION_ICONS, today } from '@/lib/data';
+import { formatLongDate } from '@/lib/format';
+import { colors, space, WIDE } from '@/lib/theme';
+import { useLoader } from '@/lib/useLoader';
+import { EmptyState } from '@/features/results/EmptyState';
+import { cadenceTrend, greetingFor, recentSessions, sessionRow, weekCounts } from '@/features/results/derive';
+>>>>>>> origin/main
 
 export default function HomeScreen() {
   const wide = useWindowDimensions().width >= WIDE;
+  const { patient } = useAuth();
+  const patientId = patient?.id;
+  const sessions = useLoader(() => (patientId ? fetchSessions(patientId) : Promise.resolve([])), [patientId]);
   const day = today();
-  const list = mySessions();
+  const list = sessions.data ?? [];
   const latest = list.at(-1);
   const week = weekCounts(list, day);
   const weekTotal = week.reduce((sum, d) => sum + d.value, 0);
   const recent = recentSessions(list);
+<<<<<<< HEAD
   const focus = currentPatient()?.exercises[0];
   const startTracking = () => router.push("/track/motion-type");
+=======
+  const startTracking = () => router.push('/track/motion-type');
+>>>>>>> origin/main
 
   return (
     <ScreenContainer gap={wide ? 24 : 16}>
@@ -50,6 +72,7 @@ export default function HomeScreen() {
         <View style={{ gap: space.xs }}>
           <Text variant="display" accessibilityRole="header">
             {greetingFor(new Date().getHours())}
+            {patient?.fullName ? `, ${patient.fullName.split(' ')[0]}` : ''}
           </Text>
           <Text variant="body" muted>
             {formatLongDate(day)}
@@ -92,6 +115,7 @@ export default function HomeScreen() {
           )}
         </View>
 
+<<<<<<< HEAD
         <Card tone="dark" style={{ flex: 1, gap: space.md, minHeight: 160 }}>
           <View
             style={{
@@ -131,6 +155,9 @@ export default function HomeScreen() {
             </Text>
           </View>
         </Card>
+=======
+        <CareTeamCard />
+>>>>>>> origin/main
       </BentoGrid>
 
       {/* This week + recent sessions */}
@@ -164,7 +191,9 @@ export default function HomeScreen() {
 
         <Card style={{ flex: 1, gap: space.md }}>
           <Text variant="headline">Recent sessions</Text>
-          {recent.length > 0 ? (
+          {sessions.data === undefined ? (
+            <LoadState error={sessions.error} onRetry={sessions.reload} />
+          ) : recent.length > 0 ? (
             <View style={{ gap: space.sm }}>
               {recent.map((s) => {
                 const row = sessionRow(s);
@@ -174,8 +203,8 @@ export default function HomeScreen() {
                     title={row.title}
                     subtitle={row.subtitle}
                     icon={MOTION_ICONS[s.motion]}
-                    trailing={String(s.gaitScore)}
-                    accessibilityLabel={`${row.title}, ${row.subtitle}, gait score ${s.gaitScore}`}
+                    trailing={s.movementVerified === false ? '—' : String(s.gaitScore)}
+                    accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${s.movementVerified === false ? 'not available' : s.gaitScore}`}
                     onPress={() => router.push(`/results?sessionId=${s.id}`)}
                   />
                 );

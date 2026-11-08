@@ -1,50 +1,34 @@
-// Placeholder logo until the real one is provided. Hand-drawn SVG mark + text wordmark.
-import { View } from 'react-native';
-import Svg, { Circle, Path, Rect } from 'react-native-svg';
-import { colors } from '@/lib/theme';
-import { Text } from './Text';
+import { Image, View } from "react-native";
 
 type Props = {
   /** Height of the mark in px. Default 36. */
   size?: number;
-  /** 'full' = mark + "I'M YOU" wordmark, 'mark' = square mark only. Default 'full'. */
-  variant?: 'full' | 'mark';
-  /** Use on Seagrass or Graphite surfaces: white mark, white wordmark. */
+  /** 'full' = mark + wordmark, 'mark' = icon only. Default 'full'. */
+  variant?: "full" | "mark";
+  /** Included to preserve compatibility with existing layout calls. */
   onDark?: boolean;
 };
 
-export function Logo({ size = 36, variant = 'full', onDark = false }: Props) {
-  const tile = onDark ? colors.white : colors.seagrass;
-  const ink = onDark ? colors.seagrass : colors.white;
-
+export function Logo({ size = 36 }: Props) {
   return (
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel="I'M YOU"
-      style={{ flexDirection: 'row', alignItems: 'center', gap: size * 0.3 }}
+      accessibilityLabel="I'M U"
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "transparent", // Ensure wrapper has no white fill
+      }}
     >
-      <Svg width={size} height={size} viewBox="0 0 40 40">
-        <Rect x={0} y={0} width={40} height={40} rx={11} fill={tile} />
-        {/* A motion arc: one stride, ending in a dot */}
-        <Path
-          d="M9 27 C 13 14, 21 12, 26 19"
-          stroke={ink}
-          strokeWidth={4}
-          strokeLinecap="round"
-          fill="none"
-        />
-        <Circle cx={30} cy={25} r={3.6} fill={ink} />
-      </Svg>
-      {variant === 'full' && (
-        <Text
-          weight={800}
-          color={onDark ? colors.white : colors.graphite}
-          style={{ fontSize: size * 0.58, lineHeight: size * 0.8, letterSpacing: -0.2 }}
-        >
-          I'M YOU
-        </Text>
-      )}
+      <Image
+        source={require("../../assets/logo.png")}
+        style={{
+          width: size * 1.5, // Adjust width based on your image aspect ratio
+          height: size,
+          resizeMode: "contain",
+        }}
+      />
     </View>
   );
 }

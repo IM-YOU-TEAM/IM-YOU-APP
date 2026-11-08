@@ -80,7 +80,7 @@ export function PillButton({
   accessibilityLabel,
   style,
 }: Props) {
-  const { scale, onPressIn, onPressOut } = usePressScale(0.985);
+  const { scale, onPressIn, onPressOut } = usePressScale(0.97);
   const [hovered, setHovered] = useState(false);
   const fill = FILL[variant];
   const iconEl = icon ? (
@@ -113,12 +113,19 @@ export function PillButton({
         style={({ pressed }) => [
           styles.base,
           {
+<<<<<<< HEAD
             minHeight: size === "lg" ? 56 : 50,
             paddingHorizontal: size === "lg" ? space.xxl : space.xl,
             backgroundColor: hovered && !disabled ? fill.hover : fill.rest,
             borderWidth: variant === "ghost" ? 0 : StyleSheet.hairlineWidth,
+=======
+            minHeight: size === 'lg' ? 56 : 50,
+            paddingHorizontal: size === 'lg' ? space.xxl : space.xl,
+            backgroundColor: (hovered || pressed) && !disabled ? fill.hover : fill.rest,
+            borderWidth: variant === 'ghost' ? 0 : StyleSheet.hairlineWidth,
+>>>>>>> origin/main
             borderColor: fill.edge,
-            opacity: pressed ? 0.85 : 1,
+            opacity: pressed ? 0.94 : 1,
           },
         ]}
       >
