@@ -21,6 +21,9 @@ expo-env.d.ts
 # Metro
 .metro-health-check*
 
+# Copied from @mediapipe/tasks-vision on npm install. See scripts/copy-pose-runtime.mjs.
+public/mediapipe/
+
 # misc
 npm-debug.*
 .DS_Store

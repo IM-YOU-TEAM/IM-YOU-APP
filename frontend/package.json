@@ -5,9 +5,11 @@
   "dependencies": {
     "@expo/metro-runtime": "~58.0.17",
     "@expo/vector-icons": "^15.0.2",
+    "@mediapipe/tasks-vision": "^1.2.2",
     "expo": "~58.0.23",
     "expo-blur": "~58.0.5",
     "expo-constants": "~58.0.15",
+    "expo-dev-client": "~58.0.18",
     "expo-font": "~58.0.11",
     "expo-linking": "~58.0.16",
     "expo-router": "~58.0.30",
@@ -17,10 +19,13 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
+    "react-native-mediapipe-posedetection": "^0.4.0",
     "react-native-safe-area-context": "~5.11.1",
     "react-native-screens": "~4.30.1",
     "react-native-svg": "15.16.0",
-    "react-native-web": "~0.21.4"
+    "react-native-vision-camera": "^4.7.3",
+    "react-native-web": "~0.21.4",
+    "react-native-worklets-core": "^1.6.3"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
@@ -29,9 +34,11 @@
   "scripts": {
     "start": "expo start",
     "web": "expo start --web",
-    "ios": "expo start --ios",
-    "android": "expo start --android",
-    "typecheck": "tsc --noEmit"
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit",
+    "check:metrics": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --import ./scripts/register-ts-paths.mjs src/features/capture/cv/metrics.check.ts",
+    "postinstall": "node scripts/copy-pose-runtime.mjs"
   },
   "private": true
 }
