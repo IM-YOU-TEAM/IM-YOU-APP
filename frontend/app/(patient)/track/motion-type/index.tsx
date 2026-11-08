@@ -1,55 +1,60 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
-import { Card, PillButton, ScreenContainer, Text } from '@/components';
+import { PillButton, ScreenContainer, Text } from '@/components';
 import { ChoiceCard } from '@/features/capture/ChoiceCard';
-import { DemoClip } from '@/features/capture/DemoClip';
 import { FlowHeader } from '@/features/capture/FlowHeader';
 import { parseMotion } from '@/features/capture/params';
-import { PROTOCOL_ORDER, PROTOCOLS } from '@/features/capture/protocols';
 import { MOTION_ICONS, MOTION_LABELS } from '@/lib/data';
 import { GAP, space, WIDE } from '@/lib/theme';
 import type { MotionType } from '@/types';
 
-// Step 1: the one movement we can show with a real clip.
+const MOTIONS: MotionType[] = ['walking', 'running', 'stairs', 'sitToStand'];
+
+const DESCRIPTIONS: Record<MotionType, string> = {
+  walking: 'Your everyday pace on flat ground',
+  running: 'A steady jog or run',
+  stairs: 'Up and down a flight of steps',
+  sitToStand: 'Rising from a chair and sitting back down',
+};
+
+// Step 1: pick the movement to track.
 export default function MotionTypeScreen() {
   const wide = useWindowDimensions().width >= WIDE;
   const params = useLocalSearchParams();
-  const [motion, setMotion] = useState<MotionType | null>(parseMotion(params.motion) ?? 'chairStand');
-  const clip = PROTOCOLS.chairStand.video;
+  const [motion, setMotion] = useState<MotionType | null>(parseMotion(params.motion));
 
   const next = () => {
     if (motion) router.push({ pathname: '/track/method', params: { motion } });
   };
+
+  // 2 x 2 on wide screens, stacked on phones.
+  const rows = wide ? [MOTIONS.slice(0, 2), MOTIONS.slice(2)] : MOTIONS.map((m) => [m]);
 
   return (
     <ScreenContainer maxWidth={880} gap={space.xl}>
       <FlowHeader step={1} />
       <View style={{ gap: space.sm }}>
         <Text variant="display">What are you tracking?</Text>
-        <Text muted>The CDC filmed this test. Press play to watch it, then continue.</Text>
+        <Text muted>Pick one movement for this session.</Text>
       </View>
 
-      <View style={{ flexDirection: wide ? 'row' : 'column', gap: GAP, alignItems: 'stretch' }}>
-        <View accessibilityRole="radiogroup" accessibilityLabel="Movement" style={{ flex: 1, gap: GAP }}>
-          {PROTOCOL_ORDER.map((m) => (
-            <ChoiceCard
-              key={m}
-              title={MOTION_LABELS[m]}
-              description={PROTOCOLS[m].summary}
-              source={PROTOCOLS[m].source}
-              icon={MOTION_ICONS[m]}
-              selected={motion === m}
-              onPress={() => setMotion(m)}
-            />
-          ))}
-        </View>
-        <Card padding={space.sm} style={{ flex: 1.4, gap: space.sm, justifyContent: 'center' }}>
-          <DemoClip webm={clip.webm} mov={clip.mov} label="CDC demonstration of the 30-second chair stand" />
-          <Text variant="caption" muted>
-            CDC STEADI demonstration
-          </Text>
-        </Card>
+      <View accessibilityRole="radiogroup" accessibilityLabel="Movement" style={{ gap: GAP }}>
+        {rows.map((row) => (
+          <View key={row.join()} style={{ flexDirection: 'row', gap: GAP }}>
+            {row.map((m) => (
+              <ChoiceCard
+                key={m}
+                title={MOTION_LABELS[m]}
+                description={DESCRIPTIONS[m]}
+                icon={MOTION_ICONS[m]}
+                selected={motion === m}
+                onPress={() => setMotion(m)}
+                style={{ flex: 1 }}
+              />
+            ))}
+          </View>
+        ))}
       </View>
 
       <PillButton

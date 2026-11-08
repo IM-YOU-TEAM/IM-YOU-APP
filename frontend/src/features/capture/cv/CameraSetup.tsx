@@ -1,4 +1,4 @@
-import Svg, { Circle, G, Line, Polygon, Rect } from 'react-native-svg';
+import Svg, { Circle, G, Line, Path, Polygon, Rect } from 'react-native-svg';
 import { colors } from '@/lib/theme';
 import type { MotionType } from '@/types';
 import { GROUND_Y } from './pose';
@@ -16,7 +16,7 @@ const LENS = { x: 50, y: 150 };
 const SCENERY = 'rgba(60, 55, 68, 0.18)';
 
 // A still frame that reads well for each motion.
-const STILL_T: Record<MotionType, number> = { chairStand: 0 };
+const STILL_T: Record<MotionType, number> = { walking: 0.3, running: 0.2, stairs: 0.1, sitToStand: 0 };
 
 /** Side view of the camera setup: floor-level phone, its field of view, and you fully in frame. */
 export function CameraSetup({ motion }: Props) {
@@ -33,8 +33,22 @@ export function CameraSetup({ motion }: Props) {
       {/* Ground */}
       <Line x1={8} x2={W - 8} y1={GROUND} y2={GROUND} stroke={SCENERY} strokeWidth={2} strokeLinecap="round" />
 
+      {/* Motion props */}
+      {motion === 'running' && (
+        <G>
+          <Rect x={PERSON_X - 62} y={GROUND - 12} width={124} height={12} rx={6} fill={SCENERY} />
+          <Rect x={PERSON_X + 54} y={GROUND - 72} width={6} height={62} rx={3} fill={SCENERY} />
+        </G>
+      )}
+      {motion === 'stairs' && (
+        <Path
+          d={`M ${PERSON_X + 30} ${GROUND} V ${GROUND - 18} H ${PERSON_X + 52} V ${GROUND - 36} H ${PERSON_X + 74} V ${GROUND - 54} H ${PERSON_X + 96} V ${GROUND}`}
+          fill={SCENERY}
+        />
+      )}
+
       {/* You */}
-      <G transform={`translate(${tx} ${ty}) scale(${SCALE})`}>
+      <G transform={`translate(${tx} ${motion === 'running' ? ty - 12 : ty}) scale(${SCALE})`}>
         <SkeletonFigure motion={motion} t={STILL_T[motion]} bone={colors.graphite} joint={colors.graphite} scenery={SCENERY} />
       </G>
 

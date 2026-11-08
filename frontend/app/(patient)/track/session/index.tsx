@@ -8,7 +8,6 @@ import { LiveWaveform } from '@/features/capture/imu/LiveWaveform';
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { RecordingBadge } from '@/features/capture/RecordingBadge';
-import { PROTOCOLS } from '@/features/capture/protocols';
 import { METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
 import { formatDuration } from '@/lib/format';
 import { GAP, space, WIDE } from '@/lib/theme';
@@ -46,7 +45,7 @@ export default function SessionScreen() {
           {formatDuration(seconds)}
         </Text>
         <Text variant="callout" muted align="center">
-          {paused ? 'Paused. Resume when you are ready.' : PROTOCOLS[motion].cue}
+          {paused ? 'Paused. Resume when you are ready.' : `Keep ${motion === 'sitToStand' ? 'going' : 'moving'} at your usual pace`}
         </Text>
       </View>
       {/* Stacked so the labels never truncate in the narrow side card or on small phones. */}

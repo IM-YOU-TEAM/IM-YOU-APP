@@ -4,7 +4,7 @@ import type { Ionicons } from '@expo/vector-icons';
 /** Any valid Ionicons name, e.g. 'walk' or 'chevron-forward'. */
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
-export type MotionType = 'chairStand';
+export type MotionType = 'walking' | 'running' | 'stairs' | 'sitToStand';
 
 /** 'cv' = phone camera (computer vision), 'imu' = phone motion sensors. */
 export type CaptureMethod = 'cv' | 'imu';
@@ -39,10 +39,10 @@ export type Session = {
   method: CaptureMethod;
   durationSec: number;
   gaitScore: number; // 0-100
-  cadence: number; // reps/min
+  cadence: number; // steps/min (reps/min for sit-to-stand)
   symmetry: number; // left/right symmetry, %
-  stepCount?: number;
-  reps?: number; // stands in the 30-second chair stand
+  stepCount?: number; // walking, running, stairs
+  reps?: number; // sit-to-stand
 };
 
 export type Feedback = {
