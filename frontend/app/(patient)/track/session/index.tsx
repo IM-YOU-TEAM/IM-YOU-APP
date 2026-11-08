@@ -10,6 +10,7 @@ import type { CameraGate } from '@/features/capture/cv/poseTypes';
 import { usePoseSession } from '@/features/capture/cv/usePoseSession';
 import { FlowHeader } from '@/features/capture/FlowHeader';
 import { LiveWaveform } from '@/features/capture/imu/LiveWaveform';
+import { useImuSession, type ImuGate } from '@/features/capture/imu/useImuSession';
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { RecordingBadge } from '@/features/capture/RecordingBadge';
@@ -17,6 +18,7 @@ import { METHOD_LABELS, MOTION_LABELS, recordSession } from '@/lib/data';
 import { formatDuration } from '@/lib/format';
 import { GAP, space, WIDE } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
+import type { MotionType } from '@/types';
 
 // Step 4: the live session. Camera sessions record pose on the device. Sensor sessions are still a preview.
 export default function SessionScreen() {
@@ -28,12 +30,16 @@ export default function SessionScreen() {
   const [seconds, setSeconds] = useState(0);
   const [paused, setPaused] = useState(false);
   const pose = usePoseSession(motion, paused);
+  const imu = useImuSession(method === 'imu' ? motion : null, paused);
   const [gate, setGate] = useState<CameraGate>('starting');
 
-  const captureStarted = method === 'imu' || (method === 'cv' && pose.captureStarted);
-  const clockOn = method === 'imu' || (method === 'cv' && gate === 'ready' && captureStarted);
-  const cameraBlocked = method === 'cv' && (gate === 'denied' || gate === 'unavailable' || gate === 'model-error');
-  const recordingStatus = cameraBlocked ? 'camera-blocked' : !captureStarted ? 'setting-up' : paused ? 'paused' : 'recording';
+  const captureStarted = method === 'imu' ? imu.captureStarted : pose.captureStarted;
+  const clockOn = method === 'imu' ? imu.recording : gate === 'ready' && captureStarted;
+  const blocked =
+    method === 'cv'
+      ? gate === 'denied' || gate === 'unavailable' || gate === 'model-error'
+      : imu.gate === 'unreachable' || imu.gate === 'unsupported-motion';
+  const recordingStatus = blocked ? 'camera-blocked' : !captureStarted ? 'setting-up' : paused ? 'paused' : 'recording';
 
   useEffect(() => {
     if (paused || !clockOn) return;
@@ -52,11 +58,21 @@ export default function SessionScreen() {
         router.replace({ pathname: '/results', params: { sessionId: done.session.id } });
         return;
       }
+    } else {
+      const session = imu.finish(seconds);
+      if (session) {
+        recordSession(session);
+        router.replace({ pathname: '/results', params: { sessionId: session.id } });
+        return;
+      }
     }
     router.replace('/results');
   };
 
-  const prompt = sessionPrompt(method, motion, paused, gate, pose.framing, pose.movementState, pose.detectedMotion);
+  const prompt =
+    method === 'cv'
+      ? cameraPrompt(motion, paused, gate, pose.framing, pose.movementState, pose.detectedMotion)
+      : sensorPrompt(motion, paused, imu);
   const live =
     method === 'cv' ? (
       <PoseCamera
@@ -67,7 +83,7 @@ export default function SessionScreen() {
         onGate={setGate}
       />
     ) : (
-      <LiveWaveform motion={motion} running={!paused && !reduce} />
+      <LiveWaveform angles={paused || reduce ? undefined : imu.angles} caption={prompt} />
     );
 
   const controls = (
@@ -83,6 +99,11 @@ export default function SessionScreen() {
         {method === 'cv' && gate === 'ready' ? (
           <Text variant="title" align="center" style={{ fontVariant: ['tabular-nums'] }}>
             {pose.count} {pose.unit}
+          </Text>
+        ) : null}
+        {method === 'imu' && imu.captureStarted ? (
+          <Text variant="title" align="center">
+            {imu.lowMotion ? 'Not moving' : (imu.detectedLabel ?? '—')}
           </Text>
         ) : null}
         <Text variant="callout" muted align="center">
@@ -123,17 +144,41 @@ export default function SessionScreen() {
   );
 }
 
-function sessionPrompt(
-  method: 'cv' | 'imu',
-  motion: 'walking' | 'running' | 'stairs' | 'sitToStand',
+/** What the sensor session wants the person to do, or why it cannot measure yet. */
+function sensorPrompt(
+  motion: MotionType,
+  paused: boolean,
+  imu: { gate: ImuGate; lowMotion: boolean; recording: boolean },
+): string {
+  if (paused) return 'Paused. Resume when you are ready.';
+  switch (imu.gate) {
+    case 'unsupported-motion':
+      return `${MOTION_LABELS[motion]} cannot be measured by the phone sensors yet. Use the camera instead.`;
+    case 'connecting':
+      return 'Connecting to the sensor service…';
+    case 'unreachable':
+      return 'The sensor service is not reachable. Check it is running on your computer.';
+    case 'waiting-for-phones':
+      return 'Waiting for both phones. Start the recording on your computer.';
+    case 'ready':
+      if (imu.lowMotion) return 'Not enough movement to measure. Keep going at your usual pace.';
+      return 'Keep moving at your usual pace';
+    default: {
+      const unexpected: never = imu.gate;
+      return unexpected;
+    }
+  }
+}
+
+function cameraPrompt(
+  motion: MotionType,
   paused: boolean,
   gate: CameraGate,
   framing: FramingStatus,
   movementState: MovementState,
-  detectedMotion: 'walking' | 'running' | 'stairs' | 'sitToStand' | undefined,
+  detectedMotion: MotionType | undefined,
 ): string {
   if (paused) return 'Paused. Resume when you are ready.';
-  if (method === 'imu') return `Keep ${motion === 'sitToStand' ? 'going' : 'moving'} at your usual pace`;
   switch (gate) {
     case 'denied':
       return 'Allow the camera to measure this session.';
