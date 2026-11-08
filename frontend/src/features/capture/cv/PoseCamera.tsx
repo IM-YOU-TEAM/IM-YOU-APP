@@ -1,32 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, useCameraDevice } from 'react-native-vision-camera';
 import type { PoseDetectionResultBundle, ViewCoordinator } from 'react-native-mediapipe-posedetection';
 import { CameraStage, PoseOverlay } from './PoseOverlay';
 import type { CameraGate, PoseCameraProps, Vec3 } from './poseTypes';
 
 type PoseModule = typeof import('react-native-mediapipe-posedetection');
+type VisionModule = typeof import('react-native-vision-camera');
 
 declare function require(moduleId: string): unknown;
 
 /**
  * Vision Camera 4 is pinned in package.json. Expo SDK 58 resolves v5, and v5 removed the
  * frame-processor plugin API this pose package calls (`VisionCameraProxy`).
+ * Both native packages throw while they evaluate in Expo Go. require() keeps that off the
+ * setup screen, which only needs the demonstration video.
  */
-function loadPoseModule(): { module: PoseModule | null } {
+function loadNative(): { module: PoseModule | null; vision: VisionModule | null } {
   try {
-    // The package throws while it evaluates when the native frame-processor plugin is
-    // missing (Expo Go). require() turns that into a message instead of a crash.
-    return { module: require('react-native-mediapipe-posedetection') as PoseModule };
+    const vision = require('react-native-vision-camera') as VisionModule;
+    const module = require('react-native-mediapipe-posedetection') as PoseModule;
+    return { module, vision };
   } catch {
-    return { module: null };
+    return { module: null, vision: null };
   }
 }
 
-const loaded = loadPoseModule();
+const loaded = loadNative();
 
 /** Phone camera. Pose runs on the device; frames are not uploaded. Needs a development build, not Expo Go. */
 export function PoseCamera(props: PoseCameraProps) {
-  if (!loaded.module) {
+  if (!loaded.module || !loaded.vision) {
     return (
       <BlockedPose
         title="Pose tracking isn't in this install"
@@ -36,7 +38,7 @@ export function PoseCamera(props: PoseCameraProps) {
       />
     );
   }
-  return <RunningPoseCamera api={loaded.module} {...props} />;
+  return <RunningPoseCamera api={loaded.module} vision={loaded.vision} {...props} />;
 }
 
 function BlockedPose({ title, detail, gate, onGate }: { title: string; detail: string; gate: CameraGate; onGate: (gate: CameraGate) => void }) {
@@ -46,7 +48,15 @@ function BlockedPose({ title, detail, gate, onGate }: { title: string; detail: s
   return <CameraStage title={title} detail={detail} />;
 }
 
-function RunningPoseCamera({ api, paused, caption, countLabel, onFrame, onGate }: { api: PoseModule } & PoseCameraProps) {
+function RunningPoseCamera({
+  api,
+  vision,
+  paused,
+  caption,
+  countLabel,
+  onFrame,
+  onGate,
+}: { api: PoseModule; vision: VisionModule } & PoseCameraProps) {
   const onFrameRef = useRef(onFrame);
   const onGateRef = useRef(onGate);
   const pausedRef = useRef(paused);
@@ -115,13 +125,13 @@ function RunningPoseCamera({ api, paused, caption, countLabel, onFrame, onGate }
     },
   );
 
-  const device = useCameraDevice('back');
+  const device = vision.useCameraDevice('back');
 
   useEffect(() => {
     let cancel = false;
     (async () => {
-      let status = Camera.getCameraPermissionStatus();
-      if (status === 'not-determined') status = await Camera.requestCameraPermission();
+      let status = vision.Camera.getCameraPermissionStatus();
+      if (status === 'not-determined') status = await vision.Camera.requestCameraPermission();
       if (!cancel) setPermission(status === 'granted' ? 'granted' : 'denied');
     })();
     return () => {
@@ -169,7 +179,7 @@ function RunningPoseCamera({ api, paused, caption, countLabel, onFrame, onGate }
   return (
     <CameraStage caption={live ? caption : 'Opening the camera…'} countLabel={live ? countLabel : undefined}>
       {live ? (
-        <Camera
+        <vision.Camera
           style={{ flex: 1 }}
           device={device}
           isActive

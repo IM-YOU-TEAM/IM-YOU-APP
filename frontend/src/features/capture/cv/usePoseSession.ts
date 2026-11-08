@@ -13,7 +13,9 @@ function sameReadout(a: LiveReadout, b: LiveReadout): boolean {
     a.framing === b.framing &&
     a.movementState === b.movementState &&
     a.detectedMotion === b.detectedMotion &&
-    a.captureStarted === b.captureStarted
+    a.captureStarted === b.captureStarted &&
+    a.cue?.text === b.cue?.text &&
+    a.cue?.tone === b.cue?.tone
   );
 }
 

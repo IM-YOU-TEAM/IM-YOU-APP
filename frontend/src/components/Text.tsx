@@ -18,7 +18,7 @@ const DarkSurface = createContext(false);
 
 /**
  * Wrap content on a Seagrass or Graphite surface so every <Text> inside defaults to white.
- * Card tone="dark", StatTile, Sidebar and selected ListCards already do this for you.
+ * Card tone="dark", StatTile and selected ListCards already do this for you.
  */
 export function OnDark({ children }: { children: ReactNode }) {
   return <DarkSurface.Provider value>{children}</DarkSurface.Provider>;

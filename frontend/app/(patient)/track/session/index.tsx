@@ -1,8 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { Card, PillButton, ScreenContainer, Text } from '@/components';
+import { useAuth } from '@/features/auth/AuthProvider';
 import { framingInstruction, type FramingStatus } from '@/features/capture/cv/framing';
+import type { FormCue, RecordedSession } from '@/features/capture/cv/metrics';
 import { movementInstruction, type MovementState } from '@/features/capture/cv/motionAssessment';
 import { PoseCamera } from '@/features/capture/cv/PoseCamera';
 import { savePoseLog } from '@/features/capture/cv/poseLog';
@@ -14,11 +16,12 @@ import { useImuSession, type ImuGate } from '@/features/capture/imu/useImuSessio
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { RecordingBadge } from '@/features/capture/RecordingBadge';
-import { METHOD_LABELS, MOTION_LABELS, recordSession } from '@/lib/data';
+import { saveSession } from '@/features/results/api';
+import { METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
 import { formatDuration } from '@/lib/format';
-import { GAP, space, WIDE } from '@/lib/theme';
+import { colors, GAP, space, WIDE } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
-import type { MotionType } from '@/types';
+import type { MotionType, Session } from '@/types';
 
 // Step 4: the live session. Camera sessions record pose on the device. Sensor sessions are still a preview.
 export default function SessionScreen() {
@@ -32,9 +35,17 @@ export default function SessionScreen() {
   const pose = usePoseSession(motion, paused);
   const imu = useImuSession(method === 'imu' ? motion : null, paused);
   const [gate, setGate] = useState<CameraGate>('starting');
+  const { patient } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Kept after a failed save so "Try again" re-sends the same numbers instead of re-scoring.
+  const finishedPose = useRef<RecordedSession | null>(null);
+  const finishedImu = useRef<Session | null>(null);
 
   const captureStarted = method === 'imu' ? imu.captureStarted : pose.captureStarted;
-  const clockOn = method === 'imu' ? imu.recording : gate === 'ready' && captureStarted;
+  const captureFinished = method === 'imu' ? finishedImu.current != null : finishedPose.current != null;
+  const clockOn =
+    !saving && !captureFinished && (method === 'imu' ? imu.recording : gate === 'ready' && captureStarted);
   const blocked =
     method === 'cv'
       ? gate === 'denied' || gate === 'unavailable' || gate === 'model-error'
@@ -49,29 +60,30 @@ export default function SessionScreen() {
 
   if (!motion || !method) return <MissingParams />;
 
-  const stop = () => {
-    if (method === 'cv') {
-      const done = pose.finish(seconds);
-      if (done) {
-        recordSession(done.session);
-        savePoseLog(done.session.id, done.samples);
-        router.replace({ pathname: '/results', params: { sessionId: done.session.id } });
-        return;
+  const stop = async () => {
+    if (method === 'cv') finishedPose.current ??= pose.finish(seconds);
+    else finishedImu.current ??= imu.finish(seconds);
+
+    const session = method === 'cv' ? finishedPose.current?.session : finishedImu.current;
+    if (session && patient) {
+      setSaving(true);
+      setSaveError(null);
+      try {
+        const saved = await saveSession(session, patient.id);
+        if (method === 'cv' && finishedPose.current) savePoseLog(saved.id, finishedPose.current.samples);
+        router.replace({ pathname: '/results', params: { sessionId: saved.id } });
+      } catch {
+        setSaveError("This session didn't save. Check your connection and try again.");
+        setSaving(false);
       }
-    } else {
-      const session = imu.finish(seconds);
-      if (session) {
-        recordSession(session);
-        router.replace({ pathname: '/results', params: { sessionId: session.id } });
-        return;
-      }
+      return;
     }
     router.replace('/results');
   };
 
   const prompt =
     method === 'cv'
-      ? cameraPrompt(motion, paused, gate, pose.framing, pose.movementState, pose.detectedMotion)
+      ? cameraPrompt(motion, paused, gate, pose.framing, pose.movementState, pose.detectedMotion, pose.cue)
       : sensorPrompt(motion, paused, imu);
   const live =
     method === 'cv' ? (
@@ -106,7 +118,13 @@ export default function SessionScreen() {
             {imu.lowMotion ? 'Not moving' : (imu.detectedLabel ?? '—')}
           </Text>
         ) : null}
-        <Text variant="callout" muted align="center">
+        <Text
+          variant="callout"
+          muted={method !== 'cv' || !pose.cue}
+          align="center"
+          color={method === 'cv' && pose.cue?.tone === 'good' ? colors.seagrass : undefined}
+          accessibilityLiveRegion="polite"
+        >
           {prompt}
         </Text>
       </View>
@@ -117,10 +135,22 @@ export default function SessionScreen() {
           variant="secondary"
           size="lg"
           fullWidth
-          disabled={!captureStarted}
+          disabled={!captureStarted || saving || saveError !== null}
           onPress={() => setPaused((p) => !p)}
         />
-        <PillButton label="Stop" icon="stop" size="lg" fullWidth onPress={stop} />
+        <PillButton
+          label={saving ? 'Saving…' : saveError ? 'Try saving again' : 'Stop'}
+          icon={saveError ? 'refresh' : 'stop'}
+          size="lg"
+          fullWidth
+          disabled={saving}
+          onPress={stop}
+        />
+        {saveError ? (
+          <Text variant="callout" muted align="center" accessibilityRole="alert">
+            {saveError}
+          </Text>
+        ) : null}
       </View>
     </Card>
   );
@@ -177,6 +207,7 @@ function cameraPrompt(
   framing: FramingStatus,
   movementState: MovementState,
   detectedMotion: MotionType | undefined,
+  cue: FormCue | null,
 ): string {
   if (paused) return 'Paused. Resume when you are ready.';
   switch (gate) {
@@ -190,6 +221,7 @@ function cameraPrompt(
       return 'Opening the camera…';
     case 'ready':
       if (framing !== 'ready') return framingInstruction(framing);
+      if (cue) return cue.text;
       return movementInstruction(movementState, motion, detectedMotion);
     default: {
       const unexpected: never = gate;
