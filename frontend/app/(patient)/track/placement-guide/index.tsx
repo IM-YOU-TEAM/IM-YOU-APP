@@ -5,6 +5,7 @@ import { Card, PillButton, ScreenContainer, Text } from '@/components';
 import { CameraSetup } from '@/features/capture/cv/CameraSetup';
 import { FlowHeader } from '@/features/capture/FlowHeader';
 import { BodyPlacement } from '@/features/capture/imu/BodyPlacement';
+import { TwoPhonePlacement } from '@/features/capture/imu/TwoPhonePlacement';
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { BODY_SPOT_LABELS, CV_DISTANCE_M, IMU_SPOT, placementSteps, type PlacementStep } from '@/features/capture/placementSteps';
@@ -24,7 +25,9 @@ export default function PlacementGuideScreen() {
   const caption =
     method === 'cv'
       ? `Phone on the floor, ${CV_DISTANCE_M[motion]} m away, side view`
-      : `${BODY_SPOT_LABELS[IMU_SPOT[motion]]}${IMU_SPOT[motion] === 'lowerBack' ? ' (back view)' : ''}`;
+      : motion === 'walking' || motion === 'stairs'
+        ? 'Phone 1 on the right thigh, phone 2 on the right shin'
+        : `${BODY_SPOT_LABELS[IMU_SPOT[motion]]}${IMU_SPOT[motion] === 'lowerBack' ? ' (back view)' : ''}`;
 
   const drawing = (
     <Card style={{ gap: space.md, flex: wide ? 1 : undefined }}>
@@ -34,7 +37,13 @@ export default function PlacementGuideScreen() {
         accessibilityLabel={`Drawing: ${caption}`}
         style={{ height: method === 'cv' ? 220 : 280, flexGrow: wide ? 1 : 0 }}
       >
-        {method === 'cv' ? <CameraSetup motion={motion} /> : <BodyPlacement spot={IMU_SPOT[motion]} />}
+        {method === 'cv' ? (
+          <CameraSetup motion={motion} />
+        ) : motion === 'walking' || motion === 'stairs' ? (
+          <TwoPhonePlacement />
+        ) : (
+          <BodyPlacement spot={IMU_SPOT[motion]} />
+        )}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
         <Ionicons name="location" size={18} color={colors.seagrass} />
