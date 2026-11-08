@@ -72,6 +72,7 @@ export default function SignupScreen() {
     <ScreenContainer
       maxWidth={400}
       gap={0}
+      showTopography={false}
       contentStyle={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
     >
       <View style={styles.content}>
