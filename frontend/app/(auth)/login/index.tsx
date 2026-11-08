@@ -33,10 +33,6 @@ function RoleChoice({ onPick }: { onPick: (role: Role) => void }) {
     <View style={styles.choice}>
       <Logo size={56} />
 
-      <Text variant="display" align="center" accessibilityRole="header">
-        Welcome to I'M YOU
-      </Text>
-
       <View style={styles.choiceButtons}>
         <PillButton label="Continue as patient" icon="walk" size="lg" fullWidth onPress={() => onPick('patient')} />
         <PillButton
