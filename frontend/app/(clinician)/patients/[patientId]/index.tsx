@@ -153,12 +153,12 @@ export default function PatientDetailScreen() {
                 width: 36,
                 height: 36,
                 borderRadius: 18,
-                backgroundColor: colors.white,
+                backgroundColor: colors.burntOrangeTint,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="clipboard" size={19} color={colors.graphite} />
+              <Ionicons name="clipboard" size={19} color={colors.burntOrange} />
             </View>
             <Text variant="headline">Care plan</Text>
           </View>
@@ -168,7 +168,9 @@ export default function PatientDetailScreen() {
               {patient.exercises.map((exercise, index) => (
                 <View key={exercise.id} style={{ gap: space.xs }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-                    <Ionicons name={exercise.icon} size={19} color={colors.graphite} />
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name={exercise.icon} size={18} color={colors.burntOrange} />
+                    </View>
                     <Text variant="headline" style={{ flex: 1 }}>
                       {exercise.name}
                     </Text>

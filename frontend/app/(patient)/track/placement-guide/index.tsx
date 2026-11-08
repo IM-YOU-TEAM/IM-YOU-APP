@@ -37,7 +37,9 @@ export default function PlacementGuideScreen() {
         {method === 'cv' ? <CameraSetup motion={motion} /> : <BodyPlacement spot={IMU_SPOT[motion]} />}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
-        <Ionicons name="location" size={18} color={colors.seagrass} />
+        <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="location" size={16} color={colors.burntOrange} />
+        </View>
         <Text variant="callout" weight={700}>
           {caption}
         </Text>
@@ -66,7 +68,7 @@ export default function PlacementGuideScreen() {
 
       <PillButton
         label="I'm ready"
-        icon="arrow-forward"
+        icon="chevron-forward"
         iconRight
         size="lg"
         onPress={() => router.push({ pathname: '/track/session', params: { motion, method } })}
@@ -93,7 +95,9 @@ function StepCard({ step, n }: { step: PlacementStep; n: number }) {
           {step.detail}
         </Text>
       </View>
-      <Ionicons name={step.icon} size={22} color={colors.seagrass} style={{ paddingTop: 4 }} />
+      <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={step.icon} size={20} color={colors.burntOrange} />
+      </View>
     </Card>
   );
 }

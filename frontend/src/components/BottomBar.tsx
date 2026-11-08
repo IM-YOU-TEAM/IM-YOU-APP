@@ -62,7 +62,7 @@ function BarButton({ label, icon, active = false, onPress, ...linkProps }: Butto
       accessibilityState={{ selected: active }}
       style={({ pressed }) => [styles.button, active && styles.active, { opacity: pressed ? 0.6 : 1 }]}
     >
-      <Ionicons name={active ? icon : outlineIcon(icon)} size={23} color={active ? colors.seagrass : colors.textMuted} />
+      <Ionicons name={active ? icon : outlineIcon(icon)} size={23} color={active ? colors.burntOrange : colors.textMuted} />
       <Text variant="caption" weight={active ? 700 : 500} muted={!active} numberOfLines={1} style={styles.label}>
         {label}
       </Text>
