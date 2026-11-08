@@ -1,10 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, useWindowDimensions, View, type StyleProp, type ViewStyle } from 'react-native';
 import { OnDark, Text } from '@/components';
 import { colors, radii, shadows, space, WIDE } from '@/lib/theme';
 import { usePressScale } from '@/lib/usePressScale';
+import { useReduceMotion } from '@/lib/useReduceMotion';
 import type { IconName } from '@/types';
+
+const BEAT_MS = 1250;
 
 type Props = {
   title: string;
@@ -13,18 +16,33 @@ type Props = {
   selected: boolean;
   onPress: () => void;
   style?: StyleProp<ViewStyle>;
+  /** Shown under the description. Use for the published source. */
+  source?: string;
+  /** Four short cues. They step through while the card is hovered or selected. */
+  beats?: readonly string[];
 };
 
 /**
  * Big selectable card for the track flow (motion type, method). Acts as a radio button.
  * Selected = solid Seagrass with white bold text. Tall tile on wide screens, a row on phones.
  */
-export function ChoiceCard({ title, description, icon, selected, onPress, style }: Props) {
+export function ChoiceCard({ title, description, icon, selected, onPress, style, source, beats }: Props) {
   const wide = useWindowDimensions().width >= WIDE;
+  const reduce = useReduceMotion();
   const { scale, onPressIn, onPressOut } = usePressScale(0.98);
   const [hovered, setHovered] = useState(false);
+  const [beat, setBeat] = useState(0);
+  const playing = !reduce && (hovered || selected) && !!beats && beats.length > 0;
+
+  useEffect(() => {
+    if (!playing || !beats) return;
+    setBeat(0);
+    const id = setInterval(() => setBeat((n) => (n + 1) % beats.length), BEAT_MS);
+    return () => clearInterval(id);
+  }, [playing, beats]);
 
   const bg = selected ? colors.seagrass : hovered ? colors.honeydewLight : colors.white;
+  const detail = playing && beats ? beats[beat] : description;
 
   const body = (
     <Pressable
@@ -36,7 +54,7 @@ export function ChoiceCard({ title, description, icon, selected, onPress, style 
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
       aria-checked={selected}
-      accessibilityLabel={`${title}. ${description}`}
+      accessibilityLabel={source ? `${title}. ${description}. ${source}` : `${title}. ${description}`}
       style={[styles.card, wide ? styles.tile : styles.row, { backgroundColor: bg }]}
     >
       <View style={[styles.bubble, wide && styles.bubbleLarge, { backgroundColor: selected ? colors.whiteTint : colors.seagrassTint }]}>
@@ -46,8 +64,13 @@ export function ChoiceCard({ title, description, icon, selected, onPress, style 
         <Text variant="headline">{title}</Text>
         {/* On Seagrass, secondary text stays bold so white passes contrast. */}
         <Text variant="callout" weight={selected ? 700 : 500} color={selected ? colors.onSeagrassMuted : undefined} muted>
-          {description}
+          {detail}
         </Text>
+        {source ? (
+          <Text variant="caption" weight={selected ? 700 : 500} color={selected ? colors.onSeagrassMuted : undefined} muted>
+            {source}
+          </Text>
+        ) : null}
       </View>
       <View style={[styles.selectionRing, wide && styles.selectionCorner, selected ? styles.selectionRingOn : styles.selectionRingOff]}>
         {selected ? <View style={styles.selectionDot} /> : null}
