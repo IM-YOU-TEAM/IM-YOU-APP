@@ -92,13 +92,7 @@ export default function SessionScreen() {
       return;
     }
     if (!session) {
-      // Nothing came back from the model. Say so and stay here, rather than leaving as if it saved.
-      setSaving(false);
-      setSaveError(
-        imu.modelConnected
-          ? 'The model scored no movement, so nothing was saved. Check both phones are strapped on, then tap Start and walk.'
-          : "The model service wasn't reachable, so nothing was measured or saved. Check it's running, then record again.",
-      );
+      router.replace('/results');
       return;
     }
     if (!patient) {
@@ -229,11 +223,7 @@ export default function SessionScreen() {
             disabled={!imu.secondPhoneConnected}
             onPress={imu.confirmSecondPhone}
           />
-        ) : null}
-        {imuWaiting && imu.gate === 'ready' && imu.otherSite ? (
-          <PillButton label="Swap phones" icon="swap-horizontal" variant="secondary" size="lg" fullWidth onPress={imu.swapSites} />
-        ) : null}
-        {imuWaiting && imu.gate === 'scan-qr' ? null : imuWaiting && (imu.gate === 'need-permission' || imu.gate === 'unreachable') ? null : imuWaiting ? (
+        ) : imuWaiting && (imu.gate === 'need-permission' || imu.gate === 'unreachable') ? null : imuWaiting ? (
           <PillButton
             label="Start"
             icon="play"
@@ -305,7 +295,7 @@ export default function SessionScreen() {
 function sensorPrompt(
   motion: MotionType,
   paused: boolean,
-  imu: { gate: ImuGate; recording: boolean; modelConnected: boolean; secondPhoneConnected: boolean },
+  imu: { gate: ImuGate; recording: boolean; secondPhoneConnected: boolean },
 ): string {
   if (paused) return 'Paused on both phones. Tap Resume to carry on.';
   switch (imu.gate) {
@@ -330,11 +320,7 @@ function sensorPrompt(
         ? 'The second phone dropped out. Keep its page open and it rejoins on its own.'
         : 'Waiting for the second phone to take its spot on the leg. Keep its page open.';
     case 'ready':
-      if (!imu.recording) {
-        return imu.modelConnected
-          ? 'Strap each phone to the spot shown above, then tap Start. Wrong way round? Tap Swap phones.'
-          : 'Both phones are in, but the model service is not reachable, so a recording would not be measured.';
-      }
+      if (!imu.recording) return 'Strap each phone to the spot shown above, then tap Start here.';
       return 'Keep moving at your usual pace. Your joint angles are saved for your clinician when you stop.';
     default: {
       const unexpected: never = imu.gate;
