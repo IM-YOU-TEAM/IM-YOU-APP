@@ -26,7 +26,9 @@ export default function PatientLayout() {
               tabBar={() => (wide ? null : <BottomBar items={items} />)}
             >
               <Tabs.Screen name="home/index" />
-              <Tabs.Screen name="track" />
+              {/* Leaving Track closes the session screen, so its sensors, model socket and camera stop
+                  instead of running hidden behind Results. */}
+              <Tabs.Screen name="track" options={{ popToTopOnBlur: true }} />
               <Tabs.Screen name="results" />
             </Tabs>
           </View>

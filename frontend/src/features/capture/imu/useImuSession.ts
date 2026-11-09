@@ -21,6 +21,9 @@ import { usePairing, type PairGate, type Pairing } from './usePairing';
 import { usePeerTrace } from './usePeerTrace';
 import { useSampleUplink } from './useSampleUplink';
 
+/** How long a remembered pairing waits for its second phone before a fresh, scannable code replaces it. */
+const REUSE_GRACE_MS = 8000;
+
 /** What is stopping us from measuring, in one word. */
 export type ImuGate =
   | 'connecting'
@@ -126,6 +129,20 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
 
   const peer = usePeerTrace(live.recording && !paused);
   const publishRef = useRef<Pairing['publish']>(() => undefined);
+  const uplinkRef = useRef<{ send: (message: object) => void; flush: () => void } | null>(null);
+
+  // Leaving the screen mid-recording (Back, another tab) must stop the second phone and the model too.
+  // Declared before the pairing and the uplink so this runs while their channel and socket are still open.
+  useEffect(
+    () => () => {
+      if (!recordingRef.current) return;
+      recordingRef.current = false;
+      uplinkRef.current?.flush();
+      publishRef.current(EVENTS.control, { action: 'stop' } satisfies ControlMessage);
+      uplinkRef.current?.send({ type: 'session_stop' });
+    },
+    [],
+  );
   // This phone's clock is the session's reference: answer the scanned phone's sync pings.
   const peerListen = peer.listen;
   const onBroadcast = useCallback(
@@ -152,7 +169,22 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     renewPairing();
   }, [pairGateNow, renewPairing]);
 
+  // A reused pairing's QR code has usually been redeemed already, so it cannot be scanned again. Keep the
+  // pairing only if its second phone turns up; otherwise make a fresh code that a new scan can use.
+  useEffect(() => {
+    if (!reusing.current || pairGateNow !== 'waiting-for-peer') return;
+    const id = setTimeout(() => {
+      if (reusing.current) renewPairing();
+    }, REUSE_GRACE_MS);
+    return () => clearTimeout(id);
+  }, [pairGateNow, renewPairing]);
+  useEffect(() => {
+    // The second phone is back on the remembered pairing: it is ours to keep for this visit.
+    if (pairGateNow === 'paired') reusing.current = false;
+  }, [pairGateNow]);
+
   const uplink = useSampleUplink(supported, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current);
+  uplinkRef.current = uplink;
 
   useEffect(() => {
     if (motion == null) return;

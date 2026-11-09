@@ -25,6 +25,9 @@ type Claim = { state: 'claiming' } | { state: 'invalid' } | { state: 'offline' }
 
 const CONTROL_ACTIONS: ControlMessage['action'][] = ['start', 'stop', 'pause', 'resume'];
 
+/** How long the signed-in phone can be gone mid-recording before this phone stops by itself. */
+const HOST_GONE_MS = 10_000;
+
 /** The code is single use, so a reload of this tab has to remember what it redeemed. */
 const storageKey = (code: string) => `imu-pairing:${code}`;
 
@@ -129,6 +132,19 @@ export function useSecondPhone(code: string) {
   // Samples go out on the signed-in phone's clock, and not at all until the offset is known.
   useSampleUplink(topic != null, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current, sync.offset);
   useTraceSender(recording && !paused, pairing.mySite, sensors.recent, pairing.publish);
+
+  // The signed-in phone vanished mid-recording (closed, crashed, lost signal) and never sent Stop:
+  // stop on our own after a grace period. If it comes back while recording it sends Start again.
+  useEffect(() => {
+    if (!recording || pairGate === 'paired') return;
+    const id = setTimeout(() => {
+      recordingRef.current = false;
+      pausedRef.current = false;
+      setRecording(false);
+      setPaused(false);
+    }, HOST_GONE_MS);
+    return () => clearTimeout(id);
+  }, [recording, pairGate]);
 
   // Take the spot the signed-in phone left free, once Safari is actually sending motion.
   const firstSite: Site | undefined = peerSites[0];
