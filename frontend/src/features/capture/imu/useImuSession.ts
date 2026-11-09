@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { LOCAL_PATIENT_ID } from '@/lib/data';
 import { localDateTime, sessionId } from '@/lib/session';
 import type { MotionType, Session, SessionAssessmentMetric } from '@/types';
-import { connectLive, connectSocket, liveApiUrl, liveSocketUrl } from './liveClient';
+import { connectLive, liveApiUrl } from './liveClient';
 import {
   ACTIVITY_LABELS,
   ACTIVITY_TO_MOTION,
@@ -13,26 +13,21 @@ import {
   type ModelActivity,
 } from './liveTypes';
 import type { MotionGate } from './motionTypes';
-import {
-  DEVICE_ID,
-  EVENTS,
-  SITES,
-  type ControlMessage,
-  type ImuSample,
-  type Site,
-} from './protocol';
+import { createPairing, type HostPairing } from './pairingApi';
+import { EVENTS, type ControlMessage, type Site } from './protocol';
 import { useMotionStream } from './useMotionStream';
 import { usePairing, type PairGate } from './usePairing';
+import { useSampleUplink } from './useSampleUplink';
 
 /** What is stopping us from measuring, in one word. */
 export type ImuGate =
   | 'connecting'
-  | 'not-a-patient'
   | 'unreachable'
   | 'choose-site'
   | 'need-permission'
   | 'unavailable-sensors'
-  | 'waiting-for-phones'
+  /** This phone is ready; its QR code is waiting to be scanned by the second phone. */
+  | 'waiting-for-second-phone'
   | 'unsupported-motion'
   | 'ready';
 
@@ -42,26 +37,9 @@ const JOINT_LABELS: Record<JointName, string> = {
   ankle_angle_r: 'Ankle angle',
 };
 
-const BATCH_SIZE = 10;
-const BATCH_MS = 80;
-/** Long enough to cover a second thumb tapping Start just after the first phone already did. */
-const SETTLE_MS = 1500;
-
-const CONTROL_ACTIONS: ControlMessage['action'][] = ['start', 'stop', 'pause', 'resume'];
-
-export type ImuReadout = {
-  gate: ImuGate;
+type ModelReadout = {
   captureStarted: boolean;
   recording: boolean;
-  /** Just started, so a near-simultaneous tap on this phone must not land on Pause. */
-  settling: boolean;
-  /** The other phone tapped Stop. It saves the session; this one must not save a copy. */
-  stoppedElsewhere: boolean;
-  modelConnected: boolean;
-  mySite: Site | null;
-  freeSites: Site[];
-  hz: number;
-  samples: ImuSample[];
   detectedMotion?: MotionType;
   detectedLabel?: string;
   confidence: number;
@@ -69,26 +47,16 @@ export type ImuReadout = {
   reason?: string;
   windows: number;
   accepted: number;
-  observedHz: Record<string, number>;
   angles?: Record<JointName, number[]>;
 };
 
-const EMPTY: ImuReadout = {
-  gate: 'connecting',
+const EMPTY: ModelReadout = {
   captureStarted: false,
   recording: false,
-  settling: false,
-  stoppedElsewhere: false,
-  modelConnected: false,
-  mySite: null,
-  freeSites: SITES.slice(),
-  hz: 0,
-  samples: [],
   confidence: 0,
   lowMotion: false,
   windows: 0,
   accepted: 0,
-  observedHz: {},
 };
 
 type Tally = {
@@ -168,20 +136,11 @@ function summarise(tally: Tally, motion: MotionType, durationSec: number): Sessi
   };
 }
 
-function asControl(payload: unknown): ControlMessage | null {
-  if (payload == null || typeof payload !== 'object') return null;
-  const message = payload as Partial<ControlMessage>;
-  if (message.action == null || !CONTROL_ACTIONS.includes(message.action)) return null;
-  if (typeof message.session_id !== 'string' || typeof message.origin !== 'string') return null;
-  return message as ControlMessage;
-}
-
-function pairToImuGate(gate: PairGate, motion: MotionGate): ImuGate {
+function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate): ImuGate {
+  if (pairingFailed) return 'unreachable';
   switch (gate) {
     case 'connecting':
       return 'connecting';
-    case 'not-a-patient':
-      return 'not-a-patient';
     case 'unreachable':
       return 'unreachable';
     case 'choose-site':
@@ -189,7 +148,7 @@ function pairToImuGate(gate: PairGate, motion: MotionGate): ImuGate {
     case 'waiting-for-peer':
     case 'paired':
       if (motion === 'unavailable') return 'unavailable-sensors';
-      if (motion === 'streaming') return gate === 'paired' ? 'ready' : 'waiting-for-phones';
+      if (motion === 'streaming') return gate === 'paired' ? 'ready' : 'waiting-for-second-phone';
       return 'need-permission';
     default: {
       const unexpected: never = gate;
@@ -199,146 +158,62 @@ function pairToImuGate(gate: PairGate, motion: MotionGate): ImuGate {
 }
 
 /**
- * Two phones signed into the same patient account: pair over Realtime, stream
- * DeviceMotion samples, and feed the live inference service.
+ * The signed-in phone of a two-phone sensor session. It creates the pairing whose
+ * QR code the second phone scans, holds the only Start / Pause / Stop, feeds the
+ * live model, and turns the scored windows into the session it saves.
  */
-export function useImuSession(
-  motion: MotionType | null,
-  paused: boolean,
-  setPaused: (paused: boolean) => void,
-) {
+export function useImuSession(motion: MotionType | null, paused: boolean) {
   const tally = useRef<Tally>({ accepted: [], total: 0 });
   const pausedRef = useRef(paused);
-  /** The pause state both phones last agreed on, so a pause from the other phone is not sent back. */
-  const sharedPaused = useRef(false);
-  const setPausedRef = useRef(setPaused);
-  setPausedRef.current = setPaused;
   const recordingRef = useRef(false);
   const sessionRef = useRef<string | null>(null);
-  const batchRef = useRef<ImuSample[]>([]);
-  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const phoneRef = useRef<ReturnType<typeof connectSocket> | null>(null);
-  const [live, setLive] = useState<ImuReadout>(EMPTY);
-
-  useEffect(() => {
-    return () => {
-      if (settleTimer.current) clearTimeout(settleTimer.current);
-    };
-  }, []);
+  const [live, setLive] = useState<ModelReadout>(EMPTY);
 
   const supported = motion != null && IMU_SUPPORTED.includes(motion);
   const sensors = useMotionStream();
 
-  /** Both phones run this, whichever one was tapped. */
-  const beginRecording = useCallback((id: string) => {
-    recordingRef.current = true;
-    sessionRef.current = id;
-    tally.current = { accepted: [], total: 0 };
-    sharedPaused.current = false;
-    setPausedRef.current(false);
-    if (settleTimer.current) clearTimeout(settleTimer.current);
-    settleTimer.current = setTimeout(() => setLive((prev) => ({ ...prev, settling: false })), SETTLE_MS);
-    setLive((prev) => ({ ...prev, recording: true, captureStarted: true, settling: true, stoppedElsewhere: false }));
+  const [hostPairing, setHostPairing] = useState<HostPairing | null>(null);
+  const [pairingFailed, setPairingFailed] = useState(false);
+  const pairingRequest = useRef(0);
+  const pairingQueue = useRef<Promise<void>>(Promise.resolve());
+
+  const renewPairing = useCallback(() => {
+    const request = ++pairingRequest.current;
+    setPairingFailed(false);
+    // One at a time: each pairing retires the older ones, so the newest must also be created last.
+    pairingQueue.current = pairingQueue.current.then(async () => {
+      if (request !== pairingRequest.current) return;
+      const next = await createPairing();
+      if (request !== pairingRequest.current) return;
+      if (next) setHostPairing(next);
+      else setPairingFailed(true);
+    });
   }, []);
 
-  const onBroadcast = useCallback(
-    (event: string, payload: unknown) => {
-      if (event !== EVENTS.control) return;
-      const control = asControl(payload);
-      if (!control) return;
-      switch (control.action) {
-        case 'start':
-          // Both phones tapped Start at once: this one is already recording, so it just carries on.
-          if (!recordingRef.current) beginRecording(control.session_id);
-          return;
-        case 'stop':
-          recordingRef.current = false;
-          sessionRef.current = null;
-          setLive((prev) => ({ ...prev, recording: false, settling: false, stoppedElsewhere: true }));
-          return;
-        case 'pause':
-        case 'resume':
-          sharedPaused.current = control.action === 'pause';
-          setPausedRef.current(sharedPaused.current);
-          return;
-        default: {
-          const unexpected: never = control.action;
-          return unexpected;
-        }
-      }
-    },
-    [beginRecording],
-  );
+  useEffect(() => {
+    if (!supported) return;
+    renewPairing();
+    return () => {
+      pairingRequest.current += 1;
+    };
+  }, [supported, renewPairing]);
 
-  const pairing = usePairing(supported, onBroadcast);
-  const mySiteRef = useRef(pairing.mySite);
+  const pairing = usePairing(supported ? (hostPairing?.topic ?? null) : null);
   const publishRef = useRef(pairing.publish);
-  mySiteRef.current = pairing.mySite;
   publishRef.current = pairing.publish;
 
-  const flush = useCallback(() => {
-    const samples = batchRef.current;
-    const site = mySiteRef.current;
-    if (samples.length === 0 || site == null) return;
-    batchRef.current = [];
-    // Straight to the model, never over Realtime: nothing else needs the raw samples, and none are kept.
-    phoneRef.current?.send({
-      type: 'samples',
-      device_id: DEVICE_ID[site],
-      accel_units: 'm/s^2',
-      gyro_units: 'deg/s',
-      samples: samples.map((sample) => ({
-        common_timestamp: sample.t,
-        ax: sample.ax,
-        ay: sample.ay,
-        az: sample.az,
-        gx: sample.gx,
-        gy: sample.gy,
-        gz: sample.gz,
-      })),
-    });
-  }, []);
-
-  useEffect(() => {
-    return sensors.subscribe((sample) => {
-      if (!recordingRef.current || pausedRef.current) return;
-      batchRef.current.push(sample);
-      if (batchRef.current.length >= BATCH_SIZE) flush();
-    });
-  }, [sensors.subscribe, flush]);
-
-  useEffect(() => {
-    if (flushTimer.current) clearInterval(flushTimer.current);
-    flushTimer.current = setInterval(flush, BATCH_MS);
-    return () => {
-      if (flushTimer.current) clearInterval(flushTimer.current);
-    };
-  }, [flush]);
+  const uplink = useSampleUplink(supported, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current);
 
   useEffect(() => {
     if (motion == null) return;
-    if (!supported) {
-      setLive({ ...EMPTY, gate: 'unsupported-motion' });
-      return;
-    }
+    if (!supported) return;
 
     tally.current = { accepted: [], total: 0 };
 
-    const phone = connectSocket(liveSocketUrl('/phone'), {
-      onOpen: () => setLive((prev) => ({ ...prev, modelConnected: true })),
-      onClose: () => setLive((prev) => ({ ...prev, modelConnected: false })),
-    });
-    phoneRef.current = phone;
-
-    const stopViewer = connectLive(liveApiUrl(), {
-      onOpen: () => setLive((prev) => ({ ...prev, modelConnected: true })),
+    return connectLive(liveApiUrl(), {
+      onOpen: () => undefined,
       onClose: () => undefined,
       onMessage: (message: LiveMessage) => {
-        if (message.type === 'status') {
-          setLive((prev) => ({ ...prev, observedHz: message.observed_hz }));
-          return;
-        }
         if (message.type !== 'window') return;
         if (pausedRef.current) return;
         tally.current.total += 1;
@@ -357,69 +232,51 @@ export function useImuSession(
         }));
       },
     });
-
-    return () => {
-      phone.stop();
-      phoneRef.current = null;
-      stopViewer();
-    };
   }, [motion, supported]);
 
-  useEffect(() => {
-    setLive((prev) => ({
-      ...prev,
-      gate: supported ? pairToImuGate(pairing.gate, sensors.gate) : prev.gate,
-      mySite: pairing.mySite,
-      freeSites: pairing.freeSites,
-      hz: sensors.hz,
-      samples: sensors.recent,
-    }));
-  }, [supported, pairing.gate, pairing.mySite, pairing.freeSites, sensors.gate, sensors.hz, sensors.recent]);
+  const sendControl = useCallback((action: ControlMessage['action']) => {
+    const control: ControlMessage = { action };
+    publishRef.current(EVENTS.control, control);
+  }, []);
 
-  const claim = pairing.claim;
-  const requestSensors = sensors.request;
-
-  const sendControl = useCallback(
-    (action: ControlMessage['action']) => {
-      const control: ControlMessage = {
-        action,
-        motion: motion ?? '',
-        at: Date.now(),
-        session_id: sessionRef.current ?? '',
-        origin: pairing.clientKey,
-      };
-      publishRef.current(EVENTS.control, control);
-    },
-    [motion, pairing.clientKey],
-  );
-
-  // A pause on either phone pauses both: the model needs thigh and shin from the same moments.
+  // Pausing here pauses the second phone too: the model needs thigh and shin from the same moments.
   useEffect(() => {
     pausedRef.current = paused;
-    if (!recordingRef.current || paused === sharedPaused.current) return;
-    sharedPaused.current = paused;
+    if (!recordingRef.current) return;
     sendControl(paused ? 'pause' : 'resume');
+    if (paused) uplink.flush();
     // The model would interpolate straight across the gap, so it restarts clean on resume.
-    phoneRef.current?.send(paused ? { type: 'session_stop' } : { type: 'session_start', session_id: sessionRef.current });
-  }, [paused, sendControl]);
+    uplink.send(paused ? { type: 'session_stop' } : { type: 'session_start', session_id: sessionRef.current });
+  }, [paused, sendControl, uplink.flush, uplink.send]);
+
+  // The second phone reloaded or reconnected mid-session: tell it where things stand.
+  const paired = pairing.gate === 'paired';
+  useEffect(() => {
+    if (!paired || !recordingRef.current) return;
+    sendControl('start');
+    if (pausedRef.current) sendControl('pause');
+  }, [paired, sendControl]);
 
   const start = useCallback(() => {
     if (motion == null || pairing.gate !== 'paired' || recordingRef.current) return;
     const id = sessionId('imu');
-    beginRecording(id);
+    recordingRef.current = true;
+    sessionRef.current = id;
+    tally.current = { accepted: [], total: 0 };
+    setLive((prev) => ({ ...prev, recording: true, captureStarted: true }));
     sendControl('start');
-    phoneRef.current?.send({ type: 'session_start', session_id: id });
-  }, [motion, pairing.gate, beginRecording, sendControl]);
+    uplink.send({ type: 'session_start', session_id: id });
+  }, [motion, pairing.gate, sendControl, uplink.send]);
 
   const halt = useCallback(() => {
     if (!recordingRef.current) return;
-    flush();
+    uplink.flush();
     sendControl('stop');
-    phoneRef.current?.send({ type: 'session_stop' });
+    uplink.send({ type: 'session_stop' });
     recordingRef.current = false;
     sessionRef.current = null;
-    setLive((prev) => ({ ...prev, recording: false, settling: false }));
-  }, [flush, sendControl]);
+    setLive((prev) => ({ ...prev, recording: false }));
+  }, [sendControl, uplink.flush, uplink.send]);
 
   const finish = useCallback(
     (durationSec: number): Session | null => {
@@ -430,5 +287,25 @@ export function useImuSession(
     [halt, motion],
   );
 
-  return { ...live, supported, claim, requestSensors, start, finish };
+  const gate: ImuGate = supported ? hostGate(pairingFailed, pairing.gate, sensors.gate) : 'unsupported-motion';
+  const mySite: Site | null = pairing.mySite;
+
+  return {
+    ...live,
+    gate,
+    supported,
+    modelConnected: uplink.connected,
+    mySite,
+    freeSites: pairing.freeSites,
+    secondPhoneIn: paired,
+    hz: sensors.hz,
+    samples: sensors.recent,
+    pairCode: hostPairing?.code ?? null,
+    pairExpiresAt: hostPairing?.expiresAt ?? null,
+    renewPairing,
+    claim: pairing.claim,
+    requestSensors: sensors.request,
+    start,
+    finish,
+  };
 }

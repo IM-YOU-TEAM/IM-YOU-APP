@@ -5,6 +5,8 @@ import { useAuth, type AuthStatus } from './AuthProvider';
 
 /** Where someone belongs right now, or null when the current screen is already right. */
 function destination(status: AuthStatus, role: Role | null, group: string | undefined, pathname: string): Href | null {
+  // The scanned second phone of a sensor session has no account, whoever is signed in on it.
+  if (group === 'pair') return null;
   switch (status) {
     case 'loading':
     case 'error':

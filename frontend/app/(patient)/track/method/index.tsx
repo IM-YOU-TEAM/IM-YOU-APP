@@ -14,7 +14,7 @@ const METHODS: CaptureMethod[] = ['cv', 'imu'];
 
 const DESCRIPTIONS: Record<CaptureMethod, string> = {
   cv: 'Prop your phone up and let the camera watch your movement',
-  imu: 'Two phones, same account: one on the right thigh, one on the right shin',
+  imu: 'Two phones, one sign-in: one on the right thigh, one on the right shin',
 };
 
 // Step 2: camera (computer vision) or phone sensors (IMU).

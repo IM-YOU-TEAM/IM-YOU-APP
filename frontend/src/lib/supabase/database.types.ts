@@ -42,6 +42,47 @@ export type Database = {
         }
         Relationships: []
       }
+      imu_pairings: {
+        Row: {
+          claimed_at: string | null
+          code_expires_at: string
+          code_hash: string
+          created_at: string
+          id: string
+          patient_id: string
+          revoked_at: string | null
+          topic: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          code_expires_at?: string
+          code_hash: string
+          created_at?: string
+          id?: string
+          patient_id: string
+          revoked_at?: string | null
+          topic?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          code_expires_at?: string
+          code_hash?: string
+          created_at?: string
+          id?: string
+          patient_id?: string
+          revoked_at?: string | null
+          topic?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imu_pairings_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       patients: {
         Row: {
           care_code: string
@@ -205,10 +246,20 @@ export type Database = {
     }
     Functions: {
       claim_care_code: { Args: { p_code: string }; Returns: string }
+      claim_imu_pairing: { Args: { p_code: string }; Returns: string }
       complete_onboarding: {
         Args: { p_care_code?: string; p_display_name?: string; p_role: string }
         Returns: undefined
       }
+      create_imu_pairing: {
+        Args: never
+        Returns: {
+          code: string
+          code_expires_at: string
+          topic: string
+        }[]
+      }
+      imu_pairing_topic_open: { Args: never; Returns: boolean }
       provision_patient_account: {
         Args: { p_clinician_id: string; p_full_name: string; p_user_id: string }
         Returns: {
@@ -227,8 +278,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      my_imu_topic: { Args: never; Returns: string }
-      patient_imu_topic: { Args: { p_patient_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
