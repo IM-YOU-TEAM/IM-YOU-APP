@@ -79,7 +79,7 @@ function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate): I
  * live model, draws both legs' sensors, and turns the scored windows into the session it saves.
  */
 export function useImuSession(motion: MotionType | null, paused: boolean) {
-  const tally = useRef<ImuTally>({ accepted: [], total: 0 });
+  const tally = useRef<ImuTally>({ accepted: [], total: 0, scored: [] });
   const pausedRef = useRef(paused);
   const recordingRef = useRef(false);
   const sessionRef = useRef<string | null>(null);
@@ -158,7 +158,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     if (motion == null) return;
     if (!supported) return;
 
-    tally.current = { accepted: [], total: 0 };
+    tally.current = { accepted: [], total: 0, scored: [] };
 
     return connectLive(liveApiUrl(), {
       onOpen: () => undefined,
@@ -170,11 +170,10 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
         tally.current.total += 1;
         // The service restarts its clock at every resume, so move each stretch to where it sat in the session.
         const base = segmentStartRef.current;
-        if (message.usable) {
-          tally.current.accepted.push(
-            base === 0 ? message : { ...message, start_s: message.start_s + base, end_s: message.end_s + base },
-          );
-        }
+        const placed = base === 0 ? message : { ...message, start_s: message.start_s + base, end_s: message.end_s + base };
+        // Every window with angles feeds the joint chart; only gate-passing ones count toward the score.
+        (tally.current.scored ??= []).push(placed);
+        if (message.usable) tally.current.accepted.push(placed);
         const activity = message.activity as ModelActivity | null;
         setLive((prev) => ({
           ...prev,
@@ -221,7 +220,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     sessionRef.current = id;
     startedAtRef.current = Date.now();
     segmentStartRef.current = 0;
-    tally.current = { accepted: [], total: 0 };
+    tally.current = { accepted: [], total: 0, scored: [] };
     setLive((prev) => ({ ...prev, recording: true, captureStarted: true }));
     sendControl('start');
     uplink.send({ type: 'session_start', session_id: id });

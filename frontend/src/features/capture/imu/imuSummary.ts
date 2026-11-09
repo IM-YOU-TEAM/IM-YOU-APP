@@ -1,7 +1,7 @@
 import { LOCAL_PATIENT_ID } from '@/lib/data';
 import { localDateTime, sessionId } from '@/lib/session';
 import type { MotionType, Session, SessionAssessmentMetric } from '@/types';
-import { buildJointTrace } from './jointTrace';
+import { buildJointTrace, TRACE_HZ } from './jointTrace';
 import { ACTIVITY_TO_MOTION, type JointName, type LiveWindow, type ModelActivity } from './liveTypes';
 
 const JOINT_LABELS: Record<JointName, string> = {
@@ -19,8 +19,14 @@ const MAX_CADENCE = 200;
 const MIN_CYCLE_AMP = 8;
 
 export type ImuTally = {
+  /** Windows that passed the motion gate: these alone decide the score, activity and ranges. */
   accepted: LiveWindow[];
   total: number;
+  /**
+   * Every window the model returned angles for, gated or not, so the joint chart covers the whole
+   * recording rather than only the stretches the gate let through.
+   */
+  scored?: LiveWindow[];
 };
 
 function thinTo(series: number[], points: number): number[] {
@@ -131,7 +137,7 @@ export function summariseImu(tally: ImuTally, motion: MotionType, durationSec: n
   const confidence =
     matching.length > 0 ? matching.reduce((sum, window) => sum + window.confidence, 0) / matching.length : 0;
   const jointAngles = savedAngles(bestWindow(tally.accepted, dominant));
-  const jointTrace = buildJointTrace(tally.accepted);
+  const jointTrace = buildJointTrace(tally.scored ?? tally.accepted, TRACE_HZ, durationSec);
 
   return {
     id: sessionId('imu'),

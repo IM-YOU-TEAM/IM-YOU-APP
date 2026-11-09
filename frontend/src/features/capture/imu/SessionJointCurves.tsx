@@ -2,10 +2,10 @@ import { fetchJointTrace } from '@/features/results/api';
 import { useLoader } from '@/lib/useLoader';
 import type { Session } from '@/types';
 import { JointCurves } from './JointCurves';
-import { traceFromWindow } from './jointTrace';
+import { padTrace, traceFromWindow } from './jointTrace';
 
 type Props = {
-  session: Pick<Session, 'id' | 'method' | 'jointAngles'> | undefined;
+  session: Pick<Session, 'id' | 'method' | 'jointAngles' | 'durationSec'> | undefined;
   /** Shown when there is no sensor session with joint angles. */
   caption?: string;
 };
@@ -17,7 +17,8 @@ export function SessionJointCurves({ session, caption }: Props) {
 
   if (!session || session.method !== 'imu') return <JointCurves trace={null} caption={caption} />;
   if (loaded.data === undefined && loaded.error == null) return <JointCurves trace={undefined} />;
-  if (loaded.data) return <JointCurves key={session.id} trace={loaded.data} />;
+  // The chart spans the whole recording, even where the model scored nothing.
+  if (loaded.data) return <JointCurves key={session.id} trace={padTrace(loaded.data, session.durationSec)} />;
   if (session.jointAngles) return <JointCurves key={session.id} trace={traceFromWindow(session.jointAngles)} excerpt />;
   return <JointCurves trace={null} caption={caption ?? 'This session has no joint angles.'} />;
 }

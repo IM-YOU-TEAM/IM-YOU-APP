@@ -2,6 +2,7 @@ import type { JointName } from '@/types';
 import {
   buildJointTrace,
   displaySeries,
+  padTrace,
   seriesRange,
   sliderFromView,
   traceFromWindow,
@@ -83,4 +84,18 @@ const [first, last] = visibleIndices(3041, 20, 10, 5);
 assert(first === 199 && last === 301, `10 to 15 s at 20 Hz with margin, got ${first} to ${last}`);
 const [head, tail] = visibleIndices(50, 20, 0, 5);
 assert(head === 0 && tail === 49, 'clamped to the trace');
+
+// A 9 s recording where the model only covered 3 to 5.5 s still spans all 9 s.
+const spanning = buildJointTrace([window(3, () => 12)], 20, 9)!;
+assert(spanning.startSec === 0, 'spans from Start');
+assert(traceSeconds(spanning) === 9, `spans to Stop, got ${traceSeconds(spanning)} s`);
+assert(spanning.angles.hip_flexion_r[0] === null && spanning.angles.hip_flexion_r[80] === 12, 'gap then the scored stretch');
+
+// A short timeline saved earlier is drawn on the full recording length too.
+const short = buildJointTrace([window(3, () => 7)], 20)!;
+const padded = padTrace(short, 9);
+assert(padded.startSec === 0 && traceSeconds(padded) === 9, 'padded to the recording');
+// The fixture stores the knee with the model's sign (flexion negative), so 7 reads as -7 here.
+assert(padded.angles.knee_angle_r[60] === -7 && padded.angles.knee_angle_r[0] === null, 'values stay at their time');
+assert(padTrace(spanning, 9) === spanning, 'already full length is left alone');
 console.log('joint trace ok');
