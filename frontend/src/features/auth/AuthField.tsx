@@ -47,7 +47,8 @@ export const AuthField = forwardRef<TextInputInstance, Props>(function AuthField
           hitSlop={4}
           style={({ pressed }) => [styles.toggle, { opacity: pressed ? 0.6 : 1 }]}
         >
-          <Ionicons name={revealed ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textMuted} />
+          {/* The icon shows the current state: crossed-out eye while the password is hidden. */}
+          <Ionicons name={revealed ? 'eye-outline' : 'eye-off-outline'} size={20} color={colors.textMuted} />
         </Pressable>
       ) : null}
     </View>
