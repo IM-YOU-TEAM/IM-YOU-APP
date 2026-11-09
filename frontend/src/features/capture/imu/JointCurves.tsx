@@ -5,10 +5,9 @@ import { Text } from '@/components';
 import { formatDuration } from '@/lib/format';
 import { smoothPath, type Point } from '@/lib/smoothPath';
 import { colors, radii, space } from '@/lib/theme';
-import type { JointTrace } from '@/types';
+import type { JointName, JointTrace } from '@/types';
 import {
   displaySeries,
-  JOINT_DISPLAY,
   seriesRange,
   sliderFromView,
   traceSeconds,
@@ -16,7 +15,6 @@ import {
   viewFromSlider,
   visibleIndices,
 } from './jointTrace';
-import { UnitToggle } from './UnitToggle';
 import { ViewSlider } from './ViewSlider';
 
 type Props = {
@@ -26,34 +24,36 @@ type Props = {
   caption?: string;
 };
 
-type AngleUnit = 'deg' | 'rad' | 'radps';
-
-const CHART_H = 80;
+const CHART_H = 96;
+const PAD_Y = 6;
 const HEADER_H = 24;
 const ROW_GAP = space.md;
 const ROW_H = HEADER_H + CHART_H + ROW_GAP;
 const AXIS_H = 18;
 const TIME_LABEL_H = 18;
 const Y_AXIS_W = 44;
-const DEG_TO_RAD = Math.PI / 180;
 /** Below this the view is the whole recording, so the slider snaps there. */
 const WHOLE_SNAP = 0.985;
 
-const ANGLE_UNITS: { value: AngleUnit; label: string }[] = [
-  { value: 'deg', label: 'degrees' },
-  { value: 'rad', label: 'radians' },
-  { value: 'radps', label: 'rad/s' },
+/**
+ * One steady degree scale per joint, the same for every session, so charts can be compared by eye.
+ * Widened only if a value falls outside it.
+ */
+const JOINTS: { joint: JointName; label: string; up: string; down: string; lo: number; hi: number; step: number }[] = [
+  { joint: 'hip_flexion_r', label: 'Hip', up: 'Flexion', down: 'Extension', lo: -20, hi: 60, step: 20 },
+  { joint: 'knee_angle_r', label: 'Knee', up: 'Flexion', down: 'Extension', lo: -10, hi: 80, step: 20 },
+  { joint: 'ankle_angle_r', label: 'Ankle', up: 'Dorsi', down: 'Plantar', lo: -30, hi: 30, step: 15 },
 ];
 
-type Joint = { label: string; values: (number | null)[]; lo: number; hi: number; ticks: number[] };
+type Joint = { label: string; up: string; down: string; values: (number | null)[]; lo: number; hi: number; ticks: number[] };
 
-/** One fixed vertical scale per joint for the whole session, so curves don't jump while panning. */
-function scaleOf(values: (number | null)[]): { lo: number; hi: number } | null {
+function scaleOf(spec: (typeof JOINTS)[number], values: (number | null)[]): { lo: number; hi: number; ticks: number[] } {
   const range = seriesRange(values);
-  if (!range) return null;
-  const span = range.max - range.min;
-  const pad = span > 0.02 ? span * 0.12 : 0.2;
-  return { lo: range.min - pad, hi: range.max + pad };
+  const lo = Math.min(spec.lo, range ? Math.floor(range.min / spec.step) * spec.step : spec.lo);
+  const hi = Math.max(spec.hi, range ? Math.ceil(range.max / spec.step) * spec.step : spec.hi);
+  const ticks: number[] = [];
+  for (let t = Math.ceil(lo / spec.step) * spec.step; t <= hi; t += spec.step) ticks.push(t);
+  return { lo, hi, ticks };
 }
 
 function tickEvery(seconds: number): number {
@@ -64,92 +64,7 @@ function tickEvery(seconds: number): number {
   return 300;
 }
 
-function niceTicks(lo: number, hi: number, target = 4): number[] {
-  if (!(hi > lo)) return [lo];
-  const span = hi - lo;
-  const raw = span / Math.max(target - 1, 1);
-  const pow = 10 ** Math.floor(Math.log10(raw));
-  const err = raw / pow;
-  const step = (err >= 5 ? 10 : err >= 2 ? 5 : err >= 1 ? 2 : 1) * pow;
-  const start = Math.ceil(lo / step) * step;
-  const ticks: number[] = [];
-  for (let t = start; t <= hi + step * 1e-9; t += step) ticks.push(Number(t.toFixed(10)));
-  return ticks.length > 0 ? ticks : [lo, hi];
-}
-
-function formatTick(value: number, unit: AngleUnit): string {
-  switch (unit) {
-    case 'deg':
-      return `${Math.round(value)}°`;
-    case 'rad':
-      return value.toFixed(2);
-    case 'radps':
-      return value.toFixed(2);
-    default: {
-      const unexpected: never = unit;
-      return unexpected;
-    }
-  }
-}
-
-function yAxisTitle(unit: AngleUnit): string {
-  switch (unit) {
-    case 'deg':
-      return 'Angle (°)';
-    case 'rad':
-      return 'Angle (rad)';
-    case 'radps':
-      return 'Angular velocity (rad/s)';
-    default: {
-      const unexpected: never = unit;
-      return unexpected;
-    }
-  }
-}
-
-function unitCaption(unit: AngleUnit): string {
-  switch (unit) {
-    case 'deg':
-      return 'degrees · flexion is positive';
-    case 'rad':
-      return 'radians · flexion is positive';
-    case 'radps':
-      return 'rad/s · positive is increasing flexion';
-    default: {
-      const unexpected: never = unit;
-      return unexpected;
-    }
-  }
-}
-
-function toUnit(values: (number | null)[], unit: AngleUnit, hz: number): (number | null)[] {
-  switch (unit) {
-    case 'deg':
-      return values;
-    case 'rad':
-      return values.map((v) => (v == null ? null : v * DEG_TO_RAD));
-    case 'radps':
-      return angularVelocity(values, hz);
-    default: {
-      const unexpected: never = unit;
-      return unexpected;
-    }
-  }
-}
-
-/** Central difference of the degree series, converted to rad/s. Gaps stay gaps. */
-function angularVelocity(values: (number | null)[], hz: number): (number | null)[] {
-  const rad = values.map((v) => (v == null ? null : v * DEG_TO_RAD));
-  return rad.map((v, i) => {
-    const prev = rad[i - 1];
-    const next = rad[i + 1];
-    if (v == null) return null;
-    if (prev != null && next != null) return ((next - prev) * hz) / 2;
-    if (next != null) return (next - v) * hz;
-    if (prev != null) return (v - prev) * hz;
-    return 0;
-  });
-}
+const formatTick = (value: number) => `${Math.round(value) < 0 ? '−' : ''}${Math.abs(Math.round(value))}°`;
 
 function viewLabel(view: number, seconds: number): string {
   if (view >= seconds - 0.05) return `Whole session, ${formatDuration(seconds)}`;
@@ -158,12 +73,11 @@ function viewLabel(view: number, seconds: number): string {
   return formatDuration(view);
 }
 
-/** Predicted hip, knee and ankle angles over the session, flexion positive, with an adjustable view length. */
+/** Predicted hip, knee and ankle angles over the session in degrees, flexion positive, with an adjustable view length. */
 export function JointCurves({ trace, excerpt = false, caption }: Props) {
   const [frame, setFrame] = useState(0);
   const [requested, setRequested] = useState<number | null>(null);
   const [from, setFrom] = useState(0);
-  const [unit, setUnit] = useState<AngleUnit>('deg');
   const scroller = useRef<ScrollViewInstance>(null);
   const pendingScroll = useRef<number | null>(null);
 
@@ -177,15 +91,11 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
 
   const joints = useMemo<Joint[]>(() => {
     if (!trace) return [];
-    const hz = trace.sampleHz;
-    return JOINT_DISPLAY.map(({ joint, label }) => {
-      const values = toUnit(displaySeries(trace, joint), unit, hz);
-      const scale = scaleOf(values);
-      const lo = scale?.lo ?? 0;
-      const hi = scale?.hi ?? 0;
-      return { label, values, lo, hi, ticks: scale ? niceTicks(lo, hi) : [] };
+    return JOINTS.map((spec) => {
+      const values = displaySeries(trace, spec.joint);
+      return { label: spec.label, up: spec.up, down: spec.down, values, ...scaleOf(spec, values) };
     });
-  }, [trace, unit]);
+  }, [trace]);
 
   useEffect(() => {
     if (pendingScroll.current == null) return;
@@ -207,7 +117,8 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
     ? joints.map((j) => {
         const [first, last] = visibleIndices(j.values.length, hz, start, view);
         const shown = j.values.slice(first, last + 1);
-        const y = (v: number) => (j.hi > j.lo ? CHART_H - ((v - j.lo) / (j.hi - j.lo)) * CHART_H : CHART_H / 2);
+        // A few pixels of room top and bottom so the edge labels are not cramped.
+        const y = (v: number) => PAD_Y + (1 - (v - j.lo) / (j.hi - j.lo)) * (CHART_H - 2 * PAD_Y);
         // A gap (paused or unscored) breaks the line instead of drawing across it.
         let d = '';
         let segment: Point[] = [];
@@ -223,7 +134,7 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
         const visible = seriesRange(
           j.values.slice(Math.max(0, Math.ceil(start * hz)), Math.floor((start + view) * hz) + 1),
         );
-        return { label: j.label, d, range: visible, zeroY: j.lo < 0 && j.hi > 0 ? y(0) : null, ticks: j.ticks, y };
+        return { label: j.label, up: j.up, down: j.down, d, range: visible, zeroY: j.lo < 0 && j.hi > 0 ? y(0) : null, ticks: j.ticks, y };
       })
     : [];
 
@@ -236,7 +147,6 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
   const offset = trace?.startSec ?? 0;
   const pans = ready && view < seconds - 0.05;
   const chartH = joints.length * ROW_H;
-  const yTitle = yAxisTitle(unit);
 
   return (
     <View
@@ -249,14 +159,10 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
           </Text>
           <Text variant="caption" color={colors.onDarkMuted}>
             {trace
-              ? `${excerpt ? '2.5 s sample' : `${formatDuration(seconds)} recorded`} · ${unitCaption(unit)}`
-              : unitCaption(unit)}
+              ? `${excerpt ? '2.5 s sample' : `${formatDuration(seconds)} recorded`} · right leg · degrees`
+              : 'Right leg · degrees'}
           </Text>
         </View>
-        <UnitToggle options={ANGLE_UNITS} value={unit} onChange={setUnit} accessibilityLabel="Joint angle units" />
-        <Text variant="caption" color={colors.onDarkMuted}>
-          Vertical axis is {yTitle.toLowerCase()}. Horizontal axis is time in seconds.
-        </Text>
       </View>
 
       <View onLayout={(e) => setFrame(Math.max(0, Math.floor(e.nativeEvent.layout.width) - Y_AXIS_W))}>
@@ -268,21 +174,22 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
           <View
             accessible
             accessibilityRole="image"
-            accessibilityLabel={`${yTitle}. ${rows
-              .map((r) =>
-                r.range ? `${r.label} ${formatTick(r.range.min, unit)} to ${formatTick(r.range.max, unit)}` : `${r.label} not scored`,
-              )
+            accessibilityLabel={`Joint angles in degrees. ${rows
+              .map((r) => (r.range ? `${r.label} ${formatTick(r.range.min)} to ${formatTick(r.range.max)}` : `${r.label} not scored`))
               .join('. ')}`}
             style={{ height: chartH + AXIS_H + TIME_LABEL_H }}
           >
             {rows.map((row) => (
               <View key={row.label} pointerEvents="none" style={{ height: ROW_H }}>
                 <View style={{ height: HEADER_H, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Text variant="callout" weight={700} color={colors.onDark} style={{ marginLeft: Y_AXIS_W }}>
+                  <Text variant="callout" weight={700} color={colors.onDark} numberOfLines={1} style={{ marginLeft: Y_AXIS_W, flexShrink: 1 }}>
                     {row.label}
+                    <Text variant="caption" color={colors.onDarkMuted}>
+                      {`  ${row.up} ↑  ${row.down} ↓`}
+                    </Text>
                   </Text>
                   <Text variant="caption" color={colors.onDarkMuted} style={{ fontVariant: ['tabular-nums'] }}>
-                    {row.range ? `${formatTick(row.range.min, unit)} to ${formatTick(row.range.max, unit)}` : 'Not scored'}
+                    {row.range ? `${formatTick(row.range.min)} to ${formatTick(row.range.max)}` : 'Not scored'}
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', height: CHART_H }}>
@@ -295,13 +202,13 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
                         align="right"
                         style={{
                           position: 'absolute',
-                          top: Math.min(Math.max(row.y(tick) - 9, 0), CHART_H - 18),
+                          top: row.y(tick) - 9,
                           right: space.xs,
                           width: Y_AXIS_W - space.xs,
                           fontVariant: ['tabular-nums'],
                         }}
                       >
-                        {formatTick(tick, unit)}
+                        {formatTick(tick)}
                       </Text>
                     ))}
                   </View>
@@ -337,7 +244,7 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
               ))}
             </View>
             <Text variant="caption" color={colors.onDarkMuted} align="center" style={{ height: TIME_LABEL_H, marginLeft: Y_AXIS_W }}>
-              Time (s)
+              Time into the session (min:s)
             </Text>
 
             {/* An empty strip as wide as the session at this zoom, so panning uses the platform's own scrolling. */}
