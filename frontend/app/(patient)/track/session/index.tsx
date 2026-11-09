@@ -51,6 +51,8 @@ export default function SessionScreen() {
 
   const captureStarted = method === 'imu' ? imu.captureStarted : pose.captureStarted;
   const captureFinished = method === 'imu' ? finishedImu.current != null : finishedPose.current != null;
+  // Picking a spot or allowing sensors must not look like recording: Start is the only control until it is tapped.
+  const imuWaiting = method === 'imu' && !imu.recording && !captureFinished && !imu.stoppedElsewhere;
   const clockOn =
     !saving && !captureFinished && (method === 'imu' ? imu.recording : gate === 'ready' && captureStarted);
   const blocked =
@@ -109,7 +111,7 @@ export default function SessionScreen() {
         onGate={setGate}
       />
     ) : (
-      <SensorTrace samples={paused || reduce ? [] : imu.samples} caption={prompt} />
+      <SensorTrace samples={paused || reduce || !imu.recording ? [] : imu.samples} caption={prompt} />
     );
 
   const siteChooser =
@@ -178,11 +180,15 @@ export default function SessionScreen() {
             onPress={() => void imu.requestSensors()}
           />
         ) : null}
-        {method === 'imu' && imu.stoppedElsewhere ? null : method === 'imu' &&
-          imu.gate === 'ready' &&
-          !imu.recording &&
-          !captureFinished ? (
-          <PillButton label="Start" icon="play" size="lg" fullWidth onPress={imu.start} />
+        {(method === 'imu' && imu.stoppedElsewhere) || (imuWaiting && imu.gate === 'need-permission') ? null : imuWaiting ? (
+          <PillButton
+            label="Start"
+            icon="play"
+            size="lg"
+            fullWidth
+            disabled={imu.gate !== 'ready'}
+            onPress={imu.start}
+          />
         ) : (
           <PillButton
             label={paused ? 'Resume' : 'Pause'}
@@ -194,22 +200,24 @@ export default function SessionScreen() {
             onPress={() => setPaused((p) => !p)}
           />
         )}
-        <PillButton
-          label={
-            method === 'imu' && imu.stoppedElsewhere
-              ? 'See results'
-              : saving
-                ? 'Saving…'
-                : saveError
-                  ? 'Try saving again'
-                  : 'Stop'
-          }
-          icon={method === 'imu' && imu.stoppedElsewhere ? 'chevron-forward' : saveError ? 'refresh' : 'stop'}
-          size="lg"
-          fullWidth
-          disabled={saving}
-          onPress={stop}
-        />
+        {imuWaiting ? null : (
+          <PillButton
+            label={
+              method === 'imu' && imu.stoppedElsewhere
+                ? 'See results'
+                : saving
+                  ? 'Saving…'
+                  : saveError
+                    ? 'Try saving again'
+                    : 'Stop'
+            }
+            icon={method === 'imu' && imu.stoppedElsewhere ? 'chevron-forward' : saveError ? 'refresh' : 'stop'}
+            size="lg"
+            fullWidth
+            disabled={saving}
+            onPress={stop}
+          />
+        )}
         {saveError ? (
           <Text variant="callout" muted align="center" accessibilityRole="alert">
             {saveError}
