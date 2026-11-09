@@ -262,11 +262,7 @@ export default function LoginScreen() {
                   </Text>
                 </Text>
               </Pressable>
-            ) : (
-              <Text variant="caption" muted align="center">
-                Your doctor or researcher gives you your username and password.
-              </Text>
-            )}
+            ) : null}
           </View>
         )}
       </GlassCard>
