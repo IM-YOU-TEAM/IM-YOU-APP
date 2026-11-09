@@ -1,12 +1,13 @@
 // Clinician <-> patient records. Clinicians create their patients' logins and see them by name.
 import { createAccount } from '@/features/auth/auth';
-import { parseAssignedMotions } from '@/lib/data';
+import { parseTasks } from '@/lib/data';
 import { localIso } from '@/lib/format';
 import { supabase } from '@/lib/supabase/client';
-import type { MotionType, Patient, PatientStatus } from '@/types';
+import type { Json } from '@/lib/supabase/database.types';
+import type { CareTask, Patient, PatientStatus } from '@/types';
 
 const ROSTER_COLUMNS =
-  'id, full_name, care_code, owner_link, created_at, linked_at, assigned_motions, total:sessions(count), latest:sessions(started_at, gait_score)';
+  'id, full_name, care_code, owner_link, created_at, linked_at, assigned_motions, task_frequency, total:sessions(count), latest:sessions(started_at, gait_score)';
 
 type RosterRow = {
   id: string;
@@ -16,6 +17,7 @@ type RosterRow = {
   created_at: string;
   linked_at: string | null;
   assigned_motions: string[];
+  task_frequency: Json;
   total: { count: number }[];
   latest: { started_at: string; gait_score: number }[];
 };
@@ -36,13 +38,19 @@ function toPatient(row: RosterRow): Patient {
     linkedAt: row.linked_at ? localIso(new Date(row.linked_at)) : null,
     sessionCount: row.total[0]?.count ?? 0,
     latest: latest ? { date: localIso(new Date(latest.started_at)), gaitScore: latest.gait_score } : null,
-    assignedMotions: parseAssignedMotions(row.assigned_motions),
+    tasks: parseTasks(row.assigned_motions, row.task_frequency),
   };
 }
 
-/** The signed-in clinician sets which movements this patient can start. */
-export async function setAssignedMotions(patientId: string, motions: MotionType[]): Promise<void> {
-  const { error } = await supabase.from('patients').update({ assigned_motions: motions }).eq('id', patientId);
+/** The signed-in clinician sets which recordings this patient must do and how often. */
+export async function setTasks(patientId: string, tasks: CareTask[]): Promise<void> {
+  const { error } = await supabase
+    .from('patients')
+    .update({
+      assigned_motions: tasks.map((task) => task.motion),
+      task_frequency: Object.fromEntries(tasks.map((task) => [task.motion, task.timesPerWeek])),
+    })
+    .eq('id', patientId);
   if (error) throw error;
 }
 

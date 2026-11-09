@@ -2,9 +2,9 @@ import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
-import { parseAssignedMotions } from '@/lib/data';
+import { parseTasks } from '@/lib/data';
 import { supabase } from '@/lib/supabase/client';
-import type { MotionType } from '@/types';
+import type { CareTask } from '@/types';
 import { completeAuthFromUrl, parseRole, type Role } from './auth';
 
 export type Profile = {
@@ -20,7 +20,7 @@ export type MyPatient = {
   careCode: string;
   clinicianId: string | null;
   clinicianName: string | null;
-  assignedMotions: MotionType[];
+  tasks: CareTask[];
 };
 
 export type AuthStatus = 'loading' | 'signedOut' | 'signedIn' | 'error';
@@ -48,7 +48,7 @@ async function fetchMyPatient(): Promise<MyPatient | null> {
   // RLS only returns the caller's own record to a patient.
   const { data, error } = await supabase
     .from('patients')
-    .select('id, full_name, care_code, clinician_id, assigned_motions, clinician:profiles(display_name)')
+    .select('id, full_name, care_code, clinician_id, assigned_motions, task_frequency, clinician:profiles(display_name)')
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
@@ -58,7 +58,7 @@ async function fetchMyPatient(): Promise<MyPatient | null> {
     careCode: data.care_code,
     clinicianId: data.clinician_id,
     clinicianName: data.clinician?.display_name ?? null,
-    assignedMotions: parseAssignedMotions(data.assigned_motions),
+    tasks: parseTasks(data.assigned_motions, data.task_frequency),
   };
 }
 

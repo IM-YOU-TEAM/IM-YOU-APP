@@ -1,9 +1,10 @@
 import { useWindowDimensions, View } from 'react-native';
-import { BarChart, BentoGrid, Card, ScreenContainer, Text } from '@/components';
+import { BentoGrid, ScreenContainer, Text } from '@/components';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { CareTeamCard } from '@/features/care/CareTeamCard';
 import { fetchSessions } from '@/features/results/api';
-import { greetingFor, weekCounts } from '@/features/results/derive';
+import { greetingFor } from '@/features/results/derive';
+import { TaskList } from '@/features/tasks/TaskList';
 import { today } from '@/lib/data';
 import { formatLongDate } from '@/lib/format';
 import { space, WIDE } from '@/lib/theme';
@@ -15,9 +16,6 @@ export default function HomeScreen() {
   const patientId = patient?.id;
   const sessions = useLoader(() => (patientId ? fetchSessions(patientId) : Promise.resolve([])), [patientId]);
   const day = today();
-  const list = sessions.data ?? [];
-  const week = weekCounts(list, day);
-  const weekTotal = week.reduce((sum, d) => sum + d.value, 0);
 
   return (
     <ScreenContainer gap={wide ? 24 : 16}>
@@ -32,25 +30,9 @@ export default function HomeScreen() {
       </View>
 
       <BentoGrid weights={[2, 1]}>
-        <Card style={{ flex: 1, gap: space.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
-            <Text variant="headline">Sessions this week</Text>
-            <Text variant="callout" weight={700} muted>
-              {weekTotal === 0 ? 'None yet' : `${weekTotal} total`}
-            </Text>
-          </View>
-          <BarChart
-            data={week}
-            highlightIndex={week[6].value > 0 ? 6 : undefined}
-            accessibilityLabel="Sessions per day, last 7 days"
-          />
-          {weekTotal === 0 && (
-            <Text variant="callout" muted>
-              Each session you track fills in a bar for that day.
-            </Text>
-          )}
-        </Card>
-
+        {patient ? (
+          <TaskList patientId={patient.id} tasks={patient.tasks} sessions={sessions.data ?? []} day={day} />
+        ) : null}
         <CareTeamCard />
       </BentoGrid>
     </ScreenContainer>

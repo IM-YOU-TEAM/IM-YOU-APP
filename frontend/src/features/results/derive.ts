@@ -14,15 +14,6 @@ export function greetingFor(hour: number): string {
   return 'Good evening';
 }
 
-/** Sessions per day for the 7 days ending on `endDay` (YYYY-MM-DD). The last point is endDay. */
-export function weekCounts(list: Session[], endDay: string): ChartPoint[] {
-  const days = Array.from({ length: 7 }, (_, i) => addDays(endDay, i - 6));
-  return days.map((day) => ({
-    label: formatWeekday(day),
-    value: list.filter((x) => dayKey(x.date) === day).length,
-  }));
-}
-
 /** Newest first, at most `limit`. */
 export function recentSessions(list: Session[], limit = 5): Session[] {
   return [...list].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);

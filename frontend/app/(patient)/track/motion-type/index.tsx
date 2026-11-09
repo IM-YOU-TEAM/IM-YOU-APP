@@ -23,7 +23,7 @@ export default function MotionTypeScreen() {
   const wide = useWindowDimensions().width >= WIDE;
   const params = useLocalSearchParams();
   const { patient } = useAuth();
-  const assigned = patient?.assignedMotions ?? ALL_MOTIONS;
+  const assigned = patient ? patient.tasks.map((task) => task.motion) : ALL_MOTIONS;
   const picked = parseMotion(params.motion);
   const [motion, setMotion] = useState<MotionType | null>(picked && assigned.includes(picked) ? picked : null);
 
