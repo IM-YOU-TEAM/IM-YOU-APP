@@ -8,7 +8,8 @@ import { colors, radii, space } from '@/lib/theme';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 import type { IconName } from '@/types';
 import { GlassCard } from './GlassCard';
-import { logout, type NavItem } from './nav';
+import { type NavItem } from './nav';
+import { ProfileMenu } from './ProfileMenu';
 import { Text } from './Text';
 
 const BAR_HEIGHT = 64;
@@ -25,15 +26,13 @@ export const useBottomBarInset = () => useContext(BottomBarInset);
 
 type Props = {
   items: NavItem[];
-  /** Default: sign out; the auth gate then shows /login. */
-  onLogout?: () => void;
 };
 
 /**
  * Floating glass tab bar for phones (< WIDE), both sides, in the style of the iOS tab bar:
- * filled glyph + tint for the selected tab, outline glyphs for the rest. Ends with Log out.
+ * filled glyph + tint for the selected tab, outline glyphs for the rest. Ends with Profile.
  */
-export function BottomBar({ items, onLogout = logout }: Props) {
+export function BottomBar({ items }: Props) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
   const selectedIndex = Math.max(
@@ -115,7 +114,7 @@ export function BottomBar({ items, onLogout = logout }: Props) {
               <BarButton label={item.label} icon={item.icon} active={item.active} />
             </Link>
           ))}
-          <BarButton label="Log out" icon="log-out-outline" onPress={onLogout} />
+          <ProfileMenu variant="bar" />
         </View>
       </GlassCard>
     </View>

@@ -13,10 +13,11 @@ import {
   type Metric,
 } from '@/components';
 import { JointCurves } from '@/features/capture/imu/JointCurves';
+import { AssignedMotionsEditor } from '@/features/care/AssignedMotionsEditor';
 import { fetchRosterPatient, patientName } from '@/features/care/api';
 import { fetchSessions } from '@/features/results/api';
 import { EmptyState } from '@/features/results/EmptyState';
-import { PATIENT_STATUS_LABELS, sessionRow, sessionScoreLabel, sessionWhen } from '@/features/results/derive';
+import { PATIENT_STATUS_LABELS, sessionRow, sessionWhen } from '@/features/results/derive';
 import { MOTION_ICONS, MOTION_LABELS } from '@/lib/data';
 import { formatDate } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
@@ -123,6 +124,8 @@ export default function PatientDetailScreen() {
         )}
       </Card>
 
+      <AssignedMotionsEditor patientId={patient.id} assigned={patient.assignedMotions} />
+
       <View style={{ gap: space.md }}>
         <View style={{ gap: space.xs }}>
           <Text variant="headline">Joint angles</Text>
@@ -153,11 +156,10 @@ export default function PatientDetailScreen() {
                   title={row.title}
                   subtitle={row.subtitle}
                   icon={MOTION_ICONS[session.motion]}
-                  trailing={sessionScoreLabel(session)}
                   chevron={false}
                   selected={session.jointAngles != null && session.id === shown?.id}
                   onPress={session.jointAngles != null ? () => setPickedId(session.id) : undefined}
-                  accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${sessionScoreLabel(session)}`}
+                  accessibilityLabel={`${row.title}, ${row.subtitle}`}
                 />
               );
             })}

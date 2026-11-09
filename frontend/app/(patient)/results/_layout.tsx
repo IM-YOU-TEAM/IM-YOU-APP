@@ -1,0 +1,6 @@
+import { Stack } from 'expo-router';
+import { colors } from '@/lib/theme';
+
+export default function ResultsLayout() {
+  return <Stack screenOptions={{ headerShown: false, title: "I'M YOU", contentStyle: { backgroundColor: colors.honeydew } }} />;
+}

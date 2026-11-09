@@ -2,14 +2,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { PillButton, ScreenContainer, Text } from '@/components';
+import { useAuth } from '@/features/auth/AuthProvider';
 import { ChoiceCard } from '@/features/capture/ChoiceCard';
 import { FlowHeader } from '@/features/capture/FlowHeader';
 import { parseMotion } from '@/features/capture/params';
-import { MOTION_ICONS, MOTION_LABELS } from '@/lib/data';
+import { EmptyState } from '@/features/results/EmptyState';
+import { ALL_MOTIONS, MOTION_ICONS, MOTION_LABELS } from '@/lib/data';
 import { GAP, space, WIDE } from '@/lib/theme';
 import type { MotionType } from '@/types';
-
-const MOTIONS: MotionType[] = ['walking', 'running', 'stairs', 'sitToStand'];
 
 const DESCRIPTIONS: Record<MotionType, string> = {
   walking: 'Your everyday pace on flat ground',
@@ -22,14 +22,16 @@ const DESCRIPTIONS: Record<MotionType, string> = {
 export default function MotionTypeScreen() {
   const wide = useWindowDimensions().width >= WIDE;
   const params = useLocalSearchParams();
-  const [motion, setMotion] = useState<MotionType | null>(parseMotion(params.motion));
+  const { patient } = useAuth();
+  const assigned = patient?.assignedMotions ?? ALL_MOTIONS;
+  const picked = parseMotion(params.motion);
+  const [motion, setMotion] = useState<MotionType | null>(picked && assigned.includes(picked) ? picked : null);
 
   const next = () => {
     if (motion) router.push({ pathname: '/track/method', params: { motion } });
   };
 
-  // 2 x 2 on wide screens, stacked on phones.
-  const rows = wide ? [MOTIONS.slice(0, 2), MOTIONS.slice(2)] : MOTIONS.map((m) => [m]);
+  const rows = wide && assigned.length > 1 ? [assigned.slice(0, 2), assigned.slice(2)].filter((row) => row.length > 0) : assigned.map((m) => [m]);
 
   return (
     <ScreenContainer maxWidth={880} gap={space.xl}>
@@ -39,34 +41,45 @@ export default function MotionTypeScreen() {
         <Text muted>Pick one movement for this session.</Text>
       </View>
 
-      <View accessibilityRole="radiogroup" accessibilityLabel="Movement" style={{ gap: GAP }}>
-        {rows.map((row) => (
-          <View key={row.join()} style={{ flexDirection: 'row', gap: GAP }}>
-            {row.map((m) => (
-              <ChoiceCard
-                key={m}
-                title={MOTION_LABELS[m]}
-                description={DESCRIPTIONS[m]}
-                icon={MOTION_ICONS[m]}
-                selected={motion === m}
-                onPress={() => setMotion(m)}
-                style={{ flex: 1 }}
-              />
+      {assigned.length === 0 ? (
+        <EmptyState
+          icon="body"
+          title="Nothing assigned"
+          line="Your doctor has not assigned a movement yet. Check back after they pick one."
+          action={false}
+        />
+      ) : (
+        <>
+          <View accessibilityRole="radiogroup" accessibilityLabel="Movement" style={{ gap: GAP }}>
+            {rows.map((row) => (
+              <View key={row.join()} style={{ flexDirection: 'row', gap: GAP }}>
+                {row.map((m) => (
+                  <ChoiceCard
+                    key={m}
+                    title={MOTION_LABELS[m]}
+                    description={DESCRIPTIONS[m]}
+                    icon={MOTION_ICONS[m]}
+                    selected={motion === m}
+                    onPress={() => setMotion(m)}
+                    style={{ flex: 1 }}
+                  />
+                ))}
+              </View>
             ))}
           </View>
-        ))}
-      </View>
 
-      <PillButton
-        label="Continue"
-        icon="chevron-forward"
-        iconRight
-        size="lg"
-        disabled={!motion}
-        onPress={next}
-        fullWidth={!wide}
-        style={wide ? { alignSelf: 'flex-end' } : undefined}
-      />
+          <PillButton
+            label="Continue"
+            icon="chevron-forward"
+            iconRight
+            size="lg"
+            disabled={!motion}
+            onPress={next}
+            fullWidth={!wide}
+            style={wide ? { alignSelf: 'flex-end' } : undefined}
+          />
+        </>
+      )}
     </ScreenContainer>
   );
 }

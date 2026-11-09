@@ -1,11 +1,12 @@
 // Clinician <-> patient records. Clinicians create their patients' logins and see them by name.
 import { createAccount } from '@/features/auth/auth';
+import { parseAssignedMotions } from '@/lib/data';
 import { localIso } from '@/lib/format';
 import { supabase } from '@/lib/supabase/client';
-import type { Patient, PatientStatus } from '@/types';
+import type { MotionType, Patient, PatientStatus } from '@/types';
 
 const ROSTER_COLUMNS =
-  'id, full_name, care_code, owner_link, created_at, linked_at, total:sessions(count), latest:sessions(started_at, gait_score)';
+  'id, full_name, care_code, owner_link, created_at, linked_at, assigned_motions, total:sessions(count), latest:sessions(started_at, gait_score)';
 
 type RosterRow = {
   id: string;
@@ -14,6 +15,7 @@ type RosterRow = {
   owner_link: string | null;
   created_at: string;
   linked_at: string | null;
+  assigned_motions: string[];
   total: { count: number }[];
   latest: { started_at: string; gait_score: number }[];
 };
@@ -34,7 +36,14 @@ function toPatient(row: RosterRow): Patient {
     linkedAt: row.linked_at ? localIso(new Date(row.linked_at)) : null,
     sessionCount: row.total[0]?.count ?? 0,
     latest: latest ? { date: localIso(new Date(latest.started_at)), gaitScore: latest.gait_score } : null,
+    assignedMotions: parseAssignedMotions(row.assigned_motions),
   };
+}
+
+/** The signed-in clinician sets which movements this patient can start. */
+export async function setAssignedMotions(patientId: string, motions: MotionType[]): Promise<void> {
+  const { error } = await supabase.from('patients').update({ assigned_motions: motions }).eq('id', patientId);
+  if (error) throw error;
 }
 
 /** The name to show for a patient. The care code is a link secret, never a stand-in for a name. */

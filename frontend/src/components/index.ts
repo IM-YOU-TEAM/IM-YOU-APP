@@ -15,6 +15,7 @@ export { PillButton } from './PillButton';
 export { ScreenContainer, TopChromeProvider } from './ScreenContainer';
 export { SegmentedToggle, type SegmentOption } from './SegmentedToggle';
 export { logout, type NavItem } from './nav';
+export { ProfileMenu } from './ProfileMenu';
 export { StatTile } from './StatTile';
 export { TopBar } from './TopBar';
 export { OnDark, Text, type TextProps } from './Text';

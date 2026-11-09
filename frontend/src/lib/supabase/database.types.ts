@@ -85,6 +85,7 @@ export type Database = {
       }
       patients: {
         Row: {
+          assigned_motions: string[]
           care_code: string
           clinician_id: string | null
           created_at: string
@@ -94,6 +95,7 @@ export type Database = {
           owner_link: string | null
         }
         Insert: {
+          assigned_motions?: string[]
           care_code?: string
           clinician_id?: string | null
           created_at?: string
@@ -103,6 +105,7 @@ export type Database = {
           owner_link?: string | null
         }
         Update: {
+          assigned_motions?: string[]
           care_code?: string
           clinician_id?: string | null
           created_at?: string
@@ -263,6 +266,7 @@ export type Database = {
       provision_patient_account: {
         Args: { p_clinician_id: string; p_full_name: string; p_user_id: string }
         Returns: {
+          assigned_motions: string[]
           care_code: string
           clinician_id: string | null
           created_at: string

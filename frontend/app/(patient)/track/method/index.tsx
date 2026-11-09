@@ -10,7 +10,7 @@ import { METHOD_ICONS, METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
 import { GAP, space, WIDE } from '@/lib/theme';
 import type { CaptureMethod } from '@/types';
 
-const METHODS: CaptureMethod[] = ['cv', 'imu'];
+const METHODS: CaptureMethod[] = ['imu', 'cv'];
 
 const DESCRIPTIONS: Record<CaptureMethod, string> = {
   cv: 'Prop your phone up and let the camera watch your movement',
@@ -38,7 +38,7 @@ export default function MethodScreen() {
         <Text muted>{MOTION_LABELS[motion]}: choose what does the measuring.</Text>
       </View>
 
-      <View accessibilityRole="radiogroup" accessibilityLabel="Tracking method" style={{ flexDirection: wide ? 'row' : 'column', gap: GAP }}>
+      <View accessibilityRole="radiogroup" accessibilityLabel="Tracking method" style={{ flexDirection: 'column', gap: GAP }}>
         {METHODS.map((m) => (
           <ChoiceCard
             key={m}
@@ -47,7 +47,6 @@ export default function MethodScreen() {
             icon={METHOD_ICONS[m]}
             selected={method === m}
             onPress={() => setMethod(m)}
-            style={wide ? { flex: 1 } : undefined}
           />
         ))}
       </View>

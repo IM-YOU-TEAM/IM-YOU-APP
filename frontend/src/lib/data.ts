@@ -19,9 +19,22 @@ export const MOTION_LABELS: Labels<MotionType> = {
 };
 
 export const METHOD_LABELS: Labels<CaptureMethod> = {
-  cv: 'Camera',
-  imu: 'Phone sensors',
+  cv: 'Computer vision',
+  imu: 'Phone IMU sensors',
 };
+
+/** Every movement the app can track, in the order the picker shows them. */
+export const ALL_MOTIONS: MotionType[] = ['walking', 'running', 'stairs', 'sitToStand'];
+
+/** Drop unknown names and keep the picker order. Missing or invalid input means every movement. */
+export function parseAssignedMotions(value: unknown): MotionType[] {
+  if (!Array.isArray(value)) return ALL_MOTIONS;
+  const allowed = new Set<MotionType>();
+  for (const item of value) {
+    if (typeof item === 'string' && Object.hasOwn(MOTION_LABELS, item)) allowed.add(item as MotionType);
+  }
+  return ALL_MOTIONS.filter((motion) => allowed.has(motion));
+}
 
 export const MOTION_ICONS: Record<MotionType, IconName> = {
   walking: 'walk',

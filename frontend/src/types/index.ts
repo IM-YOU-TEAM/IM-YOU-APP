@@ -23,6 +23,8 @@ export type Patient = {
   linkedAt: string | null; // local ISO date-time
   sessionCount: number;
   latest: { date: string; gaitScore: number } | null;
+  /** Movements the clinician has left visible for this patient. */
+  assignedMotions: MotionType[];
 };
 
 /** Right-leg joints the phone-sensor model predicts, named as its export names them. */

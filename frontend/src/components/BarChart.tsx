@@ -7,7 +7,7 @@ import type { ChartPoint } from './LineChart';
 
 type Props = {
   data: ChartPoint[];
-  /** The one bar drawn in Cherry Blossom (e.g. today). Counts as the screen's single highlight. */
+  /** The one bar drawn in Burnt Orange (e.g. today). Counts as the screen's single highlight. */
   highlightIndex?: number;
   /** Total height including labels. Default 180. */
   height?: number;
@@ -50,7 +50,7 @@ export function BarChart({ data, highlightIndex, height = 180, maxValue, formatV
             return [
               <Rect key={`t${i}`} x={x} y={TOP} width={barW} height={plotH} rx={barW / 2} fill={colors.honeydewLight} />,
               h > 0 ? (
-                <Rect key={`b${i}`} x={x} y={TOP + plotH - h} width={barW} height={h} rx={barW / 2} fill={hi ? colors.cherry : colors.seagrass} />
+                <Rect key={`b${i}`} x={x} y={TOP + plotH - h} width={barW} height={h} rx={barW / 2} fill={hi ? colors.burntOrange : colors.seagrass} />
               ) : null,
             ];
           })}

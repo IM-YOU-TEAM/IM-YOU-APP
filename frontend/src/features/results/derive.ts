@@ -49,14 +49,9 @@ export function sessionWhen(s: Session): string {
   return `${formatLongDate(s.date)} · ${formatTime(s.date)}`;
 }
 
-/** List row text for a session, e.g. { title: "Walking", subtitle: "Sat, Nov 7 · Camera" }. */
+/** List row text for a session, e.g. { title: "Walking", subtitle: "Sat, Nov 7 · Computer vision" }. */
 export function sessionRow(s: Session): { title: string; subtitle: string } {
   return { title: MOTION_LABELS[s.motion], subtitle: `${formatLongDate(s.date)} · ${METHOD_LABELS[s.method]}` };
-}
-
-/** Camera movement score, or a dash when that number was not measured. */
-export function sessionScoreLabel(session: Session): string {
-  return session.method === 'cv' && session.movementVerified !== false ? String(session.gaitScore) : '—';
 }
 
 // ---------- Clinician roster ----------
