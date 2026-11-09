@@ -28,21 +28,6 @@ export function recentSessions(list: Session[], limit = 5): Session[] {
   return [...list].sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
 }
 
-/** True when this session counted steps or reps, so cadence is real. */
-export function cadenceWasMeasured(session: Session): boolean {
-  return session.cadenceMeasured !== false && (session.method === 'cv' || session.cadence > 0);
-}
-
-/** Last few measured cadence values, oldest first, for the hero tile's waveform. */
-export function cadenceTrend(list: Session[], count = 12): number[] {
-  return list.filter(cadenceWasMeasured).slice(-count).map((x) => x.cadence);
-}
-
-/** Newest session that actually counted steps, if there is one. */
-export function latestCadence(list: Session[]): Session | undefined {
-  return [...list].reverse().find(cadenceWasMeasured);
-}
-
 // ---------- Results ----------
 
 export type Range = 'week' | 'month';
