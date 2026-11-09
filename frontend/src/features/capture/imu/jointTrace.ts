@@ -101,3 +101,36 @@ export function seriesRange(values: (number | null)[]): { min: number; max: numb
 export function traceSeconds(trace: JointTrace): number {
   return (trace.angles.hip_flexion_r.length - 1) / trace.sampleHz;
 }
+
+/** Shortest view window: about two walking strides. */
+export const MIN_VIEW_S = 2;
+
+export type ViewBounds = { min: number; max: number };
+
+/** The view can be as short as MIN_VIEW_S and as long as the recording. */
+export function viewBounds(seconds: number): ViewBounds {
+  return { min: Math.min(MIN_VIEW_S, seconds), max: seconds };
+}
+
+/**
+ * Slider position (0 to 1) to view length in seconds. Logarithmic, so the short end, where strides
+ * become readable, gets as much travel as the long end.
+ */
+export function viewFromSlider(fraction: number, { min, max }: ViewBounds): number {
+  const f = Math.min(Math.max(fraction, 0), 1);
+  if (max <= min) return max;
+  return Math.min(max, min * (max / min) ** f);
+}
+
+export function sliderFromView(view: number, { min, max }: ViewBounds): number {
+  if (max <= min) return 1;
+  const v = Math.min(Math.max(view, min), max);
+  return Math.log(v / min) / Math.log(max / min);
+}
+
+/** First and last sample index inside [from, from + view] seconds, one sample of margin each side. */
+export function visibleIndices(length: number, hz: number, from: number, view: number): [number, number] {
+  const first = Math.max(0, Math.floor(from * hz) - 1);
+  const last = Math.min(length - 1, Math.ceil((from + view) * hz) + 1);
+  return [first, last];
+}

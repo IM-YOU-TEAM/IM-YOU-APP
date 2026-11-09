@@ -17,7 +17,7 @@ export function SessionJointCurves({ session, caption }: Props) {
 
   if (!session || session.method !== 'imu') return <JointCurves trace={null} caption={caption} />;
   if (loaded.data === undefined && loaded.error == null) return <JointCurves trace={undefined} />;
-  if (loaded.data) return <JointCurves trace={loaded.data} />;
-  if (session.jointAngles) return <JointCurves trace={traceFromWindow(session.jointAngles)} excerpt />;
+  if (loaded.data) return <JointCurves key={session.id} trace={loaded.data} />;
+  if (session.jointAngles) return <JointCurves key={session.id} trace={traceFromWindow(session.jointAngles)} excerpt />;
   return <JointCurves trace={null} caption={caption ?? 'This session has no joint angles.'} />;
 }

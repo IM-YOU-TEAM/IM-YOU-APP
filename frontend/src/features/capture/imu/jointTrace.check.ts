@@ -1,5 +1,15 @@
 import type { JointName } from '@/types';
-import { buildJointTrace, displaySeries, seriesRange, traceFromWindow, traceSeconds } from './jointTrace';
+import {
+  buildJointTrace,
+  displaySeries,
+  seriesRange,
+  sliderFromView,
+  traceFromWindow,
+  traceSeconds,
+  viewBounds,
+  viewFromSlider,
+  visibleIndices,
+} from './jointTrace';
 
 function assert(ok: boolean, message: string): void {
   if (!ok) throw new Error(message);
@@ -58,4 +68,19 @@ assert(seriesRange([null]) === null, 'no values, no range');
 
 const legacy = traceFromWindow({ hip_flexion_r: Array(100).fill(0), knee_angle_r: Array(100).fill(0), ankle_angle_r: Array(100).fill(0) });
 assert(Math.abs(traceSeconds(legacy) - 2.5) < 1e-9, 'an old single window spans 2.5 s');
+
+// The view slider runs from 2 s to the recording's length and never past it.
+const bounds = viewBounds(152);
+assert(bounds.min === 2 && bounds.max === 152, 'view spans 2 s to the whole recording');
+assert(viewFromSlider(0, bounds) === 2, 'slider start is 2 s');
+assert(viewFromSlider(1, bounds) === 152, 'slider end is the whole recording');
+assert(viewFromSlider(5, bounds) === 152 && viewFromSlider(-1, bounds) === 2, 'slider is capped at both ends');
+assert(Math.abs(viewFromSlider(sliderFromView(30, bounds), bounds) - 30) < 1e-9, 'slider and view round-trip');
+assert(viewBounds(1.5).min === 1.5 && viewFromSlider(0, viewBounds(1.5)) === 1.5, 'a short recording is never stretched');
+assert(sliderFromView(9, viewBounds(1.5)) === 1, 'nothing to zoom on a short recording');
+
+const [first, last] = visibleIndices(3041, 20, 10, 5);
+assert(first === 199 && last === 301, `10 to 15 s at 20 Hz with margin, got ${first} to ${last}`);
+const [head, tail] = visibleIndices(50, 20, 0, 5);
+assert(head === 0 && tail === 49, 'clamped to the trace');
 console.log('joint trace ok');
