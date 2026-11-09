@@ -68,7 +68,8 @@ function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate, pa
   if (pairingFailed) return 'unreachable';
   switch (gate) {
     case 'connecting':
-      return 'connecting';
+      // Opening the screen is step 1, so show the QR (or "Making a code…") rather than flashing the graph first.
+      return pastQr ? 'connecting' : 'scan-qr';
     case 'unreachable':
       return 'unreachable';
     default:
