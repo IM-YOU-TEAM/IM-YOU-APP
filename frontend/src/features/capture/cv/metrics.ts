@@ -248,6 +248,7 @@ export class PoseAccumulator {
       durationSec,
       gaitScore: clamp(gaitScore, 0, 100),
       cadence,
+      cadenceMeasured: true,
       symmetry: symmetry.measured ? symmetry.value : 0,
       symmetryMeasured: symmetry.measured,
       farLegHidden: symmetry.farLegHidden,

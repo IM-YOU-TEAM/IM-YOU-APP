@@ -65,26 +65,34 @@ export function assessMovement(input: AssessmentInput): MovementAssessment {
 
 function detectMotion(
   input: AssessmentInput,
-  features: FeatureSummary,
+  _features: FeatureSummary,
   scores: Record<MotionType, number>,
 ): MotionType | undefined {
   if (input.reps >= 1 && scores.sitToStand >= 65) return 'sitToStand';
-  if (input.stepCount < 2) return undefined;
-  if (
-    features.verticalTravel != null &&
-    features.verticalTravel >= 0.05 &&
-    features.peakKneeBend != null &&
-    features.peakKneeBend >= 30
-  ) {
-    return 'stairs';
+  if (input.selected === 'sitToStand') {
+    return scores.sitToStand >= 50 ? 'sitToStand' : gaitWinner(scores, 60);
   }
-  if (input.stepCadence >= 115 && features.peakKneeBend != null && features.peakKneeBend >= 30) return 'running';
-  return scores.walking >= 60 ? 'walking' : undefined;
+  if (input.stepCount < 2) return undefined;
+
+  const selectedScore = scores[input.selected];
+  const best = gaitWinner(scores, 0);
+  // Keep the movement they chose unless another gait is clearly stronger. Walking bounce
+  // used to look like stairs, which told people they had picked the wrong activity.
+  if (selectedScore >= 55 && (best == null || scores[best] < selectedScore + 18)) {
+    return input.selected;
+  }
+  return gaitWinner(scores, 60);
+}
+
+function gaitWinner(scores: Record<MotionType, number>, min: number): MotionType | undefined {
+  const gaits: MotionType[] = ['walking', 'running', 'stairs'];
+  const best = gaits.reduce((lead, motion) => (scores[motion] > scores[lead] ? motion : lead));
+  return scores[best] >= min ? best : undefined;
 }
 
 export function movementState(input: AssessmentInput, assessment = assessMovement(input)): MovementState {
   if (input.stepCount < 2 && input.reps < 1) return 'waiting';
-  if (assessment.verified) return 'matching';
+  if (assessment.detectedMotion === input.selected) return 'matching';
   return assessment.detectedMotion ? 'different' : 'waiting';
 }
 
@@ -93,10 +101,10 @@ export function movementInstruction(state: MovementState, selected: MotionType, 
     case 'waiting':
       return startInstruction(selected);
     case 'matching':
-      return `${motionLabel(selected)} pattern detected. Keep going at a comfortable pace.`;
+      return `${motionLabel(selected)} looks right. Keep going at a comfortable pace.`;
     case 'different':
-      return detected
-        ? `This looks more like ${motionLabel(detected).toLowerCase()}. Check the selected movement before continuing.`
+      return detected && detected !== selected
+        ? `This looks more like ${motionLabel(detected).toLowerCase()} than ${motionLabel(selected).toLowerCase()}. Keep going if that is what you meant to do.`
         : `The camera has not confirmed ${motionLabel(selected).toLowerCase()} yet.`;
     default: {
       const unexpected: never = state;
@@ -126,6 +134,7 @@ type FeatureSummary = {
   horizontalRange: number | null;
   verticalRange: number | null;
   verticalTravel: number | null;
+  verticalNet: number | null;
   peakKneeBend: number | null;
   averageTrunkLean: number | null;
   averageRiseTime: number | null;
@@ -140,6 +149,7 @@ function summarize(input: AssessmentInput): FeatureSummary {
     horizontalRange: valueRange(hipX),
     verticalRange: valueRange(hipY),
     verticalTravel: rollingRange(hipY),
+    verticalNet: netDisplacement(hipY),
     peakKneeBend: kneeBends.length > 0 ? Math.max(...kneeBends) : null,
     averageTrunkLean: trunkLeans.length > 0 ? mean(trunkLeans) : null,
     averageRiseTime: input.riseDurationsMs.length > 0 ? mean(input.riseDurationsMs) / 1000 : null,
@@ -149,15 +159,17 @@ function summarize(input: AssessmentInput): FeatureSummary {
 function walkingScore(input: AssessmentInput, features: FeatureSummary): number {
   let score = gaitEvidence(input.stepCount);
   if (input.stepCadence >= 40 && input.stepCadence < 140) score += 25;
-  if (features.peakKneeBend != null && features.peakKneeBend < 35) score += 15;
-  if (features.verticalRange != null && features.verticalRange < 0.12) score += 10;
+  if (features.peakKneeBend != null && features.peakKneeBend >= 10 && features.peakKneeBend <= 70) score += 15;
+  if (features.verticalNet != null && features.verticalNet < 0.08) score += 10;
+  else if (features.verticalRange != null && features.verticalRange < 0.12) score += 10;
   if (input.reps === 0) score += 5;
   return clampScore(score);
 }
 
 function runningScore(input: AssessmentInput, features: FeatureSummary): number {
   let score = gaitEvidence(input.stepCount);
-  if (input.stepCadence >= 115) score += 25;
+  if (input.stepCadence >= 140) score += 25;
+  else if (input.stepCadence >= 115) score += 15;
   if (features.peakKneeBend != null && features.peakKneeBend >= 30) score += 15;
   if (features.verticalRange != null && features.verticalRange >= 0.02) score += 10;
   if (input.reps === 0) score += 5;
@@ -166,8 +178,9 @@ function runningScore(input: AssessmentInput, features: FeatureSummary): number 
 
 function stairsScore(input: AssessmentInput, features: FeatureSummary): number {
   let score = gaitEvidence(input.stepCount);
-  if (features.verticalTravel != null && features.verticalTravel >= 0.05) score += 25;
-  if (features.peakKneeBend != null && features.peakKneeBend >= 30) score += 20;
+  if (features.verticalNet != null && features.verticalNet >= 0.08) score += 25;
+  else if (features.verticalTravel != null && features.verticalTravel >= 0.12) score += 10;
+  if (features.peakKneeBend != null && features.peakKneeBend >= 40) score += 20;
   if (input.stepCadence > 0 && input.stepCadence <= 160) score += 5;
   return clampScore(score);
 }
@@ -317,6 +330,12 @@ function scaledPercent(value: number | null): number | null {
 
 function valueRange(values: number[]): number | null {
   return values.length > 0 ? Math.max(...values) - Math.min(...values) : null;
+}
+
+/** Net rise or drop, so bouncing in place is not treated as climbing stairs. */
+function netDisplacement(values: number[]): number | null {
+  if (values.length < 5) return null;
+  return Math.abs(values[values.length - 1] - values[0]);
 }
 
 /** Range after smoothing short up/down oscillations such as running bounce. */

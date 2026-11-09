@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { Text } from '@/components';
@@ -96,15 +96,38 @@ type OverlayProps = {
   frameHeight?: number;
 };
 
+const SMOOTH = 0.38;
+
+function blend(from: Vec3, to: Vec3): Vec3 {
+  if (to.visibility < VISIBLE) return to;
+  return {
+    x: from.x + SMOOTH * (to.x - from.x),
+    y: from.y + SMOOTH * (to.y - from.y),
+    z: from.z + SMOOTH * (to.z - from.z),
+    visibility: to.visibility,
+  };
+}
+
 /** Skeleton drawn over the preview. Points under the visibility cutoff are left out. */
 export function PoseOverlay({ points, frameWidth = 0, frameHeight = 0 }: OverlayProps) {
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const prev = useRef<Vec3[] | null>(null);
+  let smoothed: Vec3[] | null = null;
+  if (points == null) {
+    prev.current = null;
+  } else if (prev.current == null || prev.current.length !== points.length) {
+    prev.current = points;
+    smoothed = points;
+  } else {
+    smoothed = points.map((point, index) => blend(prev.current![index], point));
+    prev.current = smoothed;
+  }
   const placed =
-    points == null
+    smoothed == null
       ? null
       : frameWidth > 0 && frameHeight > 0
-        ? points.map((point) => containPoint(point, box.w, box.h, frameWidth, frameHeight))
-        : points;
+        ? smoothed.map((point) => containPoint(point, box.w, box.h, frameWidth, frameHeight))
+        : smoothed;
 
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
@@ -122,13 +145,13 @@ export function PoseOverlay({ points, frameWidth = 0, frameHeight = 0 }: Overlay
                 x2={end.x}
                 y2={end.y}
                 stroke={colors.seagrass}
-                strokeWidth={0.008}
+                strokeWidth={0.012}
                 strokeLinecap="round"
               />
             );
           })}
           {placed.map((point, index) =>
-            point.visibility < VISIBLE ? null : <Circle key={index} cx={point.x} cy={point.y} r={0.012} fill={colors.white} />,
+            point.visibility < VISIBLE ? null : <Circle key={index} cx={point.x} cy={point.y} r={0.016} fill={colors.white} />,
           )}
         </Svg>
       ) : null}
