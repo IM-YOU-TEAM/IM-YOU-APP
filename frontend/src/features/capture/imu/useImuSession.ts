@@ -21,6 +21,13 @@ import { usePairing, type PairGate, type Pairing } from './usePairing';
 import { usePeerTrace } from './usePeerTrace';
 import { useSampleUplink } from './useSampleUplink';
 
+/**
+ * After Stop, the model is still scoring the last samples (each window is 2.5 s), so keep taking its
+ * windows until it has been quiet this long, but never wait longer than DRAIN_MAX_MS.
+ */
+const DRAIN_QUIET_MS = 1200;
+const DRAIN_MAX_MS = 4000;
+
 /** How long a remembered pairing waits for its second phone before a fresh, scannable code replaces it. */
 const REUSE_GRACE_MS = 8000;
 
@@ -97,6 +104,9 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   const pausedRef = useRef(paused);
   const recordingRef = useRef(false);
   const sessionRef = useRef<string | null>(null);
+  /** True between Stop and the session being built: late windows from before Stop still count. */
+  const drainingRef = useRef(false);
+  const lastWindowAtRef = useRef(0);
   /** Wall-clock ms when Start was tapped. */
   const startedAtRef = useRef(0);
   /** Seconds into the session where the current stretch (since Start or the last resume) began. */
@@ -238,8 +248,10 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
       onClose: () => undefined,
       onMessage: (message: LiveMessage) => {
         if (message.type !== 'window') return;
-        // Only this recording's windows: none from before Start, after Stop, or while paused.
-        if (!recordingRef.current || pausedRef.current) return;
+        // Only this recording's windows: none from before Start or while paused. Windows that land just
+        // after Stop are the tail of the recording, still being scored, so they count too.
+        if (!drainingRef.current && (!recordingRef.current || pausedRef.current)) return;
+        lastWindowAtRef.current = Date.now();
         tally.current.total += 1;
         // The service restarts its clock at every resume, so move each stretch to where it sat in the session.
         const base = segmentStartRef.current;
@@ -309,13 +321,29 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     setLive((prev) => ({ ...prev, recording: false }));
   }, [sendControl, uplink.flush, uplink.send]);
 
+  const modelConnected = uplink.connected;
   const finish = useCallback(
-    (durationSec: number): Session | null => {
+    async (durationSec: number): Promise<Session | null> => {
+      const stoppedAt = Date.now();
+      drainingRef.current = recordingRef.current;
       halt();
+      if (drainingRef.current && modelConnected) {
+        await new Promise<void>((resolve) => {
+          const id = setInterval(() => {
+            const now = Date.now();
+            const quietSince = Math.max(stoppedAt, lastWindowAtRef.current);
+            if (now - quietSince >= DRAIN_QUIET_MS || now - stoppedAt >= DRAIN_MAX_MS) {
+              clearInterval(id);
+              resolve();
+            }
+          }, 100);
+        });
+      }
+      drainingRef.current = false;
       if (motion == null || tally.current.total === 0) return null;
       return summariseImu(tally.current, motion, durationSec);
     },
-    [halt, motion],
+    [halt, motion, modelConnected],
   );
 
   const gate: ImuGate = supported ? hostGate(pairingFailed, pairing.gate, sensors.gate, pastQr) : 'unsupported-motion';
@@ -334,7 +362,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     ...live,
     gate,
     supported,
-    modelConnected: uplink.connected,
+    modelConnected,
     mySite,
     freeSites: pairing.freeSites,
     secondPhoneIn: paired,

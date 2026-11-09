@@ -52,7 +52,8 @@ export default function SessionScreen() {
   const captureStarted = method === 'imu' ? imu.captureStarted : pose.captureStarted;
   const captureFinished = method === 'imu' ? finishedImu.current != null : finishedPose.current != null;
   // Picking a spot or allowing sensors must not look like recording: Start is the only control until it is tapped.
-  const imuWaiting = method === 'imu' && !imu.recording && !captureFinished;
+  // While Stop is saving, the recording is over but Start must not come back yet.
+  const imuWaiting = method === 'imu' && !imu.recording && !captureFinished && !saving;
   const showPairingCode = imuWaiting && imu.gate === 'scan-qr';
   const clockOn =
     !saving && !captureFinished && (method === 'imu' ? imu.recording : gate === 'ready' && captureStarted);
@@ -71,12 +72,28 @@ export default function SessionScreen() {
   if (!motion || !method) return <MissingParams />;
 
   const stop = async () => {
+    if (saving) return;
+    // Show "Saving…" straight away: a sensor session waits a moment for the model's last windows.
+    setSaving(true);
+    setSaveError(null);
     if (method === 'cv') finishedPose.current ??= pose.finish(seconds);
-    else finishedImu.current ??= imu.finish(seconds);
+    else if (finishedImu.current == null) finishedImu.current = await imu.finish(seconds);
 
     const session = method === 'cv' ? finishedPose.current?.session : finishedImu.current;
-    if (!session && method === 'imu') {
+    if (!session && method === 'cv') {
+      // The camera never saw a whole body, so there is nothing to score. Keep recording rather than
+      // leaving for Results as if it saved.
+      setSaving(false);
+      setSaveError(
+        gate === 'ready'
+          ? 'The camera has not seen your whole body yet, so nothing was saved. Step back until you are fully in frame, move, then tap Stop.'
+          : 'The camera never started, so nothing was measured or saved.',
+      );
+      return;
+    }
+    if (!session) {
       // Nothing came back from the model. Say so and stay here, rather than leaving as if it saved.
+      setSaving(false);
       setSaveError(
         imu.modelConnected
           ? 'The model scored no movement, so nothing was saved. Check both phones are strapped on, then tap Start and walk.'
@@ -84,28 +101,24 @@ export default function SessionScreen() {
       );
       return;
     }
-    if (session && !patient) {
+    if (!patient) {
+      setSaving(false);
       setSaveError("Your account hasn't loaded yet, so this session can't be saved. Wait a moment and try again.");
       return;
     }
-    if (session && patient) {
-      setSaving(true);
-      setSaveError(null);
-      try {
-        const saved = await saveSession(session, patient.id);
-        if (method === 'cv' && finishedPose.current) savePoseLog(saved.id, finishedPose.current.samples);
-        router.replace(`/results/${saved.id}`);
-      } catch {
-        setSaveError("This session didn't save. Check your connection and try again.");
-        setSaving(false);
-      }
-      return;
+    try {
+      const saved = await saveSession(session, patient.id);
+      if (method === 'cv' && finishedPose.current) savePoseLog(saved.id, finishedPose.current.samples);
+      router.replace(`/results/${saved.id}`);
+    } catch {
+      setSaveError("This session didn't save. Check your connection and try again.");
+      setSaving(false);
     }
-    router.replace('/results');
   };
 
-  const prompt =
-    method === 'cv'
+  const prompt = saving
+    ? 'Saving your session…'
+    : method === 'cv'
       ? cameraPrompt(motion, paused, gate, pose.framing, pose.movementState, pose.cue)
       : sensorPrompt(motion, paused, imu);
   const live =
