@@ -12,7 +12,7 @@ import { colors, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
 import type { CaptureMethod, SessionAssessmentMetric } from '@/types';
 import { EmptyState } from '@/features/results/EmptyState';
-import { gaitSeries, sessionWhen, type Range } from '@/features/results/derive';
+import { cadenceWasMeasured, gaitSeries, sessionWhen, type Range } from '@/features/results/derive';
 
 const RANGES = [
   { value: 'week', label: 'Week' },
@@ -63,7 +63,7 @@ export default function ResultsScreen() {
             line={
               sessionId
                 ? "We couldn't find that session. Track a new one to see fresh results."
-                : 'Track a session and your movement score, cadence and symmetry will show up here.'
+                : 'Track a session and the numbers we actually measured will show up here.'
             }
           />
         </Card>
@@ -75,13 +75,22 @@ export default function ResultsScreen() {
   const symmetryHidden = session.symmetryMeasured === false;
   const farLegHidden = session.farLegHidden === true;
   const movementNotVerified = session.movementVerified === false;
+  const showCadence = cadenceWasMeasured(session);
   const countBit = session.reps != null ? `${session.reps} reps` : session.stepCount != null ? `${session.stepCount} steps` : null;
-  const metrics: Metric[] = [
-    { label: 'Movement score', value: movementNotVerified ? '—' : String(session.gaitScore) },
-    { label: 'Cadence', value: `${session.cadence}/min` },
-    { label: 'Symmetry', value: symmetryHidden ? '—' : `${session.symmetry}%` },
-    { label: 'Duration', value: formatDuration(session.durationSec) },
-  ];
+  const sensorRanges = session.method === 'imu' ? (session.assessmentMetrics ?? []).slice(0, 3) : [];
+  const metrics: Metric[] =
+    session.method === 'imu'
+      ? [
+          { label: 'Duration', value: formatDuration(session.durationSec) },
+          ...(showCadence ? [{ label: 'Cadence', value: `${session.cadence}/min` }] : []),
+          ...sensorRanges.map((metric) => ({ label: metric.label, value: `${metric.value}${metric.unit}` })),
+        ]
+      : [
+          { label: 'Movement score', value: movementNotVerified ? '—' : String(session.gaitScore) },
+          ...(showCadence ? [{ label: 'Cadence', value: `${session.cadence}/min` }] : []),
+          { label: 'Symmetry', value: symmetryHidden ? '—' : `${session.symmetry}%` },
+          { label: 'Duration', value: formatDuration(session.durationSec) },
+        ];
 
   return (
     <ScreenContainer gap={wide ? 24 : 16}>
@@ -103,7 +112,7 @@ export default function ResultsScreen() {
 
       {/* Metrics: one row on wide screens, two rows of two on phones */}
       <Card style={{ gap: space.md }}>
-        {wide ? (
+        {wide || metrics.length <= 2 ? (
           <MetricRow items={metrics} />
         ) : (
           <View style={{ gap: space.lg }}>
@@ -130,30 +139,32 @@ export default function ResultsScreen() {
 
       {session.jointAngles ? <JointCurves angles={session.jointAngles} /> : null}
 
-      <Card style={{ gap: space.lg }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
-          <Text variant="headline">Movement score over time</Text>
-          <SegmentedToggle options={RANGES} value={range} onChange={setRange} accessibilityLabel="Chart range" />
-        </View>
-        {series.length > 0 ? (
-          <LineChart
-            data={series}
-            height={CHART_HEIGHT}
-            yDomain={[0, 100]}
-            formatValue={(v) => `${v} / 100`}
-            accessibilityLabel={`Movement score over the last ${range === 'week' ? '7' : '30'} days`}
-          />
-        ) : (
-          <View style={{ height: CHART_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="analytics" size={28} color={colors.burntOrange} />
-            </View>
-            <Text variant="callout" muted align="center">
-              No verified movement scores in the last {range === 'week' ? '7' : '30'} days.
-            </Text>
+      {session.method === 'cv' ? (
+        <Card style={{ gap: space.lg }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
+            <Text variant="headline">Movement score over time</Text>
+            <SegmentedToggle options={RANGES} value={range} onChange={setRange} accessibilityLabel="Chart range" />
           </View>
-        )}
-      </Card>
+          {series.length > 0 ? (
+            <LineChart
+              data={series}
+              height={CHART_HEIGHT}
+              yDomain={[0, 100]}
+              formatValue={(v) => `${v} / 100`}
+              accessibilityLabel={`Movement score over the last ${range === 'week' ? '7' : '30'} days`}
+            />
+          ) : (
+            <View style={{ height: CHART_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="analytics" size={28} color={colors.burntOrange} />
+              </View>
+              <Text variant="callout" muted align="center">
+                No verified camera scores in the last {range === 'week' ? '7' : '30'} days.
+              </Text>
+            </View>
+          )}
+        </Card>
+      ) : null}
     </ScreenContainer>
   );
 }
@@ -175,17 +186,19 @@ function AssessmentDetails({
 }) {
   const title =
     verified === true
-      ? `${MOTION_LABELS[motion]} pattern matched`
+      ? `${MOTION_LABELS[motion]} recorded`
       : verified === false
         ? `${MOTION_LABELS[motion]} was not confirmed`
         : 'Movement assessment unavailable';
   const detail =
     verified === true
-      ? 'The recorded joint pattern matched the movement you selected.'
+      ? method === 'imu'
+        ? 'The sensors recognized the movement you selected. Joint ranges below are from the model, not a camera count.'
+        : 'The camera saw the movement you selected.'
       : verified === false && detectedMotion && detectedMotion !== motion
-        ? `The recording looked closer to ${MOTION_LABELS[detectedMotion].toLowerCase()}. Check the selected movement and camera position before recording again.`
+        ? `This recording looked more like ${MOTION_LABELS[detectedMotion].toLowerCase()} than ${MOTION_LABELS[motion].toLowerCase()}. Record again if that was not what you meant to do.`
         : verified === false && detectedMotion === motion
-          ? 'The selected movement was visible, but the pattern match was not strong enough to confirm the session. Keep your whole body in frame and record again.'
+          ? `The camera did see ${MOTION_LABELS[motion].toLowerCase()}, but the view was not clear enough to confirm the session. Keep your whole body in frame and try again.`
         : verified === false
           ? 'Not enough complete movement cycles were visible. Record again with your whole body in frame.'
           : 'This session was recorded before movement verification was available.';
@@ -207,7 +220,7 @@ function AssessmentDetails({
         </View>
       </View>
 
-      {metrics.length > 0 ? (
+      {method === 'cv' && metrics.length > 0 ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xl }}>
           {metrics.map((metric) => (
             <View key={metric.key} style={{ minWidth: 130, flexGrow: 1, flexBasis: 0 }} accessible accessibilityLabel={`${metric.label}: ${formatAssessmentMetric(metric)}`}>
