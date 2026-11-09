@@ -1,102 +1,73 @@
-# Movement Tracking
+# I'M YOU · frontend
 
-## natHacks 2026
+The app for patients and clinicians: TypeScript, React Native and Expo Router, one codebase for iOS, Android and web. What the project is and how the model works: see the [main README](../README.md).
 
-Movement Tracking is a web app that helps clinicians measure rehabilitation
-progress without requiring patients to travel to a lab or clinic for every
-assessment.
+## Backend
 
-Joint-angle measurement and movement tracking are usually collected during
-in-person appointments. Between visits, clinicians have limited objective data
-about how a patient is progressing. We asked: **what if the measurement could
-happen at home, on a device the patient already owns?**
+The app runs on **Supabase**. There is no separate server.
 
-Our product lets a patient record a movement on their phone. The app captures
-motion-sensor data, sends it to a machine-learning model, and returns predicted
-knee, ankle, and hip joint angles to the clinician's dashboard.
+| Piece | What it does |
+| --- | --- |
+| **Auth** | Username or email logins. Clinicians sign up themselves; each patient's login is created by their clinician. |
+| **Postgres** | `profiles`, `patients`, `sessions` (scores, counts and the model's joint-angle curves), `session_notes`, `exercise_clips`, `imu_pairings` |
+| **Row-level security** | A patient sees only their own sessions; a clinician sees only their own patients. |
+| **Realtime** | Pairs the second phone by QR code and keeps Start, Pause and Stop in step on both phones. |
+| **Edge Function** | `create-account` makes ready-to-use logins without a confirmation email. |
+| **Storage** | Demo clips for each movement. |
 
-## How it works
+The schema lives in [`../supabase/migrations`](../supabase/migrations) and the function in [`../supabase/functions`](../supabase/functions).
 
-1. A patient opens the web app on their phone and starts a movement session.
-2. The browser captures the phone's IMU data, including accelerometer and
-   gyroscope readings. Safari support lets patients record directly from their
-   browser without installing an app.
-3. The web app sends the recorded data through an API to our model.
-4. The model predicts joint angles for the movement.
-5. The results are returned to the app and made available in the clinician
-   dashboard for reviewing progress over time.
+The joint-angle model is served separately by the **live API** in [Movement-Tracking-Machine-Learning](https://github.com/Movement-Tracking-Team/Movement-Tracking-Machine-Learning). The phones stream sensor data to it over a WebSocket.
 
-## How we built it
-
-We developed two parallel parts:
-
-### Web app
-
-- TypeScript with React Native and Expo Router
-- A shared codebase for iOS, Android, and web
-- Supabase for the application backend
-- Safari device-motion access for browser-based IMU capture
-- Clinician and patient flows, including movement selection, recording,
-  guidance, results, and dashboard views
-
-We used agentic development to build and iterate on the frontend quickly while
-keeping the app organized around reusable components and shared types.
-
-### Machine-learning model
-
-- Python model trained in a local environment
-- Transformer-based approach informed by the research cited below
-- Local virtual machine deployment
-- Tailscale used to make the model securely reachable from the web app
-- API connecting the web app's captured motion data to model predictions
-
-## Project structure
-
-```text
-frontend/
-  app/                  Expo Router screens
-    (auth)/             Login and signup
-    (patient)/          Patient home, tracking, and results
-    (clinician)/        Clinician dashboard and patient views
-  src/
-    components/         Shared UI components
-    features/           Authentication, capture, and results
-    lib/supabase/       Supabase client
-    types/              Shared TypeScript types
-  assets/placement-guides/
-supabase/
-  migrations/           Database migrations
-  functions/            Supabase Edge Functions
-```
-
-The machine-learning model is developed in a separate
-`Movement-Tracking-Machine-Learning` repository.
-
-## Run the frontend locally
+## Setup
 
 ```sh
-npm install
+cp .env.example .env
+npm install          # also copies the MediaPipe pose runtime into public/
 npx expo start --web
-npx tsc --noEmit
 ```
 
-For native development:
+`.env` needs three values:
+
+| Variable | Value |
+| --- | --- |
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase dashboard > Project Settings > API |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Same page. Never the secret key. |
+| `EXPO_PUBLIC_LIVE_API_URL` | The live API: `ws://127.0.0.1:8000` locally, a `wss://` address once deployed (an HTTPS page can't open `ws://`) |
+
+On Vercel, set the same three variables. They are built into the app, so redeploy after changing them.
+
+## Native builds
 
 ```sh
 npm run ios -- --device
 npm run android -- --device
 ```
 
-The phone camera and motion-capture features require a development build;
-Expo Go cannot load the pose camera's native modules.
+The pose camera uses native modules, so it needs a development build; Expo Go can't load it. Phone-sensor sessions run in Safari on the web build.
 
-## Important prototype note
+## Before you push
 
-This project is a hackathon prototype. Its measurements and movement checks
-are not clinically validated and must not be used as a diagnosis or as a
-pass/fail rehabilitation result.
+```sh
+npx tsc --noEmit
+```
 
-## Credits and research
+Team rules (branches, migrations, shared files) are in [`../AGENTS.md`](../AGENTS.md).
 
-- **Dataset:** [Open-source biomechanics dataset](https://www.epic.gatech.edu/opensource-biomechanics-camargo-et-al/)
-- **Research and transformer model inspiration:** [Sensors paper: Deep Learning for Human Motion Analysis](https://www.mdpi.com/1424-8220/23/13/5778)
+## Layout
+
+```text
+app/                  screens (folder = route)
+  (auth)/             login, role setup
+  (patient)/          home, track flow, results
+  (clinician)/        dashboard, patient detail
+  pair/[code].tsx     second phone, opened from the QR code
+src/
+  components/         shared UI
+  features/           auth, capture/cv (camera), capture/imu (phone sensors), care, results
+  lib/supabase/       the single Supabase client
+  types/              shared types
+assets/
+  placement-guides/   phone placement figures
+  readme/             charts used in the main README
+```
