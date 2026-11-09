@@ -131,7 +131,13 @@ export default function SessionScreen() {
         onGate={setGate}
       />
     ) : showPairingCode ? (
-      <PairingCode code={imu.pairCode} expiresAt={imu.pairExpiresAt} onRenew={imu.renewPairing} />
+      <PairingCode
+        code={imu.pairCode}
+        expiresAt={imu.pairExpiresAt}
+        connected={imu.secondPhoneConnected}
+        rejoining={imu.rejoining}
+        onRenew={imu.renewPairing}
+      />
     ) : (
       <SensorTrace traces={imu.traces} caption={prompt} />
     );

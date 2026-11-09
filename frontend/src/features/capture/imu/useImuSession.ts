@@ -121,6 +121,8 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   const userId = useAuth().session?.user.id ?? null;
   const [stored] = useState(() => (userId ? loadHostPairing(userId) : null));
   const reusing = useRef(stored != null);
+  /** Waiting for the phone paired on an earlier visit to come back, before a fresh code is made. */
+  const [rejoining, setRejoining] = useState(stored != null);
   const [hostPairing, setHostPairing] = useState<HostPairing | null>(stored?.pairing ?? null);
   const [pairingFailed, setPairingFailed] = useState(false);
   const pairingRequest = useRef(0);
@@ -129,6 +131,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   const renewPairing = useCallback(() => {
     const request = ++pairingRequest.current;
     reusing.current = false;
+    setRejoining(false);
     setPairingFailed(false);
     // One at a time: each pairing retires the older ones, so the newest must also be created last.
     pairingQueue.current = pairingQueue.current.then(async () => {
@@ -221,7 +224,9 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   }, [onChannel, secondPhoneConnected, renewPairing]);
   useEffect(() => {
     // The second phone is back on the remembered pairing: it is ours to keep for this visit.
-    if (secondPhoneConnected) reusing.current = false;
+    if (!secondPhoneConnected) return;
+    reusing.current = false;
+    setRejoining(false);
   }, [secondPhoneConnected]);
 
   // A fresh code means a new scan: back to the QR step.
@@ -379,6 +384,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     freeSites: pairing.freeSites,
     secondPhoneIn: paired,
     secondPhoneConnected,
+    rejoining,
     confirmSecondPhone,
     hz: sensors.hz,
     traces,

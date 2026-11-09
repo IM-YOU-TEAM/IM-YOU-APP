@@ -1,20 +1,27 @@
 import qrcode from 'qrcode-generator';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { PillButton, Text } from '@/components';
+import { Text } from '@/components';
 import { colors, radii, space } from '@/lib/theme';
 import { pairingUrl } from './pairingApi';
 
 type Props = {
   code: string | null;
   expiresAt: number | null;
+  /** The other phone has scanned and is on the pairing: its code no longer matters. */
+  connected: boolean;
+  /** Waiting for the phone paired on an earlier visit; a fresh code follows if it does not come back. */
+  rejoining: boolean;
+  /** Makes a fresh code. Called on its own when the shown one runs out. */
   onRenew: () => void;
 };
 
 /** White margin, in modules, that phone cameras need around a QR code. */
 const QUIET = 4;
 const TARGET_PX = 200;
+/** Never ask for fresh codes faster than this, even if they arrive already expired (a wrong phone clock). */
+const RENEW_GAP_MS = 15_000;
 
 /** Dark modules as one path, merging each row's runs so the string stays short. */
 function qrPath(text: string): { d: string; modules: number } {
@@ -53,9 +60,20 @@ function useExpired(expiresAt: number | null): boolean {
   return expiresAt != null && now >= expiresAt;
 }
 
-/** The signed-in phone's QR code. The second phone scans it with the camera and joins without an account. */
-export function PairingCode({ code, expiresAt, onRenew }: Props) {
+/**
+ * The signed-in phone's QR code. The second phone scans it with the camera and joins without an account.
+ * A code that runs out is replaced on its own, so there is nothing to tap.
+ */
+export function PairingCode({ code, expiresAt, connected, rejoining, onRenew }: Props) {
   const expired = useExpired(expiresAt);
+  const lastRenew = useRef(0);
+  const needsCode = expired && !connected && !rejoining;
+  useEffect(() => {
+    if (!needsCode || Date.now() - lastRenew.current < RENEW_GAP_MS) return;
+    lastRenew.current = Date.now();
+    onRenew();
+  }, [needsCode, expiresAt, onRenew]);
+  const showQr = !expired && code != null;
   const qr = useMemo(() => (code ? qrPath(pairingUrl(code)) : null), [code]);
   const total = qr ? qr.modules + 2 * QUIET : 0;
   // Whole pixels per module keep the edges crisp enough for older cameras.
@@ -74,9 +92,15 @@ export function PairingCode({ code, expiresAt, onRenew }: Props) {
       }}
     >
       <Text variant="headline" align="center">
-        {expired ? 'This code has run out' : 'Scan with your other phone'}
+        {connected
+          ? 'Other phone connected'
+          : showQr
+            ? 'Scan with your other phone'
+            : rejoining
+              ? 'Reconnecting to your other phone…'
+              : 'Making a new code…'}
       </Text>
-      {qr && !expired ? (
+      {qr && showQr ? (
         <View accessible accessibilityRole="image" accessibilityLabel="QR code that pairs your second phone" style={{ width: px, height: px }}>
           <Svg width={px} height={px} viewBox={`${-QUIET} ${-QUIET} ${total} ${total}`}>
             <Rect x={-QUIET} y={-QUIET} width={total} height={total} fill={colors.white} />
@@ -85,13 +109,14 @@ export function PairingCode({ code, expiresAt, onRenew }: Props) {
         </View>
       ) : null}
       <Text variant="callout" muted align="center" style={{ maxWidth: 320 }}>
-        {expired
-          ? 'Codes work once, for 10 minutes. Show a new one and scan it with the other phone.'
-          : qr
+        {connected
+          ? 'Tap Next to continue.'
+          : showQr
             ? 'Open the Camera on the other iPhone and point it here. That phone needs no sign-in.'
-            : 'Making a code…'}
+            : rejoining
+              ? 'Keep its page open. If it does not come back, a new code appears in a few seconds.'
+              : 'Codes last 10 minutes, so a fresh one is on its way.'}
       </Text>
-      {expired ? <PillButton label="Show a new code" icon="refresh" onPress={onRenew} /> : null}
     </View>
   );
 }
