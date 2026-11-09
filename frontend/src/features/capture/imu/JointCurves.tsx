@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, type ScrollViewInstance, View } from 'react-native';
-import Svg, { Line, Path } from 'react-native-svg';
-import { Text } from '@/components';
+import Svg, { Line, Path, Rect } from 'react-native-svg';
+import { Card, SegmentedToggle, Text } from '@/components';
 import { formatDuration } from '@/lib/format';
 import { smoothPath, type Point } from '@/lib/smoothPath';
-import { colors, radii, space } from '@/lib/theme';
-import type { JointTrace } from '@/types';
+import { colors, space } from '@/lib/theme';
+import type { JointName, JointTrace, MotionType } from '@/types';
+import { CYCLE_POINTS, gaitCycle, typicalCycle, typicalRange, type GaitCycle } from './gaitCycle';
 import {
   displaySeries,
-  JOINT_DISPLAY,
   seriesRange,
   sliderFromView,
   traceSeconds,
@@ -16,7 +16,6 @@ import {
   viewFromSlider,
   visibleIndices,
 } from './jointTrace';
-import { UnitToggle } from './UnitToggle';
 import { ViewSlider } from './ViewSlider';
 
 type Props = {
@@ -24,37 +23,58 @@ type Props = {
   /** True when only one 2.5 s window was saved (sessions from before whole-session timelines). */
   excerpt?: boolean;
   caption?: string;
+  /** Typical walking bands are only drawn for walking. */
+  motion?: MotionType;
 };
 
-type AngleUnit = 'deg' | 'rad' | 'radps';
+type Mode = 'stride' | 'session';
 
-const CHART_H = 80;
-const HEADER_H = 24;
-const ROW_GAP = space.md;
-const ROW_H = HEADER_H + CHART_H + ROW_GAP;
-const AXIS_H = 18;
-const TIME_LABEL_H = 18;
-const Y_AXIS_W = 44;
-const DEG_TO_RAD = Math.PI / 180;
-/** Below this the view is the whole recording, so the slider snaps there. */
-const WHOLE_SNAP = 0.985;
+const MODES = [
+  { value: 'stride', label: 'Average stride' },
+  { value: 'session', label: 'Whole session' },
+] as const;
 
-const ANGLE_UNITS: { value: AngleUnit; label: string }[] = [
-  { value: 'deg', label: 'degrees' },
-  { value: 'rad', label: 'radians' },
-  { value: 'radps', label: 'rad/s' },
+/**
+ * Fixed clinical scales, the same for every patient and session, so charts can be compared by eye
+ * and against a printed report. Widened only if a value falls outside.
+ */
+const JOINTS: { joint: JointName; name: string; up: string; down: string; lo: number; hi: number; step: number }[] = [
+  { joint: 'hip_flexion_r', name: 'Hip', up: 'Flex', down: 'Ext', lo: -20, hi: 60, step: 20 },
+  { joint: 'knee_angle_r', name: 'Knee', up: 'Flex', down: 'Ext', lo: -10, hi: 80, step: 20 },
+  { joint: 'ankle_angle_r', name: 'Ankle', up: 'Dorsi', down: 'Plantar', lo: -30, hi: 30, step: 15 },
 ];
 
-type Joint = { label: string; values: (number | null)[]; lo: number; hi: number; ticks: number[] };
+const CHART_H = 128;
+const SESSION_CHART_H = 88;
+const Y_AXIS_W = 40;
+const X_AXIS_H = 18;
+/** Room above the top tick and below the bottom one, so their labels are not cramped. */
+const PAD_Y = 8;
 
-/** One fixed vertical scale per joint for the whole session, so curves don't jump while panning. */
-function scaleOf(values: (number | null)[]): { lo: number; hi: number } | null {
-  const range = seriesRange(values);
-  if (!range) return null;
-  const span = range.max - range.min;
-  const pad = span > 0.02 ? span * 0.12 : 0.2;
-  return { lo: range.min - pad, hi: range.max + pad };
+/** Vertical position of a value in a chart of this height. */
+const yIn = (height: number, { lo, hi }: Scale) => (v: number) =>
+  PAD_Y + (1 - (v - lo) / (hi - lo)) * (height - 2 * PAD_Y);
+const CYCLE_TICKS = [0, 20, 40, 60, 80, 100];
+/** Past this the slider shows the whole recording. */
+const WHOLE_SNAP = 0.985;
+
+const BAND_TYPICAL = 'rgba(60, 55, 68, 0.11)';
+const BAND_SPREAD = 'rgba(38, 159, 134, 0.24)';
+
+type Scale = { lo: number; hi: number; ticks: number[] };
+
+function scaleFor(spec: (typeof JOINTS)[number], values: number[]): Scale {
+  const finite = values.filter(Number.isFinite);
+  const min = finite.length ? Math.min(...finite) : spec.lo;
+  const max = finite.length ? Math.max(...finite) : spec.hi;
+  const lo = Math.min(spec.lo, Math.floor(min / spec.step) * spec.step);
+  const hi = Math.max(spec.hi, Math.ceil(max / spec.step) * spec.step);
+  const ticks: number[] = [];
+  for (let t = Math.ceil(lo / spec.step) * spec.step; t <= hi; t += spec.step) ticks.push(t);
+  return { lo, hi, ticks };
 }
+
+const deg = (v: number) => `${Math.round(v) < 0 ? '−' : ''}${Math.abs(Math.round(v))}°`;
 
 function tickEvery(seconds: number): number {
   if (seconds <= 6) return 1;
@@ -64,93 +84,6 @@ function tickEvery(seconds: number): number {
   return 300;
 }
 
-function niceTicks(lo: number, hi: number, target = 4): number[] {
-  if (!(hi > lo)) return [lo];
-  const span = hi - lo;
-  const raw = span / Math.max(target - 1, 1);
-  const pow = 10 ** Math.floor(Math.log10(raw));
-  const err = raw / pow;
-  const step = (err >= 5 ? 10 : err >= 2 ? 5 : err >= 1 ? 2 : 1) * pow;
-  const start = Math.ceil(lo / step) * step;
-  const ticks: number[] = [];
-  for (let t = start; t <= hi + step * 1e-9; t += step) ticks.push(Number(t.toFixed(10)));
-  return ticks.length > 0 ? ticks : [lo, hi];
-}
-
-function formatTick(value: number, unit: AngleUnit): string {
-  switch (unit) {
-    case 'deg':
-      return `${Math.round(value)}°`;
-    case 'rad':
-      return value.toFixed(2);
-    case 'radps':
-      return value.toFixed(2);
-    default: {
-      const unexpected: never = unit;
-      return unexpected;
-    }
-  }
-}
-
-function yAxisTitle(unit: AngleUnit): string {
-  switch (unit) {
-    case 'deg':
-      return 'Angle (°)';
-    case 'rad':
-      return 'Angle (rad)';
-    case 'radps':
-      return 'Angular velocity (rad/s)';
-    default: {
-      const unexpected: never = unit;
-      return unexpected;
-    }
-  }
-}
-
-function unitCaption(unit: AngleUnit): string {
-  switch (unit) {
-    case 'deg':
-      return 'degrees · flexion is positive';
-    case 'rad':
-      return 'radians · flexion is positive';
-    case 'radps':
-      return 'rad/s · positive is increasing flexion';
-    default: {
-      const unexpected: never = unit;
-      return unexpected;
-    }
-  }
-}
-
-function toUnit(values: (number | null)[], unit: AngleUnit, hz: number): (number | null)[] {
-  switch (unit) {
-    case 'deg':
-      return values;
-    case 'rad':
-      return values.map((v) => (v == null ? null : v * DEG_TO_RAD));
-    case 'radps':
-      return angularVelocity(values, hz);
-    default: {
-      const unexpected: never = unit;
-      return unexpected;
-    }
-  }
-}
-
-/** Central difference of the degree series, converted to rad/s. Gaps stay gaps. */
-function angularVelocity(values: (number | null)[], hz: number): (number | null)[] {
-  const rad = values.map((v) => (v == null ? null : v * DEG_TO_RAD));
-  return rad.map((v, i) => {
-    const prev = rad[i - 1];
-    const next = rad[i + 1];
-    if (v == null) return null;
-    if (prev != null && next != null) return ((next - prev) * hz) / 2;
-    if (next != null) return (next - v) * hz;
-    if (prev != null) return (v - prev) * hz;
-    return 0;
-  });
-}
-
 function viewLabel(view: number, seconds: number): string {
   if (view >= seconds - 0.05) return `Whole session, ${formatDuration(seconds)}`;
   if (view < 10) return `${view.toFixed(1)} s`;
@@ -158,34 +91,264 @@ function viewLabel(view: number, seconds: number): string {
   return formatDuration(view);
 }
 
-/** Predicted hip, knee and ankle angles over the session, flexion positive, with an adjustable view length. */
-export function JointCurves({ trace, excerpt = false, caption }: Props) {
-  const [frame, setFrame] = useState(0);
+/** Degree labels down the left of one joint's chart. */
+function YAxis({ scale, height, y }: { scale: Scale; height: number; y: (v: number) => number }) {
+  return (
+    <View style={{ width: Y_AXIS_W, height }}>
+      {scale.ticks.map((tick) => (
+        <Text
+          key={tick}
+          variant="caption"
+          muted
+          align="right"
+          style={{
+            position: 'absolute',
+            top: y(tick) - 7,
+            right: space.sm,
+            fontSize: 11,
+            lineHeight: 14,
+            fontVariant: ['tabular-nums'],
+          }}
+        >
+          {deg(tick)}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+function JointHeader({ spec, right }: { spec: (typeof JOINTS)[number]; right?: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm, marginLeft: Y_AXIS_W }}>
+      <Text variant="callout" style={{ flexShrink: 1 }} numberOfLines={1}>
+        <Text variant="callout" weight={700}>
+          {spec.name}
+        </Text>
+        <Text variant="caption" muted>
+          {`  ${spec.up} ↑  ${spec.down} ↓`}
+        </Text>
+      </Text>
+      {right ? (
+        <Text variant="caption" weight={600} muted numberOfLines={1} style={{ flexShrink: 0, fontVariant: ['tabular-nums'] }}>
+          {right}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function Swatch({ kind }: { kind: 'line' | 'spread' | 'typical' }) {
+  return (
+    <Svg width={22} height={12}>
+      {kind === 'line' ? (
+        <Line x1={1} x2={21} y1={6} y2={6} stroke={colors.seagrass} strokeWidth={2.5} strokeLinecap="round" />
+      ) : (
+        <Rect x={0} y={1} width={22} height={10} rx={3} fill={kind === 'spread' ? BAND_SPREAD : BAND_TYPICAL} />
+      )}
+    </Svg>
+  );
+}
+
+function LegendItem({ kind, label }: { kind: 'line' | 'spread' | 'typical'; label: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+      <Swatch kind={kind} />
+      <Text variant="caption" muted>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+/** Upper edge forward, lower edge back: a filled band between two curves. */
+function bandPath(upper: Point[], lower: Point[]): string {
+  if (upper.length < 2) return '';
+  const forward = upper.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const back = [...lower].reverse().map((p) => `L ${p.x} ${p.y}`).join(' ');
+  return `${forward} ${back} Z`;
+}
+
+/** The averaged stride per joint, over a typical walking band, plus the numbers a clinician reads off it. */
+function StrideView({ cycle, width, walking }: { cycle: GaitCycle; width: number; walking: boolean }) {
+  const xOf = (k: number) => (k / (CYCLE_POINTS - 1)) * width;
+  return (
+    <View style={{ gap: space.lg }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: space.lg, rowGap: space.xs }}>
+        <LegendItem kind="line" label="Patient average" />
+        <LegendItem kind="spread" label="Stride-to-stride spread (±1 SD)" />
+        {walking ? <LegendItem kind="typical" label="Typical adult walking" /> : null}
+      </View>
+
+      {JOINTS.map((spec) => {
+        const data = cycle.joints[spec.joint];
+        const typical = walking ? typicalCycle(spec.joint) : null;
+        const scale = scaleFor(spec, [
+          ...data.mean.map((m, k) => m + data.sd[k]),
+          ...data.mean.map((m, k) => m - data.sd[k]),
+        ]);
+        const y = yIn(CHART_H, scale);
+        const pts = (values: number[]) => values.map((v, k) => ({ x: xOf(k), y: y(v) }));
+        const typicalBand = typical
+          ? bandPath(pts(typical.mean.map((m) => m + typical.band)), pts(typical.mean.map((m) => m - typical.band)))
+          : '';
+        const spread = bandPath(pts(data.mean.map((m, k) => m + data.sd[k])), pts(data.mean.map((m, k) => m - data.sd[k])));
+        return (
+          <View
+            key={spec.joint}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={`${spec.name} over an average stride: peak ${deg(data.peak)}, lowest ${deg(data.low)}, range ${deg(data.range)}${
+              walking ? `, typical walking range about ${typicalRange(spec.joint)}°` : ''
+            }.`}
+            style={{ gap: space.xs }}
+          >
+            <JointHeader spec={spec} right={`Range ${deg(data.range)}`} />
+            <View style={{ flexDirection: 'row' }} pointerEvents="none">
+              <YAxis scale={scale} height={CHART_H} y={y} />
+              <Svg width={width} height={CHART_H}>
+                {scale.ticks.map((t) => (
+                  <Line
+                    key={t}
+                    x1={0}
+                    x2={width}
+                    y1={y(t)}
+                    y2={y(t)}
+                    stroke={t === 0 ? colors.separator : colors.divider}
+                    strokeWidth={t === 0 ? 1.5 : 1}
+                  />
+                ))}
+                {CYCLE_TICKS.map((t) => (
+                  <Line key={t} x1={(t / 100) * width} x2={(t / 100) * width} y1={0} y2={CHART_H} stroke={colors.divider} strokeWidth={1} />
+                ))}
+                {typicalBand ? <Path d={typicalBand} fill={BAND_TYPICAL} /> : null}
+                <Path d={spread} fill={BAND_SPREAD} />
+                <Path d={smoothPath(pts(data.mean), 0.15)} stroke={colors.seagrass} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              </Svg>
+            </View>
+          </View>
+        );
+      })}
+
+      <View style={{ marginLeft: Y_AXIS_W, gap: 2 }}>
+        <View style={{ height: X_AXIS_H }}>
+          {CYCLE_TICKS.map((t) => (
+            <Text
+              key={t}
+              variant="caption"
+              muted
+              style={{
+                position: 'absolute',
+                left: Math.min(Math.max((t / 100) * width - 18, 0), Math.max(width - 36, 0)),
+                width: 36,
+                textAlign: t === 0 ? 'left' : t === 100 ? 'right' : 'center',
+                fontSize: 11,
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              {`${t}%`}
+            </Text>
+          ))}
+        </View>
+        <Text variant="caption" muted align="center">
+          % of stride from heel strike (estimated)
+        </Text>
+      </View>
+
+      <KeyNumbers cycle={cycle} walking={walking} />
+    </View>
+  );
+}
+
+function Cell({ children, first, strong }: { children: string; first?: boolean; strong?: boolean }) {
+  return (
+    <Text
+      variant={first ? 'callout' : 'caption'}
+      weight={strong || first ? 700 : 500}
+      muted={!first && !strong}
+      align={first ? 'left' : 'right'}
+      numberOfLines={1}
+      style={{ flex: first ? 1.1 : 1, fontVariant: ['tabular-nums'] }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+/** Per-joint peaks and range of motion, averaged over strides, beside typical walking. */
+function KeyNumbers({ cycle, walking }: { cycle: GaitCycle; walking: boolean }) {
+  return (
+    <View style={{ gap: space.md }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+        {[
+          { label: 'Strides analysed', value: String(cycle.strides) },
+          { label: 'Stride time', value: `${cycle.strideSec.toFixed(2)} s` },
+          { label: 'Cadence, steps/min', value: String(cycle.cadence) },
+        ].map((stat) => (
+          <View
+            key={stat.label}
+            style={{ flexGrow: 1, flexBasis: 90, backgroundColor: colors.honeydewLight, borderRadius: 12, paddingVertical: space.sm, paddingHorizontal: space.md }}
+          >
+            <Text variant="callout" weight={700} style={{ fontVariant: ['tabular-nums'] }}>
+              {stat.value}
+            </Text>
+            <Text variant="caption" muted>
+              {stat.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <View accessibilityRole="summary" style={{ gap: space.xs }}>
+        <View style={{ flexDirection: 'row', gap: space.sm, paddingBottom: space.xs, borderBottomWidth: 1, borderBottomColor: colors.divider }}>
+          <Cell first>Joint</Cell>
+          <Cell>Peak</Cell>
+          <Cell>Lowest</Cell>
+          <Cell>Range</Cell>
+          {walking ? <Cell>Typical</Cell> : null}
+        </View>
+        {JOINTS.map((spec) => {
+          const data = cycle.joints[spec.joint];
+          return (
+            <View key={spec.joint} style={{ flexDirection: 'row', gap: space.sm, paddingVertical: 2 }}>
+              <Cell first>{spec.name}</Cell>
+              <Cell>{deg(data.peak)}</Cell>
+              <Cell>{deg(data.low)}</Cell>
+              <Cell strong>{deg(data.range)}</Cell>
+              {walking ? <Cell>{`~${typicalRange(spec.joint)}°`}</Cell> : null}
+            </View>
+          );
+        })}
+        <Text variant="caption" muted style={{ marginTop: space.xs }}>
+          Positive is flexion (hip, knee) or dorsiflexion (ankle). Peak and lowest are averaged over strides.
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** The whole recording against time, same clinical scales, with an adjustable time window. */
+function SessionView({ trace, width, excerpt }: { trace: JointTrace; width: number; excerpt: boolean }) {
   const [requested, setRequested] = useState<number | null>(null);
   const [from, setFrom] = useState(0);
-  const [unit, setUnit] = useState<AngleUnit>('deg');
   const scroller = useRef<ScrollViewInstance>(null);
   const pendingScroll = useRef<number | null>(null);
 
-  const seconds = trace ? traceSeconds(trace) : 0;
+  const seconds = traceSeconds(trace);
   const bounds = viewBounds(seconds);
   const view = Math.min(Math.max(requested ?? seconds, bounds.min), bounds.max);
-  const ready = trace != null && seconds > 0 && frame > 0;
-  const pxPerSec = ready ? frame / view : 0;
+  const pxPerSec = width / view;
   const start = Math.min(Math.max(from, 0), Math.max(seconds - view, 0));
   const zoomable = !excerpt && bounds.max - bounds.min > 1;
+  const hz = trace.sampleHz;
 
-  const joints = useMemo<Joint[]>(() => {
-    if (!trace) return [];
-    const hz = trace.sampleHz;
-    return JOINT_DISPLAY.map(({ joint, label }) => {
-      const values = toUnit(displaySeries(trace, joint), unit, hz);
-      const scale = scaleOf(values);
-      const lo = scale?.lo ?? 0;
-      const hi = scale?.hi ?? 0;
-      return { label, values, lo, hi, ticks: scale ? niceTicks(lo, hi) : [] };
-    });
-  }, [trace, unit]);
+  const joints = useMemo(
+    () =>
+      JOINTS.map((spec) => {
+        const values = displaySeries(trace, spec.joint);
+        return { spec, values, scale: scaleFor(spec, values.filter((v): v is number => v != null)) };
+      }),
+    [trace],
+  );
 
   useEffect(() => {
     if (pendingScroll.current == null) return;
@@ -195,196 +358,185 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
 
   const changeView = (fraction: number) => {
     const next = fraction >= WHOLE_SNAP ? bounds.max : viewFromSlider(fraction, bounds);
-    // Zoom around the middle of what is on screen now.
     const nextFrom = Math.min(Math.max(start + view / 2 - next / 2, 0), Math.max(seconds - next, 0));
     setRequested(next);
     setFrom(nextFrom);
-    pendingScroll.current = (nextFrom * frame) / next;
+    pendingScroll.current = (nextFrom * width) / next;
   };
-
-  const hz = trace?.sampleHz ?? 1;
-  const rows = ready
-    ? joints.map((j) => {
-        const [first, last] = visibleIndices(j.values.length, hz, start, view);
-        const shown = j.values.slice(first, last + 1);
-        const y = (v: number) => (j.hi > j.lo ? CHART_H - ((v - j.lo) / (j.hi - j.lo)) * CHART_H : CHART_H / 2);
-        // A gap (paused or unscored) breaks the line instead of drawing across it.
-        let d = '';
-        let segment: Point[] = [];
-        const flush = () => {
-          if (segment.length > 1) d += `${smoothPath(segment, 0.15)} `;
-          segment = [];
-        };
-        shown.forEach((v, k) => {
-          if (v == null) flush();
-          else segment.push({ x: ((first + k) / hz - start) * pxPerSec, y: y(v) });
-        });
-        flush();
-        const visible = seriesRange(
-          j.values.slice(Math.max(0, Math.ceil(start * hz)), Math.floor((start + view) * hz) + 1),
-        );
-        return { label: j.label, d, range: visible, zeroY: j.lo < 0 && j.hi > 0 ? y(0) : null, ticks: j.ticks, y };
-      })
-    : [];
 
   const every = tickEvery(view);
   const ticks: number[] = [];
-  if (ready) {
-    for (let t = Math.ceil(start / every) * every; t <= start + view + 1e-6; t += every) ticks.push(t);
-  }
+  for (let t = Math.ceil(start / every) * every; t <= start + view + 1e-6; t += every) ticks.push(t);
   const xOf = (t: number) => (t - start) * pxPerSec;
-  const offset = trace?.startSec ?? 0;
-  const pans = ready && view < seconds - 0.05;
-  const chartH = joints.length * ROW_H;
-  const yTitle = yAxisTitle(unit);
+  const pans = view < seconds - 0.05;
+  const rowH = SESSION_CHART_H + 26;
 
   return (
-    <View
-      style={{ borderRadius: radii.card, backgroundColor: colors.graphite, padding: space.xl - 4, gap: space.lg }}
-    >
-      <View style={{ gap: space.sm }}>
-        <View style={{ gap: 2 }}>
-          <Text variant="headline" color={colors.onDark}>
-            Joint angles
-          </Text>
-          <Text variant="caption" color={colors.onDarkMuted}>
-            {trace
-              ? `${excerpt ? '2.5 s sample' : `${formatDuration(seconds)} recorded`} · ${unitCaption(unit)}`
-              : unitCaption(unit)}
-          </Text>
-        </View>
-        <UnitToggle options={ANGLE_UNITS} value={unit} onChange={setUnit} accessibilityLabel="Joint angle units" />
-        <Text variant="caption" color={colors.onDarkMuted}>
-          Vertical axis is {yTitle.toLowerCase()}. Horizontal axis is time in seconds.
-        </Text>
-      </View>
-
-      <View onLayout={(e) => setFrame(Math.max(0, Math.floor(e.nativeEvent.layout.width) - Y_AXIS_W))}>
-        {trace == null ? (
-          <Text variant="callout" color={colors.onDarkMuted} align="center">
-            {caption ?? 'Loading joint angles…'}
-          </Text>
-        ) : ready ? (
-          <View
-            accessible
-            accessibilityRole="image"
-            accessibilityLabel={`${yTitle}. ${rows
-              .map((r) =>
-                r.range ? `${r.label} ${formatTick(r.range.min, unit)} to ${formatTick(r.range.max, unit)}` : `${r.label} not scored`,
-              )
-              .join('. ')}`}
-            style={{ height: chartH + AXIS_H + TIME_LABEL_H }}
-          >
-            {rows.map((row) => (
-              <View key={row.label} pointerEvents="none" style={{ height: ROW_H }}>
-                <View style={{ height: HEADER_H, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Text variant="callout" weight={700} color={colors.onDark} style={{ marginLeft: Y_AXIS_W }}>
-                    {row.label}
-                  </Text>
-                  <Text variant="caption" color={colors.onDarkMuted} style={{ fontVariant: ['tabular-nums'] }}>
-                    {row.range ? `${formatTick(row.range.min, unit)} to ${formatTick(row.range.max, unit)}` : 'Not scored'}
-                  </Text>
-                </View>
-                <View style={{ flexDirection: 'row', height: CHART_H }}>
-                  <View style={{ width: Y_AXIS_W, height: CHART_H }}>
-                    {row.ticks.map((tick) => (
-                      <Text
-                        key={tick}
-                        variant="caption"
-                        color={colors.onDarkMuted}
-                        align="right"
-                        style={{
-                          position: 'absolute',
-                          top: Math.min(Math.max(row.y(tick) - 9, 0), CHART_H - 18),
-                          right: space.xs,
-                          width: Y_AXIS_W - space.xs,
-                          fontVariant: ['tabular-nums'],
-                        }}
-                      >
-                        {formatTick(tick, unit)}
-                      </Text>
-                    ))}
-                  </View>
-                  <Svg width={frame} height={CHART_H}>
-                    <Line x1={0} x2={frame} y1={CHART_H / 2} y2={CHART_H / 2} stroke="rgba(255,255,255,0.06)" strokeWidth={1} />
-                    {row.zeroY != null ? (
-                      <Line x1={0} x2={frame} y1={row.zeroY} y2={row.zeroY} stroke="rgba(255,255,255,0.18)" strokeWidth={1} strokeDasharray="4 4" />
-                    ) : null}
-                    {ticks.map((t) => (
-                      <Line key={t} x1={xOf(t)} x2={xOf(t)} y1={0} y2={CHART_H} stroke="rgba(255,255,255,0.05)" strokeWidth={1} />
-                    ))}
-                    <Path d={row.d} stroke={colors.seagrass} strokeWidth={2.2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                  </Svg>
-                </View>
-              </View>
-            ))}
-            <View pointerEvents="none" style={{ height: AXIS_H, marginLeft: Y_AXIS_W }}>
-              {ticks.map((t) => (
-                <Text
-                  key={t}
-                  variant="caption"
-                  color={colors.onDarkMuted}
-                  style={{
-                    position: 'absolute',
-                    left: Math.min(Math.max(xOf(t) - 18, 0), Math.max(frame - 36, 0)),
-                    width: 36,
-                    textAlign: 'center',
-                    fontVariant: ['tabular-nums'],
-                  }}
-                >
-                  {formatDuration(offset + t)}
-                </Text>
-              ))}
-            </View>
-            <Text variant="caption" color={colors.onDarkMuted} align="center" style={{ height: TIME_LABEL_H, marginLeft: Y_AXIS_W }}>
-              Time (s)
-            </Text>
-
-            {/* An empty strip as wide as the session at this zoom, so panning uses the platform's own scrolling. */}
-            <ScrollView
-              ref={scroller}
-              horizontal
-              scrollEnabled={pans}
-              showsHorizontalScrollIndicator={pans}
-              scrollEventThrottle={16}
-              onScroll={(e) => setFrom(e.nativeEvent.contentOffset.x / pxPerSec)}
-              style={{ position: 'absolute', top: 0, left: Y_AXIS_W, right: 0, bottom: TIME_LABEL_H }}
+    <View style={{ gap: space.lg }}>
+      <View style={{ height: JOINTS.length * rowH + X_AXIS_H + 18 }}>
+        {joints.map(({ spec, values, scale }) => {
+          const y = yIn(SESSION_CHART_H, scale);
+          const [first, last] = visibleIndices(values.length, hz, start, view);
+          // A gap (paused or unscored) breaks the line instead of drawing across it.
+          let d = '';
+          let segment: Point[] = [];
+          const flush = () => {
+            if (segment.length > 1) d += `${smoothPath(segment, 0.15)} `;
+            segment = [];
+          };
+          values.slice(first, last + 1).forEach((v, k) => {
+            if (v == null) flush();
+            else segment.push({ x: ((first + k) / hz - start) * pxPerSec, y: y(v) });
+          });
+          flush();
+          const shown = seriesRange(values.slice(Math.max(0, Math.ceil(start * hz)), Math.floor((start + view) * hz) + 1));
+          return (
+            <View
+              key={spec.joint}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={shown ? `${spec.name} from ${deg(shown.min)} to ${deg(shown.max)}` : `${spec.name} not scored`}
+              style={{ height: rowH, gap: space.xs }}
+              pointerEvents="none"
             >
-              <View style={{ width: seconds * pxPerSec, height: chartH + AXIS_H }} />
-            </ScrollView>
-          </View>
-        ) : null}
+              <JointHeader spec={spec} right={shown ? `${deg(shown.min)} to ${deg(shown.max)}` : 'Not scored'} />
+              <View style={{ flexDirection: 'row' }}>
+                <YAxis scale={scale} height={SESSION_CHART_H} y={y} />
+                <Svg width={width} height={SESSION_CHART_H}>
+                  {scale.ticks.map((t) => (
+                    <Line
+                      key={t}
+                      x1={0}
+                      x2={width}
+                      y1={y(t)}
+                      y2={y(t)}
+                      stroke={t === 0 ? colors.separator : colors.divider}
+                      strokeWidth={t === 0 ? 1.5 : 1}
+                    />
+                  ))}
+                  {ticks.map((t) => (
+                    <Line key={t} x1={xOf(t)} x2={xOf(t)} y1={0} y2={SESSION_CHART_H} stroke={colors.divider} strokeWidth={1} />
+                  ))}
+                  <Path d={d} stroke={colors.seagrass} strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                </Svg>
+              </View>
+            </View>
+          );
+        })}
+        <View pointerEvents="none" style={{ height: X_AXIS_H, marginLeft: Y_AXIS_W }}>
+          {ticks.map((t) => (
+            <Text
+              key={t}
+              variant="caption"
+              muted
+              style={{
+                position: 'absolute',
+                left: Math.min(Math.max(xOf(t) - 18, 0), Math.max(width - 36, 0)),
+                width: 36,
+                textAlign: 'center',
+                fontSize: 11,
+                fontVariant: ['tabular-nums'],
+              }}
+            >
+              {formatDuration(trace.startSec + t)}
+            </Text>
+          ))}
+        </View>
+        <Text variant="caption" muted align="center" style={{ marginLeft: Y_AXIS_W }}>
+          Time into the session (min:s)
+        </Text>
+
+        {/* An empty strip as wide as the session at this zoom, so panning uses the platform's own scrolling. */}
+        <ScrollView
+          ref={scroller}
+          horizontal
+          scrollEnabled={pans}
+          showsHorizontalScrollIndicator={pans}
+          scrollEventThrottle={16}
+          onScroll={(e) => setFrom(e.nativeEvent.contentOffset.x / pxPerSec)}
+          style={{ position: 'absolute', top: 0, left: Y_AXIS_W, right: 0, bottom: 18 }}
+        >
+          <View style={{ width: seconds * pxPerSec, height: JOINTS.length * rowH + X_AXIS_H }} />
+        </ScrollView>
       </View>
 
-      {ready && zoomable ? (
+      {zoomable ? (
         <View style={{ gap: space.xs }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text variant="caption" weight={600} color={colors.onDark}>
+            <Text variant="caption" weight={600}>
               Time shown
             </Text>
-            <Text variant="caption" color={colors.onDarkMuted} style={{ fontVariant: ['tabular-nums'] }}>
+            <Text variant="caption" muted style={{ fontVariant: ['tabular-nums'] }}>
               {viewLabel(view, seconds)}
             </Text>
           </View>
-          <ViewSlider
-            value={sliderFromView(view, bounds)}
-            onChange={changeView}
-            label="Time shown"
-            valueText={viewLabel(view, seconds)}
-          />
+          <ViewSlider value={sliderFromView(view, bounds)} onChange={changeView} label="Time shown" valueText={viewLabel(view, seconds)} />
           {pans ? (
-            <Text variant="caption" color={colors.onDarkMuted}>
+            <Text variant="caption" muted>
               Swipe the chart sideways to move through the session.
             </Text>
           ) : null}
         </View>
       ) : null}
+    </View>
+  );
+}
 
-      {ready && excerpt ? (
-        <Text variant="caption" color={colors.onDarkMuted}>
+/**
+ * Predicted right-leg hip, knee and ankle angles. Opens on the averaged stride (0-100 % of the gait
+ * cycle, with a typical walking band and key numbers), as a gait report shows it; the whole session
+ * against time is one tap away.
+ */
+export function JointCurves({ trace, excerpt = false, caption, motion }: Props) {
+  const [frame, setFrame] = useState(0);
+  const cycle = useMemo(() => (trace && !excerpt ? gaitCycle(trace) : null), [trace, excerpt]);
+  const [picked, setPicked] = useState<Mode>('stride');
+  const mode: Mode = cycle ? picked : 'session';
+  const walking = motion == null || motion === 'walking';
+  const seconds = trace ? traceSeconds(trace) : 0;
+
+  const subtitle = !trace
+    ? 'Right leg · degrees'
+    : mode === 'stride' && cycle
+      ? `Average of ${cycle.strides} strides · right leg · degrees`
+      : `${excerpt ? '2.5 s sample' : `${formatDuration(seconds)} recorded`} · right leg · degrees`;
+
+  return (
+    <Card style={{ gap: space.lg }}>
+      <View style={{ gap: space.md }}>
+        <View style={{ gap: 2 }}>
+          <Text variant="headline">Joint angles</Text>
+          <Text variant="caption" muted>
+            {subtitle}
+          </Text>
+        </View>
+        {cycle ? (
+          <SegmentedToggle options={MODES} value={mode} onChange={setPicked} accessibilityLabel="Joint angle view" />
+        ) : null}
+      </View>
+
+      <View onLayout={(e) => setFrame(Math.max(0, Math.floor(e.nativeEvent.layout.width) - Y_AXIS_W))}>
+        {trace == null ? (
+          <Text variant="callout" muted align="center">
+            {caption ?? 'Loading joint angles…'}
+          </Text>
+        ) : frame <= 0 || seconds <= 0 ? null : mode === 'stride' && cycle ? (
+          <StrideView cycle={cycle} width={frame} walking={walking} />
+        ) : (
+          <SessionView trace={trace} width={frame} excerpt={excerpt} />
+        )}
+      </View>
+
+      {trace && !cycle && !excerpt && seconds > 0 ? (
+        <Text variant="caption" muted>
+          Not enough steady strides to average. Walk at your usual pace for at least 20 seconds to see the average stride.
+        </Text>
+      ) : null}
+      {trace && excerpt ? (
+        <Text variant="caption" muted>
           This session only saved a 2.5 s sample. Sessions recorded from now on save the whole recording.
         </Text>
       ) : null}
-    </View>
+    </Card>
   );
 }
