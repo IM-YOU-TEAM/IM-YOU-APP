@@ -1,27 +1,56 @@
-import Svg, { Circle, Rect } from 'react-native-svg';
+import { Image, View, type ImageSourcePropType } from 'react-native';
 import { colors } from '@/lib/theme';
 import type { BodySpot } from '../placementSteps';
-import { HumanFigure } from './HumanFigure';
 
-type Props = { spot: BodySpot };
+declare function require(moduleId: string): unknown;
 
+const FIGURE = require('../../../../assets/placement-guides/body.png') as ImageSourcePropType;
+const FIGURE_RATIO = 336 / 520;
+
+// Center of the phone for each spot, as a share of the figure's width and height.
 const SPOTS: Record<BodySpot, { x: number; y: number }> = {
-  pocket: { x: 78, y: 176 },
-  waist: { x: 100, y: 150 },
-  thigh: { x: 68, y: 200 },
-  lowerBack: { x: 100, y: 148 },
+  pocket: { x: 0.43, y: 0.49 },
+  waist: { x: 0.5, y: 0.43 },
+  thigh: { x: 0.42, y: 0.6 },
+  lowerBack: { x: 0.5, y: 0.44 },
 };
 
-/** Person silhouette with the phone's position highlighted. */
-export function BodyPlacement({ spot }: Props) {
+const PHONE_W = 16;
+const PHONE_H = 28;
+const HALO = 44;
+
+/** Body figure with the phone's position highlighted. */
+export function BodyPlacement({ spot }: { spot: BodySpot }) {
   const p = SPOTS[spot];
   return (
-    <Svg width="100%" height="100%" viewBox="0 0 200 300" preserveAspectRatio="xMidYMid meet">
-      <HumanFigure />
-      <Circle cx={p.x} cy={p.y} r={26} fill={colors.seagrass} fillOpacity={0.16} />
-      <Circle cx={p.x} cy={p.y} r={17} fill={colors.seagrass} fillOpacity={0.22} />
-      <Rect x={p.x - 9} y={p.y - 15} width={18} height={30} rx={5} fill={colors.seagrass} stroke={colors.white} strokeWidth={2} />
-      <Rect x={p.x - 3} y={p.y - 11} width={6} height={2} rx={1} fill={colors.white} />
-    </Svg>
+    <View style={{ height: '100%', aspectRatio: FIGURE_RATIO, alignSelf: 'center' }}>
+      <Image source={FIGURE} resizeMode="contain" style={{ width: '100%', height: '100%' }} />
+      <View
+        style={{
+          position: 'absolute',
+          left: `${p.x * 100}%`,
+          top: `${p.y * 100}%`,
+          width: HALO,
+          height: HALO,
+          marginLeft: -HALO / 2,
+          marginTop: -HALO / 2,
+          borderRadius: HALO / 2,
+          backgroundColor: colors.seagrassTint,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <View
+          style={{
+            width: PHONE_W,
+            height: PHONE_H,
+            borderRadius: 4,
+            backgroundColor: colors.seagrass,
+            borderWidth: 2,
+            borderColor: colors.white,
+          }}
+        />
+      </View>
+    </View>
   );
 }
