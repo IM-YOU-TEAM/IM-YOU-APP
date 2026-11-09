@@ -15,14 +15,14 @@ import {
 import { SessionJointCurves } from '@/features/capture/imu/SessionJointCurves';
 import { fetchRosterPatient, patientName } from '@/features/care/api';
 import { TasksEditor } from '@/features/care/TasksEditor';
-import { fetchSessions } from '@/features/results/api';
+import { deleteSession, fetchSessions } from '@/features/results/api';
 import { EmptyState } from '@/features/results/EmptyState';
 import { PATIENT_STATUS_LABELS, sessionRow, sessionWhen } from '@/features/results/derive';
 import { fetchTaskChecks } from '@/features/tasks/api';
 import { taskStatuses, weekStart } from '@/features/tasks/progress';
 import { MOTION_ICONS, MOTION_LABELS, today } from '@/lib/data';
 import { formatDate } from '@/lib/format';
-import { colors, space, WIDE } from '@/lib/theme';
+import { colors, continuous, radii, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
 
 export default function PatientDetailScreen() {
@@ -30,6 +30,9 @@ export default function PatientDetailScreen() {
   const patientId = Array.isArray(params.patientId) ? params.patientId[0] : params.patientId;
   const wide = useWindowDimensions().width >= WIDE;
   const [pickedId, setPickedId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const loaded = useLoader(async () => {
     if (!patientId) return { patient: null, sessions: [], checks: [] };
@@ -89,10 +92,25 @@ export default function PatientDetailScreen() {
   }
 
   const latest = sessions.at(-1);
-  const recent = [...sessions].reverse().slice(0, 5);
+  const listed = [...sessions].reverse();
   // The picked session's predicted angles, or the latest sensor session that has them.
   const angled = sessions.filter((s) => s.jointAngles != null);
   const shown = angled.find((s) => s.id === pickedId) ?? angled.at(-1);
+
+  const removeSession = async (sessionId: string) => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteSession(sessionId);
+      if (pickedId === sessionId) setPickedId(null);
+      setConfirmId(null);
+      loaded.reload();
+    } catch {
+      setDeleteError("That session didn't delete. Check your connection and try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
   const metrics: Metric[] = [
     { label: 'Sessions', value: String(sessions.length) },
     { label: 'Last session', value: latest ? formatDate(latest.date) : 'None yet' },
@@ -141,28 +159,81 @@ export default function PatientDetailScreen() {
       </View>
 
       <Card style={{ gap: space.md }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
-          <Text variant="headline">Recent sessions</Text>
-          <Text variant="callout" weight={700} muted>
-            {sessions.length === 0 ? 'None yet' : `${sessions.length} total`}
+        <View style={{ gap: space.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
+            <Text variant="headline">Sessions</Text>
+            <Text variant="callout" weight={700} muted>
+              {sessions.length === 0 ? 'None yet' : `${sessions.length} total`}
+            </Text>
+          </View>
+          <Text variant="callout" muted>
+            Delete a session to remove its scores and joint angles from this patient.
           </Text>
         </View>
 
-        {recent.length > 0 ? (
+        {listed.length > 0 ? (
           <View style={{ gap: space.sm }}>
-            {recent.map((session) => {
+            {listed.map((session) => {
               const row = sessionRow(session);
               return (
-                <ListCard
-                  key={session.id}
-                  title={row.title}
-                  subtitle={row.subtitle}
-                  icon={MOTION_ICONS[session.motion]}
-                  chevron={false}
-                  selected={session.jointAngles != null && session.id === shown?.id}
-                  onPress={session.jointAngles != null ? () => setPickedId(session.id) : undefined}
-                  accessibilityLabel={`${row.title}, ${row.subtitle}`}
-                />
+                <View key={session.id} style={{ gap: space.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+                    <ListCard
+                      title={row.title}
+                      subtitle={row.subtitle}
+                      icon={MOTION_ICONS[session.motion]}
+                      chevron={false}
+                      selected={session.jointAngles != null && session.id === shown?.id}
+                      onPress={session.jointAngles != null ? () => setPickedId(session.id) : undefined}
+                      accessibilityLabel={`${row.title}, ${row.subtitle}`}
+                      style={{ flex: 1 }}
+                    />
+                    <PillButton
+                      label="Delete"
+                      icon="trash-outline"
+                      variant="ghost"
+                      onPress={() => {
+                        setConfirmId(session.id);
+                        setDeleteError(null);
+                      }}
+                      accessibilityLabel={`Delete ${row.title}`}
+                    />
+                  </View>
+                  {confirmId === session.id ? (
+                    <View
+                      style={{
+                        backgroundColor: colors.burntOrangeTint,
+                        borderRadius: radii.md,
+                        padding: space.lg,
+                        gap: space.md,
+                        ...continuous,
+                      }}
+                    >
+                      <Text variant="callout">
+                        Delete this session and its joint angles from this patient? This cannot be undone.
+                      </Text>
+                      {deleteError ? (
+                        <Text variant="callout" color={colors.burntOrange} accessibilityRole="alert">
+                          {deleteError}
+                        </Text>
+                      ) : null}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+                        <PillButton
+                          label="Keep session"
+                          variant="secondary"
+                          onPress={() => setConfirmId(null)}
+                          disabled={deleting}
+                        />
+                        <PillButton
+                          label={deleting ? 'Deleting…' : 'Delete session'}
+                          icon="trash-outline"
+                          onPress={() => void removeSession(session.id)}
+                          disabled={deleting}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
               );
             })}
           </View>

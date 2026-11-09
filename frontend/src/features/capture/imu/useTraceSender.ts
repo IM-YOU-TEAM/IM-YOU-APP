@@ -6,8 +6,8 @@ import type { Pairing } from './usePairing';
 const SEND_MS = 200;
 
 /**
- * Sends this phone's smoothed trace to the signed-in phone while `active`, so it can
- * draw both legs. Broadcast relays it without storing it.
+ * Sends this phone's smoothed trace to the signed-in phone while `active`, so that
+ * phone can draw both legs before and during a recording. Broadcast relays it without storing it.
  */
 export function useTraceSender(active: boolean, site: Site | null, recent: ImuSample[], publish: Pairing['publish']) {
   const recentRef = useRef(recent);

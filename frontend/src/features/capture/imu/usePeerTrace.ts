@@ -14,7 +14,8 @@ const IDLE: Playback = { site: null, samples: [], end: 0 };
 
 /**
  * The other phone's trace as it arrives over the pairing channel, replayed on a
- * steady clock while `active`. Pass `listen` to the pairing as its broadcast handler.
+ * steady clock while `active` so the signed-in phone can draw both legs before Start.
+ * Pass `listen` to the pairing as its broadcast handler.
  */
 export function usePeerTrace(active: boolean) {
   const buffer = useRef<ImuSample[]>([]);

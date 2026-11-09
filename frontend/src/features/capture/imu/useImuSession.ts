@@ -138,7 +138,8 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     };
   }, [supported, renewPairing]);
 
-  const peer = usePeerTrace(live.recording && !paused);
+  // Listen as soon as this is a sensor session, so both graphs are live before Start.
+  const peer = usePeerTrace(supported);
   const publishRef = useRef<Pairing['publish']>(() => undefined);
   const uplinkRef = useRef<{ send: (message: object) => void; flush: () => void } | null>(null);
 

@@ -57,7 +57,7 @@ function asControl(payload: unknown): ControlMessage | null {
 /**
  * The scanned phone. No account: it redeems the QR code, takes whichever spot the
  * signed-in phone left free, and streams its sensors to the model, plus a smoothed
- * copy to that phone's graphs, while that phone says it is recording. It never saves anything.
+ * copy to that phone's graphs, before and during a recording. It never saves anything.
  */
 export function useSecondPhone(code: string) {
   const [claim, setClaim] = useState<Claim>(() => {
@@ -131,7 +131,7 @@ export function useSecondPhone(code: string) {
   const sensors = useMotionStream();
   // Samples go out on the signed-in phone's clock, and not at all until the offset is known.
   useSampleUplink(topic != null, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current, sync.offset);
-  useTraceSender(recording && !paused, pairing.mySite, sensors.recent, pairing.publish);
+  useTraceSender(pairing.mySite != null && sensors.gate === 'streaming' && !done, pairing.mySite, sensors.recent, pairing.publish);
 
   // The signed-in phone vanished mid-recording (closed, crashed, lost signal) and never sent Stop:
   // stop on our own after a grace period. If it comes back while recording it sends Start again.

@@ -23,7 +23,6 @@ import { saveSession } from '@/features/results/api';
 import { METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
 import { formatDuration } from '@/lib/format';
 import { colors, GAP, space, WIDE } from '@/lib/theme';
-import { useReduceMotion } from '@/lib/useReduceMotion';
 import type { IconName, MotionType, Session } from '@/types';
 
 const SITE_COPY: Record<Site, { description: string; icon: IconName }> = {
@@ -35,7 +34,6 @@ const SITE_COPY: Record<Site, { description: string; icon: IconName }> = {
 // shows a QR code; the second phone scans it, needs no account, and streams alongside to the live model.
 export default function SessionScreen() {
   const wide = useWindowDimensions().width >= WIDE;
-  const reduce = useReduceMotion();
   const params = useLocalSearchParams();
   const motion = parseMotion(params.motion);
   const method = parseMethod(params.method);
@@ -122,7 +120,7 @@ export default function SessionScreen() {
     ) : showPairingCode ? (
       <PairingCode code={imu.pairCode} expiresAt={imu.pairExpiresAt} onRenew={imu.renewPairing} />
     ) : (
-      <SensorTrace traces={paused || reduce || !imu.recording ? [] : imu.traces} caption={prompt} />
+      <SensorTrace traces={imu.traces} caption={prompt} />
     );
 
   const siteChooser =
@@ -260,8 +258,8 @@ export default function SessionScreen() {
       {siteChooser}
 
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: GAP }}>
-        {/* Taller once recording, for both legs' traces, and steady through Pause so Resume stays under the finger. */}
-        <View style={wide ? { flex: 2, height: 440 } : showPairingCode ? { minHeight: 320 } : { height: method === 'imu' && imu.recording ? 480 : 320 }}>
+        {/* Taller once both phones have a spot, so thigh and shin traces fit before Start. */}
+        <View style={wide ? { flex: 2, height: 440 } : showPairingCode ? { minHeight: 320 } : { height: method === 'imu' && imu.mySite != null ? 520 : 320 }}>
           {live}
         </View>
         {controls}
@@ -301,7 +299,7 @@ function sensorPrompt(
     case 'ready':
       if (!imu.recording) {
         return imu.modelConnected
-          ? 'Both phones are in. Strap them on, then tap Start here.'
+          ? 'Both phones are in. The graphs are your thigh and shin. Strap them on, then tap Start here.'
           : 'Both phones are in, but the model service is not reachable, so a recording would not be measured.';
       }
       return 'Keep moving at your usual pace. Your joint angles are saved for your clinician when you stop.';

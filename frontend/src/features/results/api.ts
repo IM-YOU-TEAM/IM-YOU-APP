@@ -182,6 +182,12 @@ function isJsonRecord(value: Json): value is { [key: string]: Json | undefined }
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** Remove a session and the joint angles saved with it. RLS lets a clinician delete their patients' sessions. */
+export async function deleteSession(sessionId: string): Promise<void> {
+  const { error } = await supabase.from('sessions').delete().eq('id', sessionId);
+  if (error) throw error;
+}
+
 /** Clinician notes on a session, oldest first. */
 export async function fetchNotes(sessionId: string): Promise<Feedback[]> {
   const { data, error } = await supabase
