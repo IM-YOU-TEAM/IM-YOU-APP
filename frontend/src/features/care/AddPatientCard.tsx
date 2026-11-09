@@ -37,7 +37,11 @@ export function AddPatientCard({ onAdded, onClose }: { onAdded: () => void; onCl
 
   const save = async () => {
     if (!fullName.trim()) return setError("Enter the patient's name.");
-    if (!isValidLogin(login)) return setError('Usernames are 3 to 24 letters or numbers, and may use . _ or -.');
+    if (!isValidLogin(login)) {
+      return setError(
+        login.includes('@') ? 'Enter a valid email address.' : 'Usernames are 3 to 24 letters or numbers, and may use . _ or -.',
+      );
+    }
     if (password.length < MIN_PASSWORD) return setError(`Use at least ${MIN_PASSWORD} characters for the password.`);
 
     setSaving(true);

@@ -72,8 +72,9 @@ export default function LoginScreen() {
     };
   }, []);
 
-  // Only providers switched on in Supabase get a button.
-  const providers = PROVIDERS.filter((provider) => enabled?.[provider]);
+  // Only providers switched on in Supabase get a button, and only for professionals: a patient's login
+  // is made by their clinician, so a patient signing up with Google would have no patient record to open.
+  const providers = role === 'clinician' ? PROVIDERS.filter((provider) => enabled?.[provider]) : [];
   // Patients never sign up themselves: their clinician creates their login.
   const signingUp = mode === 'signUp' && role === 'clinician';
 

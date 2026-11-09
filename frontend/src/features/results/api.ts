@@ -110,6 +110,9 @@ async function saveJointTrace(sessionId: string, trace: JointTrace): Promise<voi
   });
 }
 
+/** PostgREST's "table not in schema cache" and Postgres's "relation does not exist". */
+const MISSING_TABLE = new Set(['PGRST205', '42P01']);
+
 /** A sensor session's whole timeline, or null for camera sessions and sessions saved before timelines. */
 export async function fetchJointTrace(sessionId: string): Promise<JointTrace | null> {
   const { data, error } = await supabase
@@ -117,6 +120,8 @@ export async function fetchJointTrace(sessionId: string): Promise<JointTrace | n
     .select('sample_hz, start_s, hip, knee, ankle')
     .eq('session_id', sessionId)
     .maybeSingle();
+  // A database without the timeline table yet: screens fall back to the session's single saved window.
+  if (error && MISSING_TABLE.has(error.code)) return null;
   if (error) throw error;
   if (!data) return null;
   return {

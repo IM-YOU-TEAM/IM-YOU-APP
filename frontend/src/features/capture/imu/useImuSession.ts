@@ -81,6 +81,10 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   const pausedRef = useRef(paused);
   const recordingRef = useRef(false);
   const sessionRef = useRef<string | null>(null);
+  /** Wall-clock ms when Start was tapped. */
+  const startedAtRef = useRef(0);
+  /** Seconds into the session where the current stretch (since Start or the last resume) began. */
+  const segmentStartRef = useRef(0);
   const [live, setLive] = useState<ModelReadout>(EMPTY);
 
   const supported = motion != null && IMU_SUPPORTED.includes(motion);
@@ -139,9 +143,16 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
       onClose: () => undefined,
       onMessage: (message: LiveMessage) => {
         if (message.type !== 'window') return;
-        if (pausedRef.current) return;
+        // Only this recording's windows: none from before Start, after Stop, or while paused.
+        if (!recordingRef.current || pausedRef.current) return;
         tally.current.total += 1;
-        if (message.usable) tally.current.accepted.push(message);
+        // The service restarts its clock at every resume, so move each stretch to where it sat in the session.
+        const base = segmentStartRef.current;
+        if (message.usable) {
+          tally.current.accepted.push(
+            base === 0 ? message : { ...message, start_s: message.start_s + base, end_s: message.end_s + base },
+          );
+        }
         const activity = message.activity as ModelActivity | null;
         setLive((prev) => ({
           ...prev,
@@ -165,6 +176,8 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   useEffect(() => {
     pausedRef.current = paused;
     if (!recordingRef.current) return;
+    // Seconds since Start at which the resumed stretch begins; the pause itself becomes a gap.
+    if (!paused) segmentStartRef.current = (Date.now() - startedAtRef.current) / 1000;
     sendControl(paused ? 'pause' : 'resume');
     if (paused) uplink.flush();
     // The model would interpolate straight across the gap, so it restarts clean on resume.
@@ -184,6 +197,8 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     const id = sessionId('imu');
     recordingRef.current = true;
     sessionRef.current = id;
+    startedAtRef.current = Date.now();
+    segmentStartRef.current = 0;
     tally.current = { accepted: [], total: 0 };
     setLive((prev) => ({ ...prev, recording: true, captureStarted: true }));
     sendControl('start');

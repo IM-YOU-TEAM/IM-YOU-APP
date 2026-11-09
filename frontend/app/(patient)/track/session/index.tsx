@@ -77,6 +77,19 @@ export default function SessionScreen() {
     else finishedImu.current ??= imu.finish(seconds);
 
     const session = method === 'cv' ? finishedPose.current?.session : finishedImu.current;
+    if (!session && method === 'imu') {
+      // Nothing came back from the model. Say so and stay here, rather than leaving as if it saved.
+      setSaveError(
+        imu.modelConnected
+          ? 'The model scored no movement, so nothing was saved. Check both phones are strapped on, then tap Start and walk.'
+          : "The model service wasn't reachable, so nothing was measured or saved. Check it's running, then record again.",
+      );
+      return;
+    }
+    if (session && !patient) {
+      setSaveError("Your account hasn't loaded yet, so this session can't be saved. Wait a moment and try again.");
+      return;
+    }
     if (session && patient) {
       setSaving(true);
       setSaveError(null);
@@ -186,7 +199,11 @@ export default function SessionScreen() {
             size="lg"
             fullWidth
             disabled={imu.gate !== 'ready'}
-            onPress={imu.start}
+            onPress={() => {
+              setSaveError(null);
+              setSeconds(0);
+              imu.start();
+            }}
           />
         ) : (
           <PillButton

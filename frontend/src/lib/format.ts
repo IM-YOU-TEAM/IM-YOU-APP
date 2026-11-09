@@ -17,8 +17,8 @@ export function localIso(d: Date): string {
 /** Parse "YYYY-MM-DD" or a local ISO date-time without timezone drift. */
 export function parseLocal(iso: string): Date {
   const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
-  const [hh = 0, mm = 0] = iso.length > 10 ? iso.slice(11, 16).split(':').map(Number) : [];
-  return new Date(y, m - 1, d, hh, mm);
+  const [hh = 0, mm = 0, ss = 0] = iso.length > 10 ? iso.slice(11, 19).split(':').map(Number) : [];
+  return new Date(y, m - 1, d, hh, mm, ss || 0);
 }
 
 /** "Nov 7" */
