@@ -4,7 +4,6 @@ import type { MotionType, Session } from '@/types';
 import { summariseImu, type ImuTally } from './imuSummary';
 import { connectLive, liveApiUrl } from './liveClient';
 import {
-  ACTIVITY_LABELS,
   ACTIVITY_TO_MOTION,
   IMU_SUPPORTED,
   type JointName,
@@ -35,9 +34,7 @@ type ModelReadout = {
   captureStarted: boolean;
   recording: boolean;
   detectedMotion?: MotionType;
-  detectedLabel?: string;
   confidence: number;
-  lowMotion: boolean;
   reason?: string;
   windows: number;
   accepted: number;
@@ -48,7 +45,6 @@ const EMPTY: ModelReadout = {
   captureStarted: false,
   recording: false,
   confidence: 0,
-  lowMotion: false,
   windows: 0,
   accepted: 0,
 };
@@ -141,12 +137,10 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
           ...prev,
           windows: tally.current.total,
           accepted: tally.current.accepted.length,
-          lowMotion: !message.usable,
           reason: message.reason ?? undefined,
           confidence: message.confidence,
           angles: message.angles,
           detectedMotion: activity ? ACTIVITY_TO_MOTION[activity] ?? undefined : prev.detectedMotion,
-          detectedLabel: activity ? ACTIVITY_LABELS[activity] : prev.detectedLabel,
         }));
       },
     });

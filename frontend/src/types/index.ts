@@ -25,7 +25,7 @@ export type Patient = {
   createdAt: string; // local ISO date-time
   linkedAt: string | null; // local ISO date-time
   sessionCount: number;
-  latest: { date: string; gaitScore: number } | null;
+  latest: { date: string } | null;
   /** Recordings the clinician assigned, in picker order. Unassigned movements are hidden. */
   tasks: CareTask[];
 };

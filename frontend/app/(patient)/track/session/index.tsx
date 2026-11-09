@@ -95,7 +95,7 @@ export default function SessionScreen() {
 
   const prompt =
     method === 'cv'
-      ? cameraPrompt(motion, paused, gate, pose.framing, pose.movementState, pose.detectedMotion, pose.cue)
+      ? cameraPrompt(motion, paused, gate, pose.framing, pose.movementState, pose.cue)
       : sensorPrompt(motion, paused, imu);
   const live =
     method === 'cv' ? (
@@ -131,9 +131,7 @@ export default function SessionScreen() {
     ) : null;
 
   const imuReadout = imu.captureStarted
-    ? imu.lowMotion
-      ? 'Not moving'
-      : (imu.detectedLabel ?? '—')
+    ? null
     : imu.mySite
       ? `${SITE_LABELS[imu.mySite]}${imu.hz > 0 ? ` · ${imu.hz.toFixed(0)} Hz` : ''}`
       : null;
@@ -248,7 +246,7 @@ export default function SessionScreen() {
 function sensorPrompt(
   motion: MotionType,
   paused: boolean,
-  imu: { gate: ImuGate; lowMotion: boolean; recording: boolean; modelConnected: boolean },
+  imu: { gate: ImuGate; recording: boolean; modelConnected: boolean },
 ): string {
   if (paused) return 'Paused on both phones. Tap Resume to carry on.';
   switch (imu.gate) {
@@ -274,7 +272,6 @@ function sensorPrompt(
           ? 'Both phones are in. Strap them on, then tap Start here.'
           : 'Both phones are in, but the model service is not reachable, so a recording would not be measured.';
       }
-      if (imu.lowMotion) return 'Not enough movement to measure. Keep going at your usual pace.';
       return 'Keep moving at your usual pace. Your joint angles are saved for your clinician when you stop.';
     default: {
       const unexpected: never = imu.gate;
@@ -289,7 +286,6 @@ function cameraPrompt(
   gate: CameraGate,
   framing: FramingStatus,
   movementState: MovementState,
-  detectedMotion: MotionType | undefined,
   cue: FormCue | null,
 ): string {
   if (paused) return 'Paused. Resume when you are ready.';
@@ -305,7 +301,7 @@ function cameraPrompt(
     case 'ready':
       if (framing !== 'ready') return framingInstruction(framing);
       if (cue) return cue.text;
-      return movementInstruction(movementState, motion, detectedMotion);
+      return movementInstruction(movementState, motion);
     default: {
       const unexpected: never = gate;
       return unexpected;

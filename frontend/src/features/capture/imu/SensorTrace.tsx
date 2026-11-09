@@ -61,7 +61,7 @@ function TracePanel({ panel, trace }: { panel: Panel; trace: SiteTrace }) {
           {panel.title}
         </Text>
         <Text variant="caption" color={colors.onDarkMuted} style={{ fontVariant: ['tabular-nums'] }}>
-          ±{panel.range} {panel.unit}
+          {panel.unit}
         </Text>
       </View>
       <View style={{ flex: 1 }}>
