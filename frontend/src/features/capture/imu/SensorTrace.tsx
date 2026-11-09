@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import Svg, { Line, Path } from 'react-native-svg';
 import { Text } from '@/components';
@@ -20,7 +20,12 @@ type GyroUnit = 'dps' | 'radps';
 type Panel = {
   title: string;
   kind: 'accel' | 'gyro';
+  /** The widest the scale ever gets, in m/s² or °/s. */
   nativeRange: number;
+  /** The tightest it zooms in, so a phone lying still doesn't blow sensor noise up to full height. */
+  nativeFloor: number;
+  /** Draw each axis around its own 3 s average, which takes gravity out of the accelerometer. */
+  centred: boolean;
   axes: [Axis, Axis, Axis];
 };
 
@@ -40,11 +45,17 @@ const AXIS_STYLE = [
 ];
 
 const PANELS: Panel[] = [
-  // Gravity alone is 9.8, and a brisk step on the shin peaks near 2 g.
-  { title: 'Accelerometer', kind: 'accel', nativeRange: 20, axes: ['ax', 'ay', 'az'] },
+  // With gravity taken out, walking swings a few m/s²; a brisk step on the shin peaks near 2 g.
+  { title: 'Accelerometer, gravity removed', kind: 'accel', nativeRange: 20, nativeFloor: 1.5, centred: true, axes: ['ax', 'ay', 'az'] },
   // Thigh swing peaks around 250 °/s when walking, the shin near 450.
-  { title: 'Gyroscope', kind: 'gyro', nativeRange: 500, axes: ['gx', 'gy', 'gz'] },
+  { title: 'Gyroscope', kind: 'gyro', nativeRange: 500, nativeFloor: 40, centred: false, axes: ['gx', 'gy', 'gz'] },
 ];
+
+/** Headroom above the tallest peak, so the trace fills most of the box without touching its edges. */
+const HEADROOM = 1.25;
+/** Per redraw: zoom out fast when a bigger movement arrives, zoom back in slowly once it has passed. */
+const GROW = 0.5;
+const SHRINK = 0.04;
 
 const ACCEL_UNITS: { value: AccelUnit; label: string }[] = [
   { value: 'ms2', label: 'm/s²' },
@@ -66,13 +77,28 @@ function unitLabel(kind: Panel['kind'], accelUnit: AccelUnit, gyroUnit: GyroUnit
   return gyroUnit === 'radps' ? 'rad/s' : '°/s';
 }
 
-function rangeOf(panel: Panel, accelUnit: AccelUnit, gyroUnit: GyroUnit): number {
-  return convert(panel.nativeRange, panel.kind, accelUnit, gyroUnit);
+function formatBound(range: number, unit: string): string {
+  if (unit === 'g' || unit === 'rad/s') return range < 1 ? range.toFixed(2) : range.toFixed(1);
+  return range < 10 ? range.toFixed(1) : `${Math.round(range)}`;
 }
 
-function formatBound(range: number, unit: string): string {
-  if (unit === 'g' || unit === 'rad/s') return `${range.toFixed(1)}`;
-  return `${Math.round(range)}`;
+/** Each axis's average over the window (zero when the panel isn't centred). */
+function centresOf(panel: Panel, samples: ImuSample[]): Record<Axis, number> {
+  const centres = { ax: 0, ay: 0, az: 0, gx: 0, gy: 0, gz: 0 };
+  if (!panel.centred || samples.length === 0) return centres;
+  for (const axis of panel.axes) {
+    centres[axis] = samples.reduce((sum, sample) => sum + sample[axis], 0) / samples.length;
+  }
+  return centres;
+}
+
+/** The scale this window asks for, in native units: the tallest swing plus headroom, within the panel's limits. */
+function targetRange(panel: Panel, samples: ImuSample[], centres: Record<Axis, number>): number {
+  let peak = 0;
+  for (const sample of samples) {
+    for (const axis of panel.axes) peak = Math.max(peak, Math.abs(sample[axis] - centres[axis]));
+  }
+  return Math.min(panel.nativeRange, Math.max(panel.nativeFloor, peak * HEADROOM));
 }
 
 /** Time runs right to left from `end`, so a phone sending fewer or uneven samples still lines up. */
@@ -80,15 +106,14 @@ function tracePath(
   samples: ImuSample[],
   end: number,
   axis: Axis,
-  range: number,
-  kind: Panel['kind'],
-  accelUnit: AccelUnit,
-  gyroUnit: GyroUnit,
+  centre: number,
+  nativeRange: number,
 ): string {
   const half = H / 2 - PAD;
   let d = '';
   samples.forEach((sample, i) => {
-    const value = Math.max(-1, Math.min(1, convert(sample[axis], kind, accelUnit, gyroUnit) / range));
+    // Unit choice only changes the labels: the shape is the same in m/s² or g, °/s or rad/s.
+    const value = Math.max(-1, Math.min(1, (sample[axis] - centre) / nativeRange));
     const x = (W - ((end - sample.t) / TRACE_SECONDS) * W).toFixed(1);
     const y = (H / 2 - value * half).toFixed(1);
     d += `${i === 0 ? 'M' : 'L'}${x} ${y}`;
@@ -108,8 +133,13 @@ function TracePanel({
   gyroUnit: GyroUnit;
 }) {
   const unit = unitLabel(panel.kind, accelUnit, gyroUnit);
-  const range = rangeOf(panel, accelUnit, gyroUnit);
-  const bound = formatBound(range, unit);
+  const centres = centresOf(panel, trace.samples);
+  // The scale follows the movement, eased so it breathes instead of jumping on every redraw.
+  const target = targetRange(panel, trace.samples, centres);
+  const shown = useRef(target);
+  shown.current += (target - shown.current) * (target > shown.current ? GROW : SHRINK);
+  const nativeRange = shown.current;
+  const bound = formatBound(convert(nativeRange, panel.kind, accelUnit, gyroUnit), unit);
 
   return (
     <View style={{ flex: 1, gap: space.xs }}>
@@ -143,7 +173,7 @@ function TracePanel({
               {panel.axes.map((axis, i) => (
                 <Path
                   key={axis}
-                  d={tracePath(trace.samples, trace.end, axis, range, panel.kind, accelUnit, gyroUnit)}
+                  d={tracePath(trace.samples, trace.end, axis, centres[axis], nativeRange)}
                   stroke={AXIS_STYLE[i].color}
                   strokeOpacity={AXIS_STYLE[i].opacity}
                   strokeWidth={2}
@@ -238,7 +268,8 @@ export function SensorTrace({ traces, caption }: Props) {
           <UnitToggle options={GYRO_UNITS} value={gyroUnit} onChange={setGyroUnit} accessibilityLabel="Gyroscope units" />
         </View>
         <Text variant="caption" color={colors.onDarkMuted}>
-          Vertical axis is the chosen unit. Horizontal axis is time in seconds, with now on the right.
+          Vertical axis is the chosen unit and zooms to fit the movement. Horizontal axis is time in seconds, with now on
+          the right.
         </Text>
       </View>
 
@@ -246,7 +277,7 @@ export function SensorTrace({ traces, caption }: Props) {
         <View
           accessible
           accessibilityRole="image"
-          accessibilityLabel={`Live accelerometer in ${unitLabel('accel', accelUnit, gyroUnit)} and gyroscope in ${unitLabel('gyro', accelUnit, gyroUnit)} from the right thigh and right shin. Time in seconds, zero is now.`}
+          accessibilityLabel={`Live accelerometer with gravity removed in ${unitLabel('accel', accelUnit, gyroUnit)} and gyroscope in ${unitLabel('gyro', accelUnit, gyroUnit)} from the right thigh and right shin. Time in seconds, zero is now.`}
           style={{ flex: 1, flexDirection: wide ? 'row' : 'column', gap: space.lg }}
         >
           {traces.map((trace) => (
