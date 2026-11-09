@@ -25,7 +25,7 @@ const PROVIDERS: SocialProvider[] = ['apple', 'google', 'azure'];
 
 const SIGN_IN_TITLES: Record<Role, string> = {
   patient: 'Patient sign in',
-  clinician: 'Professional sign in',
+  clinician: 'Clinical sign in',
 };
 
 function RoleChoice({ onPick }: { onPick: (role: Role) => void }) {
@@ -36,13 +36,13 @@ function RoleChoice({ onPick }: { onPick: (role: Role) => void }) {
       <View style={styles.choiceButtons}>
         <PillButton label="Continue as patient" icon="walk" size="lg" fullWidth onPress={() => onPick('patient')} />
         <PillButton
-          label="Professional portal"
+          label="Clinical portal"
           icon="people"
           variant="secondary"
           size="lg"
           fullWidth
           onPress={() => onPick('clinician')}
-          accessibilityLabel="Professional portal for clinicians, researchers, and organizations"
+          accessibilityLabel="Clinical portal for clinicians, researchers, and organizations"
         />
       </View>
     </View>
@@ -165,7 +165,7 @@ export default function LoginScreen() {
             <View style={styles.brand}>
               <Logo size={52} />
               <Text variant="title" align="center" accessibilityRole="header">
-                {signingUp ? 'Create a professional account' : SIGN_IN_TITLES[role]}
+                {signingUp ? 'Create a clinical account' : SIGN_IN_TITLES[role]}
               </Text>
             </View>
 
