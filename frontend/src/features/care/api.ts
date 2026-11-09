@@ -37,9 +37,9 @@ function toPatient(row: RosterRow): Patient {
   };
 }
 
-/** The name to show for a patient. */
-export function patientName(patient: Pick<Patient, 'name' | 'careCode'>): string {
-  return patient.name ?? `Patient ${patient.careCode}`;
+/** The name to show for a patient. The care code is a link secret, never a stand-in for a name. */
+export function patientName(patient: Pick<Patient, 'name'>): string {
+  return patient.name ?? 'Unnamed patient';
 }
 
 /** The signed-in clinician's patients, newest profile first. */

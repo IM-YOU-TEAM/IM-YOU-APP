@@ -33,14 +33,6 @@ export type ImuSample = {
   gz: number;
 };
 
-/** What a phone publishes while recording. Batched, because one event per sample floods the channel. */
-export type SamplesMessage = {
-  site: Site;
-  /** Per-site counter, so the worker can spot a dropped batch. */
-  seq: number;
-  samples: ImuSample[];
-};
-
 /** Sent by whichever phone the person tapped. Both phones always act on it together. */
 export type ControlMessage = {
   action: 'start' | 'stop' | 'pause' | 'resume';
@@ -65,16 +57,14 @@ export type WindowMessage = {
 
 /** Broadcast event names. Kept here so the worker and the app cannot drift apart. */
 export const EVENTS = {
-  samples: 'samples',
   control: 'control',
   window: 'window',
 } as const;
 
-/** What a phone advertises about itself over presence. */
+/**
+ * What a phone advertises about itself over presence. Tracked once, when it picks a spot:
+ * Realtime closes the channel on a client that re-tracks presence every second or so.
+ */
 export type PhonePresence = {
   site: Site;
-  /** Delivered sensor rate, so the UI can show when a phone is too slow for the model. */
-  hz: number;
-  /** True once motion permission is granted and events are arriving. */
-  sensing: boolean;
 };

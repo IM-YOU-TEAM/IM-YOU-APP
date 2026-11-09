@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { BentoGrid, Card, LineChart, LoadState, MetricRow, ScreenContainer, SegmentedToggle, Text, type Metric } from '@/components';
 import { useAuth } from '@/features/auth/AuthProvider';
+import { JointCurves } from '@/features/capture/imu/JointCurves';
 import { fetchNotes, fetchSessions } from '@/features/results/api';
 import { METHOD_LABELS, MOTION_ICONS, MOTION_LABELS, today } from '@/lib/data';
 import { formatDate, formatDuration } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
-import type { SessionAssessmentMetric } from '@/types';
+import type { CaptureMethod, SessionAssessmentMetric } from '@/types';
 import { EmptyState } from '@/features/results/EmptyState';
 import { gaitSeries, sessionWhen, type Range } from '@/features/results/derive';
 
@@ -121,11 +122,14 @@ export default function ResultsScreen() {
 
       <AssessmentDetails
         motion={session.motion}
+        method={session.method}
         verified={session.movementVerified}
         detectedMotion={session.detectedMotion}
         match={session.movementMatch}
         metrics={session.assessmentMetrics ?? []}
       />
+
+      {session.jointAngles ? <JointCurves angles={session.jointAngles} /> : null}
 
       <BentoGrid weights={[2, 1]}>
         {/* Movement score over time */}
@@ -184,12 +188,14 @@ export default function ResultsScreen() {
 
 function AssessmentDetails({
   motion,
+  method,
   verified,
   detectedMotion,
   match,
   metrics,
 }: {
   motion: keyof typeof MOTION_LABELS;
+  method: CaptureMethod;
   verified?: boolean;
   detectedMotion?: keyof typeof MOTION_LABELS;
   match?: number;
@@ -245,7 +251,9 @@ function AssessmentDetails({
       ) : null}
 
       <Text variant="caption" muted>
-        Camera measurements describe this recording only. They are not a clinical diagnosis or a pass/fail result.
+        {method === 'imu'
+          ? 'Joint angles are model predictions from your phone sensors. They are not a clinical diagnosis or a pass/fail result.'
+          : 'Camera measurements describe this recording only. They are not a clinical diagnosis or a pass/fail result.'}
       </Text>
     </Card>
   );

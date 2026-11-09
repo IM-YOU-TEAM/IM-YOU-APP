@@ -19,7 +19,6 @@ import {
   SITES,
   type ControlMessage,
   type ImuSample,
-  type SamplesMessage,
   type Site,
 } from './protocol';
 import { useMotionStream } from './useMotionStream';
@@ -97,6 +96,33 @@ type Tally = {
   total: number;
 };
 
+/** Points kept per joint: enough for a smooth 2.5 s curve, small enough for the session row. */
+const SAVED_POINTS = 100;
+
+function thinTo(series: number[], points: number): number[] {
+  const step = series.length <= points ? 1 : (series.length - 1) / (points - 1);
+  const count = Math.min(series.length, points);
+  return Array.from({ length: count }, (_, i) => Math.round(series[Math.round(i * step)] * 10) / 10);
+}
+
+/** The accepted window the model was surest about, from the session's main activity when it has one. */
+function bestWindow(accepted: LiveWindow[], dominant: ModelActivity | undefined): LiveWindow | undefined {
+  const main = accepted.filter((w) => w.activity === dominant);
+  const pool = main.length > 0 ? main : accepted;
+  return pool.reduce<LiveWindow | undefined>((best, w) => (best == null || w.confidence > best.confidence ? w : best), undefined);
+}
+
+function savedAngles(scored: LiveWindow | undefined): Record<JointName, number[]> | undefined {
+  if (!scored) return undefined;
+  const { hip_flexion_r: hip, knee_angle_r: knee, ankle_angle_r: ankle } = scored.angles;
+  if (!(hip?.length > 1 && knee?.length > 1 && ankle?.length > 1)) return undefined;
+  return {
+    hip_flexion_r: thinTo(hip, SAVED_POINTS),
+    knee_angle_r: thinTo(knee, SAVED_POINTS),
+    ankle_angle_r: thinTo(ankle, SAVED_POINTS),
+  };
+}
+
 function summarise(tally: Tally, motion: MotionType, durationSec: number): Session {
   const counts = new Map<ModelActivity, number>();
   for (const window of tally.accepted) {
@@ -104,6 +130,7 @@ function summarise(tally: Tally, motion: MotionType, durationSec: number): Sessi
     counts.set(activity, (counts.get(activity) ?? 0) + 1);
   }
   const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const jointAngles = savedAngles(bestWindow(tally.accepted, dominant));
   const detected = dominant ? ACTIVITY_TO_MOTION[dominant] ?? undefined : undefined;
   const matching = tally.accepted.filter((w) => ACTIVITY_TO_MOTION[w.activity as ModelActivity] === motion).length;
 
@@ -137,6 +164,7 @@ function summarise(tally: Tally, motion: MotionType, durationSec: number): Sessi
     detectedMotion: detected,
     movementMatch: tally.accepted.length > 0 ? Math.round((100 * matching) / tally.accepted.length) : 0,
     assessmentMetrics: metrics,
+    ...(jointAngles ? { jointAngles } : {}),
   };
 }
 
@@ -187,7 +215,6 @@ export function useImuSession(
   setPausedRef.current = setPaused;
   const recordingRef = useRef(false);
   const sessionRef = useRef<string | null>(null);
-  const seqRef = useRef(0);
   const batchRef = useRef<ImuSample[]>([]);
   const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -207,7 +234,6 @@ export function useImuSession(
   const beginRecording = useCallback((id: string) => {
     recordingRef.current = true;
     sessionRef.current = id;
-    seqRef.current = 0;
     tally.current = { accepted: [], total: 0 };
     sharedPaused.current = false;
     setPausedRef.current(false);
@@ -256,9 +282,7 @@ export function useImuSession(
     const site = mySiteRef.current;
     if (samples.length === 0 || site == null) return;
     batchRef.current = [];
-    const packet: SamplesMessage = { site, seq: seqRef.current, samples };
-    seqRef.current += 1;
-    publishRef.current(EVENTS.samples, packet);
+    // Straight to the model, never over Realtime: nothing else needs the raw samples, and none are kept.
     phoneRef.current?.send({
       type: 'samples',
       device_id: DEVICE_ID[site],
@@ -291,11 +315,6 @@ export function useImuSession(
       if (flushTimer.current) clearInterval(flushTimer.current);
     };
   }, [flush]);
-
-  useEffect(() => {
-    if (!supported || pairing.mySite == null) return;
-    void pairing.advertise({ hz: sensors.hz, sensing: sensors.gate === 'streaming' });
-  }, [supported, pairing.mySite, pairing.advertise, sensors.hz, sensors.gate]);
 
   useEffect(() => {
     if (motion == null) return;

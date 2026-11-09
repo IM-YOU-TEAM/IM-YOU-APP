@@ -1,9 +1,10 @@
-// Session summaries in Supabase. Only scores and counts are stored; video and landmarks stay on the device.
+// Session summaries in Supabase. Only scores, counts and the model's predicted joint angles are stored;
+// video, landmarks and raw sensor samples never leave the device and the model service.
 import { parseMethod, parseMotion } from '@/features/capture/params';
 import { localIso, parseLocal } from '@/lib/format';
 import { supabase } from '@/lib/supabase/client';
 import type { Json, Tables } from '@/lib/supabase/database.types';
-import type { Feedback, Session, SessionAssessmentMetric } from '@/types';
+import type { Feedback, JointName, Session, SessionAssessmentMetric } from '@/types';
 
 const SESSION_COLUMNS =
   'id, patient_id, motion, method, started_at, duration_sec, gait_score, cadence, symmetry, far_leg_hidden, step_count, reps, metrics';
@@ -82,6 +83,7 @@ export async function saveSession(session: Session, patientId: string): Promise<
         detectedMotion: session.detectedMotion ?? null,
         movementMatch: session.movementMatch ?? null,
         assessmentMetrics: session.assessmentMetrics ?? [],
+        ...(session.jointAngles ? { jointAngles: session.jointAngles } : {}),
       },
     })
     .select(SESSION_COLUMNS)
@@ -98,6 +100,7 @@ function parseAssessment(metrics: Json): Partial<Session> {
   const assessmentMetrics = Array.isArray(metrics.assessmentMetrics)
     ? metrics.assessmentMetrics.map(parseAssessmentMetric).filter((metric): metric is SessionAssessmentMetric => metric != null)
     : [];
+  const jointAngles = parseJointAngles(metrics.jointAngles);
 
   return {
     ...(typeof metrics.movementVerified === 'boolean'
@@ -106,7 +109,21 @@ function parseAssessment(metrics: Json): Partial<Session> {
     ...(detectedMotion ? { detectedMotion } : {}),
     ...(typeof metrics.movementMatch === 'number' ? { movementMatch: metrics.movementMatch } : {}),
     ...(assessmentMetrics.length > 0 ? { assessmentMetrics } : {}),
+    ...(jointAngles ? { jointAngles } : {}),
   };
+}
+
+const JOINTS: JointName[] = ['hip_flexion_r', 'knee_angle_r', 'ankle_angle_r'];
+
+function parseJointAngles(value: Json | undefined): Record<JointName, number[]> | null {
+  if (value == null || !isJsonRecord(value)) return null;
+  const series = JOINTS.map((joint) => {
+    const raw = value[joint];
+    return Array.isArray(raw) && raw.length > 1 && raw.every((v) => typeof v === 'number') ? (raw as number[]) : null;
+  });
+  const [hip, knee, ankle] = series;
+  if (!hip || !knee || !ankle) return null;
+  return { hip_flexion_r: hip, knee_angle_r: knee, ankle_angle_r: ankle };
 }
 
 function parseAssessmentMetric(value: Json): SessionAssessmentMetric | null {
