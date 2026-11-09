@@ -290,6 +290,18 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     uplink.send(paused ? { type: 'session_stop' } : { type: 'session_start', session_id: sessionRef.current });
   }, [paused, sendControl, uplink.flush, uplink.send]);
 
+  // This phone's model socket dropped and reconnected mid-recording (a Wi-Fi blip): the service has
+  // forgotten the session, so start it again, exactly like a resume, or nothing after the blip is scored.
+  const uplinkConnected = uplink.connected;
+  const wasConnected = useRef(uplinkConnected);
+  useEffect(() => {
+    const reconnected = uplinkConnected && !wasConnected.current;
+    wasConnected.current = uplinkConnected;
+    if (!reconnected || !recordingRef.current || pausedRef.current) return;
+    segmentStartRef.current = (Date.now() - startedAtRef.current) / 1000;
+    uplink.send({ type: 'session_start', session_id: sessionRef.current });
+  }, [uplinkConnected, uplink.send]);
+
   // The second phone reloaded or reconnected mid-session: tell it where things stand.
   const paired = pairing.gate === 'paired';
   useEffect(() => {

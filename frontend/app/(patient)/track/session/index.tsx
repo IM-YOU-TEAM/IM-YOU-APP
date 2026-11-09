@@ -220,7 +220,8 @@ export default function SessionScreen() {
             icon="play"
             size="lg"
             fullWidth
-            disabled={imu.gate !== 'ready'}
+            // Without the model nothing is measured, so a whole walk would end with nothing to save.
+            disabled={imu.gate !== 'ready' || !imu.modelConnected}
             onPress={() => {
               setSaveError(null);
               setSeconds(0);
