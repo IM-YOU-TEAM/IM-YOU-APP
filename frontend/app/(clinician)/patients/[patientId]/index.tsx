@@ -16,7 +16,7 @@ import { JointCurves } from '@/features/capture/imu/JointCurves';
 import { fetchRosterPatient, patientName } from '@/features/care/api';
 import { fetchSessions } from '@/features/results/api';
 import { EmptyState } from '@/features/results/EmptyState';
-import { cadenceWasMeasured, PATIENT_STATUS_LABELS, sessionRow, sessionScoreLabel, sessionWhen } from '@/features/results/derive';
+import { PATIENT_STATUS_LABELS, sessionRow, sessionScoreLabel, sessionWhen } from '@/features/results/derive';
 import { MOTION_ICONS, MOTION_LABELS } from '@/lib/data';
 import { formatDate } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
@@ -89,7 +89,6 @@ export default function PatientDetailScreen() {
   const metrics: Metric[] = [
     { label: 'Sessions', value: String(sessions.length) },
     { label: 'Movement score', value: latest && latest.method === 'cv' && latest.movementVerified !== false ? String(latest.gaitScore) : '—' },
-    { label: 'Cadence', value: latest && cadenceWasMeasured(latest) ? `${latest.cadence}/min` : '—' },
     { label: 'Last session', value: latest ? formatDate(latest.date) : '—' },
   ];
 
