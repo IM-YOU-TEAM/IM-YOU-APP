@@ -9,7 +9,8 @@ import { useReduceMotion } from '@/lib/useReduceMotion';
 import type { IconName } from '@/types';
 import { GlassCard } from './GlassCard';
 import { Logo } from './Logo';
-import { logout, type NavItem } from './nav';
+import { type NavItem } from './nav';
+import { ProfileMenu } from './ProfileMenu';
 import { Text } from './Text';
 
 const TAB_WIDTH = 108;
@@ -17,15 +18,13 @@ const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 
 type Props = {
   items: NavItem[];
-  /** Default: sign out; the auth gate then shows /login. */
-  onLogout?: () => void;
 };
 
 /**
  * Top navigation for signed-in workspaces: logo on the left, a centered glass capsule of tabs
- * (selected tab on a white thumb), and Log out on the right. Tightens on phone-width screens.
+ * (selected tab on a white thumb), and a profile avatar on the right. Tightens on phone-width screens.
  */
-export function TopBar({ items, onLogout = logout }: Props) {
+export function TopBar({ items }: Props) {
   const insets = useSafeAreaInsets();
   const compact = useWindowDimensions().width < WIDE;
   const reduceMotion = useReduceMotion();
@@ -116,7 +115,7 @@ export function TopBar({ items, onLogout = logout }: Props) {
           </View>
         </GlassCard>
         <View style={[styles.side, { alignItems: 'flex-end' }]}>
-          <TabButton label="Log out" icon="log-out-outline" onPress={onLogout} />
+          <ProfileMenu variant="top" />
         </View>
       </View>
     </View>

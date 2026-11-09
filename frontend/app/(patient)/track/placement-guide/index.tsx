@@ -81,7 +81,7 @@ export default function PlacementGuideScreen() {
       <View style={{ gap: space.sm }}>
         <Text variant="display">Set up your phone</Text>
         <Text muted>
-          {MOTION_LABELS[motion]}, tracked with your {METHOD_LABELS[method].toLowerCase()}. About a minute to get ready.
+          {MOTION_LABELS[motion]}, tracked with {METHOD_LABELS[method].toLowerCase()}. About a minute to get ready.
         </Text>
       </View>
 

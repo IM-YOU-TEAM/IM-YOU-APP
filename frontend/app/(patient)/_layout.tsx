@@ -27,7 +27,7 @@ export default function PatientLayout() {
             >
               <Tabs.Screen name="home/index" />
               <Tabs.Screen name="track" />
-              <Tabs.Screen name="results/index" />
+              <Tabs.Screen name="results" />
             </Tabs>
           </View>
         </BottomBarInsetProvider>

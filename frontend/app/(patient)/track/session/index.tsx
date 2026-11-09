@@ -226,7 +226,7 @@ export default function SessionScreen() {
       <View style={{ flexDirection: wide ? 'row' : 'column', alignItems: wide ? 'flex-end' : 'flex-start', justifyContent: 'space-between', gap: space.md }}>
         <View style={{ gap: space.sm }}>
           <Text variant="display">{MOTION_LABELS[motion]}</Text>
-          <Text muted>Tracking with your {METHOD_LABELS[method].toLowerCase()}</Text>
+          <Text muted>Tracking with {METHOD_LABELS[method].toLowerCase()}</Text>
         </View>
         <RecordingBadge status={recordingStatus} />
       </View>
