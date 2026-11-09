@@ -18,9 +18,6 @@ Built at **natHacks 2026** by the Movement Tracking Team.
 
 Joint angles are usually measured in a lab or clinic, so between visits a clinician has little objective data on how a patient is doing. **I'M YOU moves that measurement home.** The patient straps two phones to their leg, walks, and a transformer model turns the phones' motion sensors into hip, knee and ankle angles that land on the clinician's dashboard.
 
-> [!IMPORTANT]
-> Hackathon prototype. Phone joint angles have never been compared against motion capture, so nothing here is a clinical measurement, a diagnosis, or a pass/fail rehab result.
-
 ## How it works
 
 <img src="frontend/assets/placement-guides/two-phones.png" alt="Phone 1 on the right thigh, phone 2 on the right shin" width="150" align="right">
@@ -119,7 +116,6 @@ Phone-sensor sessions also need the live API from the ML repo (`python live-api/
 
 ## Limits
 
-- **No phone ground truth.** Lab error is 5.6–6.8°; error on phones is unmeasured.
 - **Walking and stairs only** for phone sensors. Running and sit-to-stand use the camera.
 - **One 2.5 s window** of angles is saved per session, the one the model was surest about.
 - **Two phones on one leg** (right side). The model was never trained on the left leg.
