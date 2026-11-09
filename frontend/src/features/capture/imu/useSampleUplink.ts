@@ -9,12 +9,17 @@ const BATCH_MS = 80;
 /**
  * This phone's socket to the model, fed in small batches while `streaming()` is true.
  * The raw samples go nowhere else and are never kept.
+ *
+ * `clockShift()` returns the seconds to add to this phone's sample times to put them
+ * on the signed-in phone's clock (0 on that phone), or null while it is unknown:
+ * samples are held back then, since misaligned legs would mislead the model.
  */
 export function useSampleUplink(
   enabled: boolean,
   site: Site | null,
   subscribe: MotionStream['subscribe'],
   streaming: () => boolean,
+  clockShift: () => number | null = () => 0,
 ) {
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<LiveSocket | null>(null);
@@ -23,6 +28,8 @@ export function useSampleUplink(
   siteRef.current = site;
   const streamingRef = useRef(streaming);
   streamingRef.current = streaming;
+  const clockShiftRef = useRef(clockShift);
+  clockShiftRef.current = clockShift;
 
   const flush = useCallback(() => {
     const samples = batchRef.current;
@@ -70,7 +77,9 @@ export function useSampleUplink(
   useEffect(() => {
     return subscribe((sample) => {
       if (!streamingRef.current()) return;
-      batchRef.current.push(sample);
+      const shift = clockShiftRef.current();
+      if (shift == null) return;
+      batchRef.current.push(shift === 0 ? sample : { ...sample, t: sample.t + shift });
       if (batchRef.current.length >= BATCH_SIZE) flush();
     });
   }, [subscribe, flush]);

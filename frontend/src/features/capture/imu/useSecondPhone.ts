@@ -3,6 +3,7 @@ import { claimPairing } from './pairingApi';
 import { EVENTS, SITES, type ControlMessage, type Site } from './protocol';
 import { useMotionStream } from './useMotionStream';
 import { usePairing } from './usePairing';
+import { useClockSync } from './useClockSync';
 import { useSampleUplink } from './useSampleUplink';
 import { useTraceSender } from './useTraceSender';
 
@@ -16,6 +17,8 @@ export type SecondPhoneGate =
   | 'need-permission'
   /** On the channel, but the signed-in phone is not (or no longer) there with a spot. */
   | 'waiting-for-first-phone'
+  /** Both phones are in; this one is still measuring how far its clock is from the other's. */
+  | 'syncing-clocks'
   | 'ready';
 
 type Claim = { state: 'claiming' } | { state: 'invalid' } | { state: 'offline' } | { state: 'claimed'; topic: string };
@@ -80,8 +83,12 @@ export function useSecondPhone(code: string) {
     if (arrivedUnclaimed.current) void redeem();
   }, [redeem]);
 
+  // Set once the clock sync below exists; the pairing hands it the signed-in phone's answers.
+  const syncListenRef = useRef<(event: string, payload: unknown) => void>(() => undefined);
+
   const onBroadcast = useCallback(
     (event: string, payload: unknown) => {
+      syncListenRef.current(event, payload);
       if (event !== EVENTS.control) return;
       const control = asControl(payload);
       if (!control) return;
@@ -114,12 +121,16 @@ export function useSecondPhone(code: string) {
 
   const topic = claim.state === 'claimed' && !done ? claim.topic : null;
   const pairing = usePairing(topic, onBroadcast);
+  const { gate: pairGate, peerSites, claim: claimSite } = pairing;
+  const onChannel = pairGate !== 'connecting' && pairGate !== 'unreachable';
+  const sync = useClockSync(onChannel, pairing.publish);
+  syncListenRef.current = sync.listen;
   const sensors = useMotionStream();
-  useSampleUplink(topic != null, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current);
+  // Samples go out on the signed-in phone's clock, and not at all until the offset is known.
+  useSampleUplink(topic != null, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current, sync.offset);
   useTraceSender(recording && !paused, pairing.mySite, sensors.recent, pairing.publish);
 
   // Take the spot the signed-in phone left free, once Safari is actually sending motion.
-  const { gate: pairGate, peerSites, claim: claimSite } = pairing;
   const firstSite: Site | undefined = peerSites[0];
   useEffect(() => {
     if (pairGate !== 'choose-site' || sensors.gate !== 'streaming' || firstSite == null) return;
@@ -146,7 +157,8 @@ export function useSecondPhone(code: string) {
     if (pairGate === 'unreachable') return 'unreachable';
     if (sensors.gate === 'unavailable') return 'unavailable-sensors';
     if (sensors.gate !== 'streaming') return 'need-permission';
-    return pairGate === 'paired' ? 'ready' : 'waiting-for-first-phone';
+    if (pairGate !== 'paired') return 'waiting-for-first-phone';
+    return sync.synced ? 'ready' : 'syncing-clocks';
   })();
 
   // A redeemed code cannot be redeemed again, so a dropped channel retries by reloading onto the remembered topic.

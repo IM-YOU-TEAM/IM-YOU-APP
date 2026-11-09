@@ -92,6 +92,8 @@ function secondPhonePrompt(
         : 'Tap Allow motion sensors, then choose Allow when Safari asks.';
     case 'waiting-for-first-phone':
       return 'Waiting for your signed-in phone. Keep it on the session screen. If it shows a new code, scan that one instead.';
+    case 'syncing-clocks':
+      return 'Lining up this phone’s clock with your other phone…';
     case 'ready':
       return `Strap this phone to your ${phone.mySite ? SITE_LABELS[phone.mySite].toLowerCase() : 'leg'}. Recording starts and stops from your other phone.`;
     default: {

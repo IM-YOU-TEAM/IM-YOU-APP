@@ -40,6 +40,9 @@ export type ControlMessage = {
 export const EVENTS = {
   control: 'control',
   preview: 'preview',
+  /** Clock sync: the scanned phone asks, the signed-in phone answers with its time. */
+  syncPing: 'sync_ping',
+  syncPong: 'sync_pong',
 } as const;
 
 /** One preview row: t, ax, ay, az, gx, gy, gz. Tuples keep each broadcast small. */

@@ -14,7 +14,8 @@ import type { MotionGate, SiteTrace } from './motionTypes';
 import { createPairing, type HostPairing } from './pairingApi';
 import { EVENTS, SITES, type ControlMessage, type Site } from './protocol';
 import { useMotionStream } from './useMotionStream';
-import { usePairing, type PairGate } from './usePairing';
+import { answerSyncPing } from './useClockSync';
+import { usePairing, type PairGate, type Pairing } from './usePairing';
 import { usePeerTrace } from './usePeerTrace';
 import { useSampleUplink } from './useSampleUplink';
 
@@ -112,8 +113,17 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   }, [supported, renewPairing]);
 
   const peer = usePeerTrace(live.recording && !paused);
-  const pairing = usePairing(supported ? (hostPairing?.topic ?? null) : null, peer.listen);
-  const publishRef = useRef(pairing.publish);
+  const publishRef = useRef<Pairing['publish']>(() => undefined);
+  // This phone's clock is the session's reference: answer the scanned phone's sync pings.
+  const peerListen = peer.listen;
+  const onBroadcast = useCallback(
+    (event: string, payload: unknown) => {
+      peerListen(event, payload);
+      answerSyncPing(event, payload, publishRef.current);
+    },
+    [peerListen],
+  );
+  const pairing = usePairing(supported ? (hostPairing?.topic ?? null) : null, onBroadcast);
   publishRef.current = pairing.publish;
 
   const uplink = useSampleUplink(supported, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current);
