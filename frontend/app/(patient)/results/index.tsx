@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
-import { BentoGrid, Card, LineChart, LoadState, MetricRow, ScreenContainer, SegmentedToggle, Text, type Metric } from '@/components';
+import { Card, LineChart, LoadState, MetricRow, ScreenContainer, SegmentedToggle, Text, type Metric } from '@/components';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { JointCurves } from '@/features/capture/imu/JointCurves';
-import { fetchNotes, fetchSessions } from '@/features/results/api';
+import { fetchSessions } from '@/features/results/api';
 import { METHOD_LABELS, MOTION_ICONS, MOTION_LABELS, today } from '@/lib/data';
-import { formatDate, formatDuration } from '@/lib/format';
+import { formatDuration } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
 import type { CaptureMethod, SessionAssessmentMetric } from '@/types';
@@ -32,8 +32,7 @@ export default function ResultsScreen() {
     const all = patientId ? await fetchSessions(patientId) : [];
     // A specific session from a link, otherwise the patient's latest one.
     const session = sessionId ? all.find((s) => s.id === sessionId) : all.at(-1);
-    const notes = session ? await fetchNotes(session.id) : [];
-    return { all, session, notes };
+    return { all, session };
   }, [patientId, sessionId]);
 
   if (!loaded.data) {
@@ -49,7 +48,7 @@ export default function ResultsScreen() {
     );
   }
 
-  const { all, session, notes } = loaded.data;
+  const { all, session } = loaded.data;
 
   if (!session) {
     return (
@@ -131,57 +130,30 @@ export default function ResultsScreen() {
 
       {session.jointAngles ? <JointCurves angles={session.jointAngles} /> : null}
 
-      <BentoGrid weights={[2, 1]}>
-        {/* Movement score over time */}
-        <Card style={{ flex: 1, gap: space.lg }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
-            <Text variant="headline">Movement score over time</Text>
-            <SegmentedToggle options={RANGES} value={range} onChange={setRange} accessibilityLabel="Chart range" />
-          </View>
-          {series.length > 0 ? (
-            <LineChart
-              data={series}
-              height={CHART_HEIGHT}
-              yDomain={[0, 100]}
-              formatValue={(v) => `${v} / 100`}
-              accessibilityLabel={`Movement score over the last ${range === 'week' ? '7' : '30'} days`}
-            />
-          ) : (
-            <View style={{ height: CHART_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
-              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="analytics" size={28} color={colors.burntOrange} />
-              </View>
-              <Text variant="callout" muted align="center">
-                No verified movement scores in the last {range === 'week' ? '7' : '30'} days.
-              </Text>
+      <Card style={{ gap: space.lg }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: space.md }}>
+          <Text variant="headline">Movement score over time</Text>
+          <SegmentedToggle options={RANGES} value={range} onChange={setRange} accessibilityLabel="Chart range" />
+        </View>
+        {series.length > 0 ? (
+          <LineChart
+            data={series}
+            height={CHART_HEIGHT}
+            yDomain={[0, 100]}
+            formatValue={(v) => `${v} / 100`}
+            accessibilityLabel={`Movement score over the last ${range === 'week' ? '7' : '30'} days`}
+          />
+        ) : (
+          <View style={{ height: CHART_HEIGHT, alignItems: 'center', justifyContent: 'center', gap: space.sm }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="analytics" size={28} color={colors.burntOrange} />
             </View>
-          )}
-        </Card>
-
-        {/* Clinician feedback (the screen's one Cherry Blossom highlight) */}
-        <Card tone="accent" style={{ flex: 1, gap: space.md }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.burntOrangeTint, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="chatbubble-ellipses" size={18} color={colors.burntOrange} />
-            </View>
-            <Text variant="headline">Clinician feedback</Text>
-          </View>
-          {notes.length > 0 ? (
-            notes.map((f) => (
-              <View key={f.id} style={{ gap: space.xs }}>
-                <Text variant="body">{f.text}</Text>
-                <Text variant="caption" muted>
-                  {f.clinicianName} · {formatDate(f.date)}
-                </Text>
-              </View>
-            ))
-          ) : (
-            <Text variant="body" muted>
-              Your clinician's notes will appear here.
+            <Text variant="callout" muted align="center">
+              No verified movement scores in the last {range === 'week' ? '7' : '30'} days.
             </Text>
-          )}
-        </Card>
-      </BentoGrid>
+          </View>
+        )}
+      </Card>
     </ScreenContainer>
   );
 }
