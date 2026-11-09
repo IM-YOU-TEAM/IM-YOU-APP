@@ -40,6 +40,7 @@ function toSession(row: SessionRow): Session {
     durationSec: row.duration_sec,
     gaitScore: row.gait_score,
     cadence: Number(row.cadence),
+    cadenceMeasured: method === 'cv' || Number(row.cadence) > 0,
     symmetry: row.symmetry == null ? 0 : Number(row.symmetry),
     symmetryMeasured: row.symmetry != null,
     farLegHidden: row.far_leg_hidden,

@@ -16,7 +16,7 @@ import { JointCurves } from '@/features/capture/imu/JointCurves';
 import { fetchRosterPatient, patientName } from '@/features/care/api';
 import { fetchSessions } from '@/features/results/api';
 import { EmptyState } from '@/features/results/EmptyState';
-import { PATIENT_STATUS_LABELS, sessionRow, sessionWhen } from '@/features/results/derive';
+import { cadenceWasMeasured, PATIENT_STATUS_LABELS, sessionRow, sessionScoreLabel, sessionWhen } from '@/features/results/derive';
 import { MOTION_ICONS, MOTION_LABELS } from '@/lib/data';
 import { formatDate } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
@@ -88,8 +88,8 @@ export default function PatientDetailScreen() {
   const shown = angled.find((s) => s.id === pickedId) ?? angled.at(-1);
   const metrics: Metric[] = [
     { label: 'Sessions', value: String(sessions.length) },
-    { label: 'Movement score', value: latest && latest.movementVerified !== false ? String(latest.gaitScore) : '—' },
-    { label: 'Cadence', value: latest ? `${latest.cadence}/min` : '—' },
+    { label: 'Movement score', value: latest && latest.method === 'cv' && latest.movementVerified !== false ? String(latest.gaitScore) : '—' },
+    { label: 'Cadence', value: latest && cadenceWasMeasured(latest) ? `${latest.cadence}/min` : '—' },
     { label: 'Last session', value: latest ? formatDate(latest.date) : '—' },
   ];
 
@@ -154,11 +154,11 @@ export default function PatientDetailScreen() {
                   title={row.title}
                   subtitle={row.subtitle}
                   icon={MOTION_ICONS[session.motion]}
-                  trailing={session.movementVerified === false ? '—' : `${session.gaitScore}`}
+                  trailing={sessionScoreLabel(session)}
                   chevron={false}
                   selected={session.jointAngles != null && session.id === shown?.id}
                   onPress={session.jointAngles != null ? () => setPickedId(session.id) : undefined}
-                  accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${session.movementVerified === false ? 'not available' : session.gaitScore}`}
+                  accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${sessionScoreLabel(session)}`}
                 />
               );
             })}

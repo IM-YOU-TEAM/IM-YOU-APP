@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { LOCAL_PATIENT_ID } from '@/lib/data';
-import { localDateTime, sessionId } from '@/lib/session';
-import type { MotionType, Session, SessionAssessmentMetric } from '@/types';
+import { sessionId } from '@/lib/session';
+import type { MotionType, Session } from '@/types';
+import { summariseImu, type ImuTally } from './imuSummary';
 import { connectLive, liveApiUrl } from './liveClient';
 import {
   ACTIVITY_LABELS,
@@ -9,7 +9,6 @@ import {
   IMU_SUPPORTED,
   type JointName,
   type LiveMessage,
-  type LiveWindow,
   type ModelActivity,
 } from './liveTypes';
 import type { MotionGate, SiteTrace } from './motionTypes';
@@ -32,12 +31,6 @@ export type ImuGate =
   | 'unsupported-motion'
   | 'ready';
 
-const JOINT_LABELS: Record<JointName, string> = {
-  hip_flexion_r: 'Hip flexion',
-  knee_angle_r: 'Knee angle',
-  ankle_angle_r: 'Ankle angle',
-};
-
 type ModelReadout = {
   captureStarted: boolean;
   recording: boolean;
@@ -59,83 +52,6 @@ const EMPTY: ModelReadout = {
   windows: 0,
   accepted: 0,
 };
-
-type Tally = {
-  accepted: LiveWindow[];
-  total: number;
-};
-
-/** Points kept per joint: enough for a smooth 2.5 s curve, small enough for the session row. */
-const SAVED_POINTS = 100;
-
-function thinTo(series: number[], points: number): number[] {
-  const step = series.length <= points ? 1 : (series.length - 1) / (points - 1);
-  const count = Math.min(series.length, points);
-  return Array.from({ length: count }, (_, i) => Math.round(series[Math.round(i * step)] * 10) / 10);
-}
-
-/** The accepted window the model was surest about, from the session's main activity when it has one. */
-function bestWindow(accepted: LiveWindow[], dominant: ModelActivity | undefined): LiveWindow | undefined {
-  const main = accepted.filter((w) => w.activity === dominant);
-  const pool = main.length > 0 ? main : accepted;
-  return pool.reduce<LiveWindow | undefined>((best, w) => (best == null || w.confidence > best.confidence ? w : best), undefined);
-}
-
-function savedAngles(scored: LiveWindow | undefined): Record<JointName, number[]> | undefined {
-  if (!scored) return undefined;
-  const { hip_flexion_r: hip, knee_angle_r: knee, ankle_angle_r: ankle } = scored.angles;
-  if (!(hip?.length > 1 && knee?.length > 1 && ankle?.length > 1)) return undefined;
-  return {
-    hip_flexion_r: thinTo(hip, SAVED_POINTS),
-    knee_angle_r: thinTo(knee, SAVED_POINTS),
-    ankle_angle_r: thinTo(ankle, SAVED_POINTS),
-  };
-}
-
-function summarise(tally: Tally, motion: MotionType, durationSec: number): Session {
-  const counts = new Map<ModelActivity, number>();
-  for (const window of tally.accepted) {
-    const activity = window.activity as ModelActivity;
-    counts.set(activity, (counts.get(activity) ?? 0) + 1);
-  }
-  const dominant = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-  const jointAngles = savedAngles(bestWindow(tally.accepted, dominant));
-  const detected = dominant ? ACTIVITY_TO_MOTION[dominant] ?? undefined : undefined;
-  const matching = tally.accepted.filter((w) => ACTIVITY_TO_MOTION[w.activity as ModelActivity] === motion).length;
-
-  const metrics: SessionAssessmentMetric[] = [];
-  const joints: JointName[] = ['hip_flexion_r', 'knee_angle_r', 'ankle_angle_r'];
-  for (const joint of joints) {
-    const ranges = tally.accepted.map((w) => w.summary[joint]).filter(Boolean);
-    if (ranges.length === 0) continue;
-    const span = ranges.reduce((sum, r) => sum + (r.max - r.min), 0) / ranges.length;
-    metrics.push({ key: joint, label: `${JOINT_LABELS[joint]} range`, value: Math.round(span * 10) / 10, unit: '°' });
-  }
-  metrics.push({
-    key: 'coverage',
-    label: 'Session with enough movement to measure',
-    value: tally.total > 0 ? Math.round((100 * tally.accepted.length) / tally.total) : 0,
-    unit: '%',
-  });
-
-  return {
-    id: sessionId('imu'),
-    patientId: LOCAL_PATIENT_ID,
-    date: localDateTime(),
-    motion,
-    method: 'imu',
-    durationSec,
-    gaitScore: tally.total > 0 ? Math.round((100 * tally.accepted.length) / tally.total) : 0,
-    cadence: 0,
-    symmetry: 0,
-    symmetryMeasured: false,
-    movementVerified: detected === motion,
-    detectedMotion: detected,
-    movementMatch: tally.accepted.length > 0 ? Math.round((100 * matching) / tally.accepted.length) : 0,
-    assessmentMetrics: metrics,
-    ...(jointAngles ? { jointAngles } : {}),
-  };
-}
 
 function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate): ImuGate {
   if (pairingFailed) return 'unreachable';
@@ -164,7 +80,7 @@ function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate): I
  * live model, draws both legs' sensors, and turns the scored windows into the session it saves.
  */
 export function useImuSession(motion: MotionType | null, paused: boolean) {
-  const tally = useRef<Tally>({ accepted: [], total: 0 });
+  const tally = useRef<ImuTally>({ accepted: [], total: 0 });
   const pausedRef = useRef(paused);
   const recordingRef = useRef(false);
   const sessionRef = useRef<string | null>(null);
@@ -284,7 +200,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     (durationSec: number): Session | null => {
       halt();
       if (motion == null || tally.current.total === 0) return null;
-      return summarise(tally.current, motion, durationSec);
+      return summariseImu(tally.current, motion, durationSec);
     },
     [halt, motion],
   );

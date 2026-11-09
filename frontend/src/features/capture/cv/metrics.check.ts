@@ -305,6 +305,13 @@ function checkMovementAssessment(): void {
   );
   assert(walking.verified && walking.detectedMotion === 'walking', 'walking should use the walking pattern');
   assert(walking.metrics.some((metric) => metric.key === 'step-regularity'), 'walking should report step regularity');
+  const bounceWalk = assessMovement(
+    assessmentInput('walking', { steps: 8, cadence: 100, verticalRange: 0.08, horizontalRange: 0.3, kneeBend: 45 }),
+  );
+  assert(
+    bounceWalk.verified && bounceWalk.detectedMotion === 'walking',
+    'ordinary walking bounce and knee bend should not be called stairs',
+  );
 
   const running = assessMovement(
     assessmentInput('running', { steps: 12, cadence: 170, verticalRange: 0.04, kneeBend: 50 }),

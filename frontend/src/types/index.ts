@@ -43,7 +43,9 @@ export type Session = {
   method: CaptureMethod;
   durationSec: number;
   gaitScore: number; // 0-100 movement summary retained under the legacy field name
-  cadence: number; // steps/min (reps/min for sit-to-stand)
+  cadence: number; // steps/min (reps/min for sit-to-stand). 0 when it was not measured
+  /** False when steps were not counted, e.g. a sensor session with no knee cycles. */
+  cadenceMeasured?: boolean;
   symmetry: number; // left/right symmetry, %. 0 when it was not measured
   /** False when left and right were not compared. */
   symmetryMeasured?: boolean;
