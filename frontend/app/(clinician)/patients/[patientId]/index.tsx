@@ -95,8 +95,7 @@ export default function PatientDetailScreen() {
   const shown = angled.find((s) => s.id === pickedId) ?? angled.at(-1);
   const metrics: Metric[] = [
     { label: 'Sessions', value: String(sessions.length) },
-    { label: 'Movement score', value: latest && latest.method === 'cv' && latest.movementVerified !== false ? String(latest.gaitScore) : '—' },
-    { label: 'Last session', value: latest ? formatDate(latest.date) : '—' },
+    { label: 'Last session', value: latest ? formatDate(latest.date) : 'None yet' },
   ];
 
   return (
@@ -119,15 +118,7 @@ export default function PatientDetailScreen() {
       </View>
 
       <Card>
-        {wide ? (
-          <MetricRow items={metrics} />
-        ) : (
-          <View style={{ gap: space.lg }}>
-            <MetricRow items={metrics.slice(0, 2)} />
-            <View style={{ height: 1, backgroundColor: colors.divider }} />
-            <MetricRow items={metrics.slice(2)} />
-          </View>
-        )}
+        <MetricRow items={metrics} />
       </Card>
 
       <TasksEditor

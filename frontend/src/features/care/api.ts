@@ -7,7 +7,7 @@ import type { Json } from '@/lib/supabase/database.types';
 import type { CareTask, Patient, PatientStatus } from '@/types';
 
 const ROSTER_COLUMNS =
-  'id, full_name, care_code, owner_link, created_at, linked_at, assigned_motions, task_frequency, total:sessions(count), latest:sessions(started_at, gait_score)';
+  'id, full_name, care_code, owner_link, created_at, linked_at, assigned_motions, task_frequency, total:sessions(count), latest:sessions(started_at)';
 
 type RosterRow = {
   id: string;
@@ -19,7 +19,7 @@ type RosterRow = {
   assigned_motions: string[];
   task_frequency: Json;
   total: { count: number }[];
-  latest: { started_at: string; gait_score: number }[];
+  latest: { started_at: string }[];
 };
 
 function statusOf(ownerLink: string | null): PatientStatus {
@@ -37,7 +37,7 @@ function toPatient(row: RosterRow): Patient {
     createdAt: localIso(new Date(row.created_at)),
     linkedAt: row.linked_at ? localIso(new Date(row.linked_at)) : null,
     sessionCount: row.total[0]?.count ?? 0,
-    latest: latest ? { date: localIso(new Date(latest.started_at)), gaitScore: latest.gait_score } : null,
+    latest: latest ? { date: localIso(new Date(latest.started_at)) } : null,
     tasks: parseTasks(row.assigned_motions, row.task_frequency),
   };
 }

@@ -7,6 +7,7 @@ import { AddPatientCard } from '@/features/care/AddPatientCard';
 import { fetchRoster, patientName } from '@/features/care/api';
 import { EmptyState } from '@/features/results/EmptyState';
 import { patientSummary } from '@/features/results/derive';
+import { formatDate } from '@/lib/format';
 import { space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
 
@@ -73,15 +74,15 @@ export default function DashboardScreen() {
             {patients.map((patient) => {
               const name = patientName(patient);
               const summary = patientSummary(patient);
-              const score = patient.latest ? String(patient.latest.gaitScore) : undefined;
+              const last = patient.latest ? formatDate(patient.latest.date) : undefined;
               return (
                 <ListCard
                   key={patient.id}
                   title={name}
                   subtitle={summary}
                   icon={patient.status === 'waiting' ? 'hourglass' : 'person'}
-                  trailing={score}
-                  accessibilityLabel={`${name}, ${summary}${score ? `, latest gait score ${score}` : ''}`}
+                  trailing={last}
+                  accessibilityLabel={`${name}, ${summary}${last ? `, last session ${last}` : ''}`}
                   onPress={() => router.push(`/patients/${patient.id}`)}
                 />
               );

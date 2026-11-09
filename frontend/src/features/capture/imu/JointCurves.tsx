@@ -45,10 +45,7 @@ function curve(series: number[]): { d: string; min: number; max: number } {
   return { d, min, max };
 }
 
-/**
- * Camargo-style joint curves: one window, time on X, degrees on Y, hip / knee / ankle stacked.
- * Sensor sessions have the BioMAT prediction only — there is no motion-capture reference line.
- */
+/** Predicted joint curves: one window, time on X, degrees on Y, hip / knee / ankle stacked. */
 export function JointCurves({ angles, caption }: Props) {
   const ready = angles != null && JOINTS.every((j) => (angles[j.joint]?.length ?? 0) > 1);
 
@@ -65,14 +62,11 @@ export function JointCurves({ angles, caption }: Props) {
       }}
     >
       <View style={{ gap: 2 }}>
-        <Text variant="caption" weight={700} color={colors.seagrass} style={{ letterSpacing: 1.6 }}>
-          MOTION LAB / CAMARGO
-        </Text>
         <Text variant="headline" color={colors.onDark}>
           Joint angles
         </Text>
         <Text variant="caption" color={colors.onDarkMuted}>
-          2.5 s window · degrees · BioMAT prediction
+          2.5 s window · degrees
         </Text>
       </View>
 
@@ -87,7 +81,7 @@ export function JointCurves({ angles, caption }: Props) {
                   {label}
                 </Text>
                 <Text variant="caption" color={colors.onDarkMuted} style={{ fontVariant: ['tabular-nums'] }}>
-                  {min.toFixed(0)}° – {max.toFixed(0)}°
+                  {min.toFixed(0)}° to {max.toFixed(0)}°
                 </Text>
               </View>
               <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">

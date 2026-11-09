@@ -60,13 +60,5 @@ export const ACTIVITY_TO_MOTION: Record<ModelActivity, MotionType | null> = {
   ramp_descent: null,
 };
 
-export const ACTIVITY_LABELS: Record<ModelActivity, string> = {
-  walking: 'Walking',
-  stair_ascent: 'Stairs up',
-  stair_descent: 'Stairs down',
-  ramp_ascent: 'Ramp up',
-  ramp_descent: 'Ramp down',
-};
-
 /** Phone sensors cannot measure these: the model was never trained on them. */
 export const IMU_SUPPORTED: MotionType[] = ['walking', 'stairs'];

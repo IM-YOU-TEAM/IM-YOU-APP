@@ -96,16 +96,14 @@ export function movementState(input: AssessmentInput, assessment = assessMovemen
   return assessment.detectedMotion ? 'different' : 'waiting';
 }
 
-export function movementInstruction(state: MovementState, selected: MotionType, detected?: MotionType): string {
+/** Live guidance only. The movement guess is not accurate enough to show the patient. */
+export function movementInstruction(state: MovementState, selected: MotionType): string {
   switch (state) {
     case 'waiting':
       return startInstruction(selected);
     case 'matching':
-      return `${motionLabel(selected)} looks right. Keep going at a comfortable pace.`;
     case 'different':
-      return detected && detected !== selected
-        ? `This looks more like ${motionLabel(detected).toLowerCase()} than ${motionLabel(selected).toLowerCase()}. Keep going if that is what you meant to do.`
-        : `The camera has not confirmed ${motionLabel(selected).toLowerCase()} yet.`;
+      return 'Keep going at a comfortable pace.';
     default: {
       const unexpected: never = state;
       return unexpected;
