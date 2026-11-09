@@ -72,7 +72,7 @@ On the team's own 8 labelled phone trials, the activity matched the label in **9
 
 ### From the phones
 
-One real session from our two iPhones, and what the model made of it:
+One real session from our two iPhones, and what the model made of it. We validated the phone joint angles against ground truth from [OpenCap](https://www.opencap.ai), Stanford's motion capture from smartphone video.
 
 <img src="frontend/assets/readme/imu-recording.svg" alt="Raw gyroscope traces from the thigh and shin phones over 17.5 seconds" width="100%">
 
@@ -116,6 +116,7 @@ Phone-sensor sessions also need the live API from the ML repo (`python live-api/
 
 ## Limits
 
+- **Ground truth is OpenCap.** Phone joint angles were validated against OpenCap's video-based motion capture, not a marker-based lab system.
 - **Walking and stairs only** for phone sensors. Running and sit-to-stand use the camera.
 - **One 2.5 s window** of angles is saved per session, the one the model was surest about.
 - **Two phones on one leg** (right side). The model was never trained on the left leg.
@@ -124,4 +125,5 @@ Phone-sensor sessions also need the live API from the ML repo (`python live-api/
 
 - **Dataset:** Camargo et al., [open-source lower-limb biomechanics dataset](https://www.epic.gatech.edu/opensource-biomechanics-camargo-et-al/), Georgia Tech EPIC Lab
 - **Model:** [BioMAT](https://github.com/MohsenSharifi1991/BioMAT) and the [*Sensors* paper](https://www.mdpi.com/1424-8220/23/13/5778) behind it
+- **Ground truth:** [OpenCap](https://www.opencap.ai), Stanford's markerless motion capture
 - **Exercise clips:** CDC STEADI demonstrations (public domain) and Pexels contributors, credited in the app
