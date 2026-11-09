@@ -1,12 +1,13 @@
-import { View } from 'react-native';
+import { useWindowDimensions, View } from 'react-native';
 import Svg, { Line, Path } from 'react-native-svg';
 import { Text } from '@/components';
-import { colors, radii, space } from '@/lib/theme';
-import { TRACE_SAMPLES } from './motionTypes';
-import type { ImuSample } from './protocol';
+import { colors, radii, space, WIDE } from '@/lib/theme';
+import { TRACE_SECONDS, type SiteTrace } from './motionTypes';
+import { SITE_LABELS, type ImuSample } from './protocol';
 
 type Props = {
-  samples: ImuSample[];
+  /** One per leg. Empty until there is something to draw, which shows `caption` instead. */
+  traces: SiteTrace[];
   caption?: string;
 };
 
@@ -23,6 +24,8 @@ type Panel = {
 const W = 320;
 const H = 100;
 const PAD = 4;
+/** Fewer points than this is a trace still filling in, not a signal. */
+const MIN_POINTS = 8;
 
 const AXIS_STYLE = [
   { label: 'X', color: colors.seagrass, opacity: 1 },
@@ -37,25 +40,24 @@ const PANELS: Panel[] = [
   { title: 'Gyroscope', unit: '°/s', range: 500, axes: ['gx', 'gy', 'gz'] },
 ];
 
-function tracePath(samples: ImuSample[], axis: Axis, range: number): string {
-  const step = W / (TRACE_SAMPLES - 1);
-  const offset = W - (samples.length - 1) * step;
+/** Time runs right to left from `end`, so a phone sending fewer or uneven samples still lines up. */
+function tracePath(samples: ImuSample[], end: number, axis: Axis, range: number): string {
   const half = H / 2 - PAD;
   let d = '';
   samples.forEach((sample, i) => {
     const value = Math.max(-1, Math.min(1, sample[axis] / range));
-    const x = (offset + i * step).toFixed(1);
+    const x = (W - ((end - sample.t) / TRACE_SECONDS) * W).toFixed(1);
     const y = (H / 2 - value * half).toFixed(1);
     d += `${i === 0 ? 'M' : 'L'}${x} ${y}`;
   });
   return d;
 }
 
-function TracePanel({ panel, samples }: { panel: Panel; samples: ImuSample[] }) {
+function TracePanel({ panel, trace }: { panel: Panel; trace: SiteTrace }) {
   return (
     <View style={{ flex: 1, gap: space.xs }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text variant="caption" weight={700} color={colors.onDark}>
+        <Text variant="caption" color={colors.onDarkMuted}>
           {panel.title}
         </Text>
         <Text variant="caption" color={colors.onDarkMuted} style={{ fontVariant: ['tabular-nums'] }}>
@@ -71,7 +73,7 @@ function TracePanel({ panel, samples }: { panel: Panel; samples: ImuSample[] }) 
           {panel.axes.map((axis, i) => (
             <Path
               key={axis}
-              d={tracePath(samples, axis, panel.range)}
+              d={tracePath(trace.samples, trace.end, axis, panel.range)}
               stroke={AXIS_STYLE[i].color}
               strokeOpacity={AXIS_STYLE[i].opacity}
               strokeWidth={2}
@@ -87,15 +89,45 @@ function TracePanel({ panel, samples }: { panel: Panel; samples: ImuSample[] }) 
   );
 }
 
-/** Live accelerometer and gyroscope from this phone. Joint angles belong on the clinician page. */
-export function SensorTrace({ samples, caption }: Props) {
-  const ready = samples.length > 8;
+function SiteSection({ trace }: { trace: SiteTrace }) {
+  const label = SITE_LABELS[trace.site];
+  return (
+    <View style={{ flex: 1, gap: space.sm }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <Text variant="callout" weight={700} color={colors.onDark}>
+          {label}
+        </Text>
+        <Text variant="caption" color={colors.onDarkMuted}>
+          {trace.mine ? 'This phone' : 'Second phone'}
+        </Text>
+      </View>
+      {trace.samples.length > MIN_POINTS ? (
+        <View style={{ flex: 1, gap: space.sm }}>
+          {PANELS.map((panel) => (
+            <TracePanel key={panel.title} panel={panel} trace={trace} />
+          ))}
+        </View>
+      ) : (
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Text variant="caption" color={colors.onDarkMuted} align="center">
+            Waiting for the {label.toLowerCase()}…
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** Live accelerometer and gyroscope from both legs. Joint angles belong on the clinician page. */
+export function SensorTrace({ traces, caption }: Props) {
+  const wide = useWindowDimensions().width >= WIDE;
+  const ready = traces.some((trace) => trace.samples.length > MIN_POINTS);
 
   return (
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={ready ? 'Live accelerometer and gyroscope from this phone' : caption ?? 'Waiting for sensors'}
+      accessibilityLabel={ready ? 'Live accelerometer and gyroscope from the right thigh and right shin' : caption ?? 'Waiting for sensors'}
       style={{
         flex: 1,
         minHeight: 300,
@@ -117,9 +149,9 @@ export function SensorTrace({ samples, caption }: Props) {
       </View>
 
       {ready ? (
-        <View style={{ flex: 1, gap: space.md }}>
-          {PANELS.map((panel) => (
-            <TracePanel key={panel.title} panel={panel} samples={samples} />
+        <View style={{ flex: 1, flexDirection: wide ? 'row' : 'column', gap: space.lg }}>
+          {traces.map((trace) => (
+            <SiteSection key={trace.site} trace={trace} />
           ))}
         </View>
       ) : (

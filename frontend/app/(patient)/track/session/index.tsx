@@ -109,7 +109,7 @@ export default function SessionScreen() {
     ) : showPairingCode ? (
       <PairingCode code={imu.pairCode} expiresAt={imu.pairExpiresAt} onRenew={imu.renewPairing} />
     ) : (
-      <SensorTrace samples={paused || reduce || !imu.recording ? [] : imu.samples} caption={prompt} />
+      <SensorTrace traces={paused || reduce || !imu.recording ? [] : imu.traces} caption={prompt} />
     );
 
   const siteChooser =
@@ -234,7 +234,10 @@ export default function SessionScreen() {
       {siteChooser}
 
       <View style={{ flexDirection: wide ? 'row' : 'column', gap: GAP }}>
-        <View style={wide ? { flex: 2, height: 440 } : showPairingCode ? { minHeight: 320 } : { height: 320 }}>{live}</View>
+        {/* Taller once recording, for both legs' traces, and steady through Pause so Resume stays under the finger. */}
+        <View style={wide ? { flex: 2, height: 440 } : showPairingCode ? { minHeight: 320 } : { height: method === 'imu' && imu.recording ? 480 : 320 }}>
+          {live}
+        </View>
         {controls}
       </View>
     </ScreenContainer>

@@ -12,11 +12,12 @@ import {
   type LiveWindow,
   type ModelActivity,
 } from './liveTypes';
-import type { MotionGate } from './motionTypes';
+import type { MotionGate, SiteTrace } from './motionTypes';
 import { createPairing, type HostPairing } from './pairingApi';
-import { EVENTS, type ControlMessage, type Site } from './protocol';
+import { EVENTS, SITES, type ControlMessage, type Site } from './protocol';
 import { useMotionStream } from './useMotionStream';
 import { usePairing, type PairGate } from './usePairing';
+import { usePeerTrace } from './usePeerTrace';
 import { useSampleUplink } from './useSampleUplink';
 
 /** What is stopping us from measuring, in one word. */
@@ -160,7 +161,7 @@ function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate): I
 /**
  * The signed-in phone of a two-phone sensor session. It creates the pairing whose
  * QR code the second phone scans, holds the only Start / Pause / Stop, feeds the
- * live model, and turns the scored windows into the session it saves.
+ * live model, draws both legs' sensors, and turns the scored windows into the session it saves.
  */
 export function useImuSession(motion: MotionType | null, paused: boolean) {
   const tally = useRef<Tally>({ accepted: [], total: 0 });
@@ -198,7 +199,8 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     };
   }, [supported, renewPairing]);
 
-  const pairing = usePairing(supported ? (hostPairing?.topic ?? null) : null);
+  const peer = usePeerTrace(live.recording && !paused);
+  const pairing = usePairing(supported ? (hostPairing?.topic ?? null) : null, peer.listen);
   const publishRef = useRef(pairing.publish);
   publishRef.current = pairing.publish;
 
@@ -289,6 +291,15 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
 
   const gate: ImuGate = supported ? hostGate(pairingFailed, pairing.gate, sensors.gate) : 'unsupported-motion';
   const mySite: Site | null = pairing.mySite;
+  const own = sensors.recent;
+  // Thigh first, as on the body.
+  const traces: SiteTrace[] = mySite
+    ? SITES.map((site) =>
+        site === mySite
+          ? { site, mine: true, samples: own, end: own[own.length - 1]?.t ?? 0 }
+          : { site, mine: false, samples: peer.site === site ? peer.samples : [], end: peer.end },
+      )
+    : [];
 
   return {
     ...live,
@@ -299,7 +310,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     freeSites: pairing.freeSites,
     secondPhoneIn: paired,
     hz: sensors.hz,
-    samples: sensors.recent,
+    traces,
     pairCode: hostPairing?.code ?? null,
     pairExpiresAt: hostPairing?.expiresAt ?? null,
     renewPairing,
