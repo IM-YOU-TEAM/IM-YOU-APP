@@ -28,10 +28,12 @@ const REUSE_GRACE_MS = 8000;
 export type ImuGate =
   | 'connecting'
   | 'unreachable'
+  /** Step 1: show the QR code until the second phone has scanned it and Next is tapped. */
+  | 'scan-qr'
   | 'choose-site'
   | 'need-permission'
   | 'unavailable-sensors'
-  /** This phone is ready; its QR code is waiting to be scanned by the second phone. */
+  /** Past the QR step; the second phone has not taken its spot on the leg yet. */
   | 'waiting-for-second-phone'
   | 'unsupported-motion'
   | 'ready';
@@ -55,13 +57,19 @@ const EMPTY: ModelReadout = {
   accepted: 0,
 };
 
-function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate): ImuGate {
+function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate, pastQr: boolean): ImuGate {
   if (pairingFailed) return 'unreachable';
   switch (gate) {
     case 'connecting':
       return 'connecting';
     case 'unreachable':
       return 'unreachable';
+    default:
+      break;
+  }
+  // Step 1 is the QR code: scan with the second phone, then Next. Already paired (a remembered pairing) skips it.
+  if (!pastQr && gate !== 'paired') return 'scan-qr';
+  switch (gate) {
     case 'choose-site':
       return 'choose-site';
     case 'waiting-for-peer':
@@ -75,6 +83,9 @@ function hostGate(pairingFailed: boolean, gate: PairGate, motion: MotionGate): I
     }
   }
 }
+
+/** The second phone pings every 2 s once it is on the channel; this long without one means it left. */
+const SECOND_PHONE_SILENT_MS = 7000;
 
 /**
  * The signed-in phone of a two-phone sensor session. It creates the pairing whose
@@ -145,13 +156,29 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   );
   // This phone's clock is the session's reference: answer the scanned phone's sync pings.
   const peerListen = peer.listen;
+  // The second phone pings from the moment it scans, before either phone picks a spot: that is our
+  // sign it is connected, which unlocks Next on the QR step.
+  const lastPingAt = useRef(0);
+  const [pinged, setPinged] = useState(false);
   const onBroadcast = useCallback(
     (event: string, payload: unknown) => {
       peerListen(event, payload);
+      if (event === EVENTS.syncPing) {
+        lastPingAt.current = Date.now();
+        setPinged(true);
+      }
       answerSyncPing(event, payload, publishRef.current);
     },
     [peerListen],
   );
+  useEffect(() => {
+    if (!pinged) return;
+    const id = setInterval(() => {
+      if (Date.now() - lastPingAt.current > SECOND_PHONE_SILENT_MS) setPinged(false);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [pinged]);
+  const [pastQr, setPastQr] = useState(false);
   const pairing = usePairing(supported ? (hostPairing?.topic ?? null) : null, onBroadcast, stored?.site ?? null);
   publishRef.current = pairing.publish;
 
@@ -169,19 +196,32 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     renewPairing();
   }, [pairGateNow, renewPairing]);
 
+  const secondPhoneConnected = pinged || pairing.peerSites.length > 0;
+  const onChannel = pairGateNow !== 'connecting' && pairGateNow !== 'unreachable';
+
   // A reused pairing's QR code has usually been redeemed already, so it cannot be scanned again. Keep the
   // pairing only if its second phone turns up; otherwise make a fresh code that a new scan can use.
   useEffect(() => {
-    if (!reusing.current || pairGateNow !== 'waiting-for-peer') return;
+    if (!reusing.current || !onChannel || secondPhoneConnected) return;
     const id = setTimeout(() => {
       if (reusing.current) renewPairing();
     }, REUSE_GRACE_MS);
     return () => clearTimeout(id);
-  }, [pairGateNow, renewPairing]);
+  }, [onChannel, secondPhoneConnected, renewPairing]);
   useEffect(() => {
     // The second phone is back on the remembered pairing: it is ours to keep for this visit.
-    if (pairGateNow === 'paired') reusing.current = false;
-  }, [pairGateNow]);
+    if (secondPhoneConnected) reusing.current = false;
+  }, [secondPhoneConnected]);
+
+  // A fresh code means a new scan: back to the QR step.
+  const topicNow = hostPairing?.topic ?? null;
+  useEffect(() => {
+    setPastQr(false);
+  }, [topicNow]);
+  // Step 1 -> step 2, only once the second phone has actually scanned.
+  const confirmSecondPhone = useCallback(() => {
+    if (secondPhoneConnected) setPastQr(true);
+  }, [secondPhoneConnected]);
 
   const uplink = useSampleUplink(supported, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current);
   uplinkRef.current = uplink;
@@ -277,7 +317,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     [halt, motion],
   );
 
-  const gate: ImuGate = supported ? hostGate(pairingFailed, pairing.gate, sensors.gate) : 'unsupported-motion';
+  const gate: ImuGate = supported ? hostGate(pairingFailed, pairing.gate, sensors.gate, pastQr) : 'unsupported-motion';
   const mySite: Site | null = pairing.mySite;
   const own = sensors.recent;
   // Thigh first, as on the body.
@@ -297,6 +337,8 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     mySite,
     freeSites: pairing.freeSites,
     secondPhoneIn: paired,
+    secondPhoneConnected,
+    confirmSecondPhone,
     hz: sensors.hz,
     traces,
     pairCode: hostPairing?.code ?? null,

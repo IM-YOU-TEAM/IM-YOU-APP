@@ -55,7 +55,7 @@ export default function SessionScreen() {
   const captureFinished = method === 'imu' ? finishedImu.current != null : finishedPose.current != null;
   // Picking a spot or allowing sensors must not look like recording: Start is the only control until it is tapped.
   const imuWaiting = method === 'imu' && !imu.recording && !captureFinished;
-  const showPairingCode = imuWaiting && imu.gate === 'waiting-for-second-phone';
+  const showPairingCode = imuWaiting && imu.gate === 'scan-qr';
   const clockOn =
     !saving && !captureFinished && (method === 'imu' ? imu.recording : gate === 'ready' && captureStarted);
   const blocked =
@@ -192,7 +192,18 @@ export default function SessionScreen() {
         {method === 'imu' && imu.gate === 'unreachable' ? (
           <PillButton label="Try again" icon="refresh" size="lg" fullWidth onPress={imu.renewPairing} />
         ) : null}
-        {imuWaiting && (imu.gate === 'need-permission' || imu.gate === 'unreachable') ? null : imuWaiting ? (
+        {imuWaiting && imu.gate === 'scan-qr' ? (
+          // Step 1 -> 2: unlocked once the second phone has scanned the code.
+          <PillButton
+            label="Next"
+            icon="chevron-forward"
+            iconRight
+            size="lg"
+            fullWidth
+            disabled={!imu.secondPhoneConnected}
+            onPress={imu.confirmSecondPhone}
+          />
+        ) : imuWaiting && (imu.gate === 'need-permission' || imu.gate === 'unreachable') ? null : imuWaiting ? (
           <PillButton
             label="Start"
             icon="play"
@@ -263,7 +274,7 @@ export default function SessionScreen() {
 function sensorPrompt(
   motion: MotionType,
   paused: boolean,
-  imu: { gate: ImuGate; recording: boolean; modelConnected: boolean },
+  imu: { gate: ImuGate; recording: boolean; modelConnected: boolean; secondPhoneConnected: boolean },
 ): string {
   if (paused) return 'Paused on both phones. Tap Resume to carry on.';
   switch (imu.gate) {
@@ -273,6 +284,10 @@ function sensorPrompt(
       return 'Getting the session ready…';
     case 'unreachable':
       return 'Could not set up the session. Check the network and try again.';
+    case 'scan-qr':
+      return imu.secondPhoneConnected
+        ? 'Second phone connected. Tap Next.'
+        : 'Scan this code with your second phone, then tap Next.';
     case 'choose-site':
       return 'Where is this phone? Pick the right thigh or the right shin.';
     case 'need-permission':
@@ -282,7 +297,7 @@ function sensorPrompt(
     case 'waiting-for-second-phone':
       return imu.recording
         ? 'The second phone dropped out. Keep its page open and it rejoins on its own.'
-        : 'This phone is ready. Scan the code with your second phone.';
+        : 'Waiting for the second phone to take its spot on the leg. Keep its page open.';
     case 'ready':
       if (!imu.recording) {
         return imu.modelConnected
