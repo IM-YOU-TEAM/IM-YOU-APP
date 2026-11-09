@@ -1,5 +1,5 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { EVENTS, SITES, type PhonePresence, type Site } from './protocol';
 import { myImuTopic } from './topic';
@@ -154,7 +154,8 @@ export function usePairing(
     channelRef.current?.send({ type: 'broadcast', event, payload });
   }, []);
 
-  const freeSites = SITES.filter((site) => !peerSites.includes(site));
+  // Memoised: useImuSession copies this into state from an effect, so a fresh array each render loops forever.
+  const freeSites = useMemo(() => SITES.filter((site) => !peerSites.includes(site)), [peerSites]);
 
   return {
     gate,
