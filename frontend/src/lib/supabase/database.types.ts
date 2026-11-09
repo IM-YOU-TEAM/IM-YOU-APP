@@ -93,6 +93,7 @@ export type Database = {
           id: string
           linked_at: string | null
           owner_link: string | null
+          task_frequency: Json
         }
         Insert: {
           assigned_motions?: string[]
@@ -103,6 +104,7 @@ export type Database = {
           id?: string
           linked_at?: string | null
           owner_link?: string | null
+          task_frequency?: Json
         }
         Update: {
           assigned_motions?: string[]
@@ -113,6 +115,7 @@ export type Database = {
           id?: string
           linked_at?: string | null
           owner_link?: string | null
+          task_frequency?: Json
         }
         Relationships: [
           {
@@ -243,6 +246,35 @@ export type Database = {
           },
         ]
       }
+      task_checks: {
+        Row: {
+          created_at: string
+          done_on: string
+          motion: string
+          patient_id: string
+        }
+        Insert: {
+          created_at?: string
+          done_on: string
+          motion: string
+          patient_id: string
+        }
+        Update: {
+          created_at?: string
+          done_on?: string
+          motion?: string
+          patient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_checks_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -274,6 +306,7 @@ export type Database = {
           id: string
           linked_at: string | null
           owner_link: string | null
+          task_frequency: Json
         }
         SetofOptions: {
           from: "*"

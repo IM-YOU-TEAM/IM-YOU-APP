@@ -1,5 +1,5 @@
 // Labels, icons and small helpers. Records live in Supabase: see features/results/api.ts and features/care/api.ts.
-import type { CaptureMethod, IconName, Labels, MotionType } from '@/types';
+import type { CaptureMethod, CareTask, IconName, Labels, MotionType } from '@/types';
 
 /** Placeholder patient id on a freshly recorded session. Saving swaps in the signed-in patient's id. */
 export const LOCAL_PATIENT_ID = 'local';
@@ -34,6 +34,25 @@ export function parseAssignedMotions(value: unknown): MotionType[] {
     if (typeof item === 'string' && Object.hasOwn(MOTION_LABELS, item)) allowed.add(item as MotionType);
   }
   return ALL_MOTIONS.filter((motion) => allowed.has(motion));
+}
+
+/** Choices a clinician has for how often, most often first. 7 means every day. */
+export const TASK_FREQUENCIES = [7, 5, 3, 2, 1] as const;
+
+/** Assigned movements with their times per week. A missing or invalid frequency means every day. */
+export function parseTasks(assigned: unknown, frequency: unknown): CareTask[] {
+  const plan = typeof frequency === 'object' && frequency !== null && !Array.isArray(frequency) ? (frequency as Record<string, unknown>) : {};
+  return parseAssignedMotions(assigned).map((motion) => {
+    const n = plan[motion];
+    return { motion, timesPerWeek: typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 7 ? n : 7 };
+  });
+}
+
+/** 7 -> "Every day", 1 -> "Once a week", 3 -> "3 times a week". */
+export function frequencyLabel(timesPerWeek: number): string {
+  if (timesPerWeek >= 7) return 'Every day';
+  if (timesPerWeek === 1) return 'Once a week';
+  return `${timesPerWeek} times a week`;
 }
 
 export const MOTION_ICONS: Record<MotionType, IconName> = {

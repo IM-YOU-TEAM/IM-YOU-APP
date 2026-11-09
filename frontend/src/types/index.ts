@@ -9,6 +9,9 @@ export type MotionType = 'walking' | 'running' | 'stairs' | 'sitToStand';
 /** 'cv' = phone camera (computer vision), 'imu' = phone motion sensors. */
 export type CaptureMethod = 'cv' | 'imu';
 
+/** A movement the clinician assigned and how many days a week to record it (7 = every day). */
+export type CareTask = { motion: MotionType; timesPerWeek: number };
+
 /** 'waiting' = created by a clinician, not claimed yet. 'closed' = the patient deleted their account. */
 export type PatientStatus = 'waiting' | 'linked' | 'closed';
 
@@ -23,8 +26,8 @@ export type Patient = {
   linkedAt: string | null; // local ISO date-time
   sessionCount: number;
   latest: { date: string; gaitScore: number } | null;
-  /** Movements the clinician has left visible for this patient. */
-  assignedMotions: MotionType[];
+  /** Recordings the clinician assigned, in picker order. Unassigned movements are hidden. */
+  tasks: CareTask[];
 };
 
 /** Right-leg joints the phone-sensor model predicts, named as its export names them. */

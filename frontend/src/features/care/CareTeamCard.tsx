@@ -17,7 +17,7 @@ export function CareTeamCard() {
   const [error, setError] = useState<string | null>(null);
   const doctorName = patient?.clinicianName;
   const linked = patient?.clinicianId != null;
-  const assigned = patient?.assignedMotions ?? [];
+  const assigned = (patient?.tasks ?? []).map((task) => task.motion);
   const assignedLine =
     assigned.length === 0
       ? 'No movement assigned yet.'

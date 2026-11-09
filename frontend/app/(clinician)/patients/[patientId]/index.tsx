@@ -13,12 +13,14 @@ import {
   type Metric,
 } from '@/components';
 import { JointCurves } from '@/features/capture/imu/JointCurves';
-import { AssignedMotionsEditor } from '@/features/care/AssignedMotionsEditor';
 import { fetchRosterPatient, patientName } from '@/features/care/api';
+import { TasksEditor } from '@/features/care/TasksEditor';
 import { fetchSessions } from '@/features/results/api';
 import { EmptyState } from '@/features/results/EmptyState';
 import { PATIENT_STATUS_LABELS, sessionRow, sessionWhen } from '@/features/results/derive';
-import { MOTION_ICONS, MOTION_LABELS } from '@/lib/data';
+import { fetchTaskChecks } from '@/features/tasks/api';
+import { taskStatuses, weekStart } from '@/features/tasks/progress';
+import { MOTION_ICONS, MOTION_LABELS, today } from '@/lib/data';
 import { formatDate } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
@@ -30,9 +32,13 @@ export default function PatientDetailScreen() {
   const [pickedId, setPickedId] = useState<string | null>(null);
 
   const loaded = useLoader(async () => {
-    if (!patientId) return { patient: null, sessions: [] };
-    const [patient, sessions] = await Promise.all([fetchRosterPatient(patientId), fetchSessions(patientId)]);
-    return { patient, sessions };
+    if (!patientId) return { patient: null, sessions: [], checks: [] };
+    const [patient, sessions, checks] = await Promise.all([
+      fetchRosterPatient(patientId),
+      fetchSessions(patientId),
+      fetchTaskChecks(patientId, weekStart(today())),
+    ]);
+    return { patient, sessions, checks };
   }, [patientId]);
 
   const back = (
@@ -50,7 +56,7 @@ export default function PatientDetailScreen() {
     );
   }
 
-  const { patient, sessions } = loaded.data;
+  const { patient, sessions, checks } = loaded.data;
 
   if (!patient) {
     return (
@@ -124,7 +130,12 @@ export default function PatientDetailScreen() {
         )}
       </Card>
 
-      <AssignedMotionsEditor patientId={patient.id} assigned={patient.assignedMotions} />
+      <TasksEditor
+        key={patient.id}
+        patientId={patient.id}
+        tasks={patient.tasks}
+        progress={taskStatuses(patient.tasks, sessions, checks, today())}
+      />
 
       <View style={{ gap: space.md }}>
         <View style={{ gap: space.xs }}>
