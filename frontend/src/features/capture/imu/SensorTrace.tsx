@@ -47,8 +47,8 @@ const AXIS_STYLE = [
 const PANELS: Panel[] = [
   // With gravity taken out, walking swings a few m/s²; a brisk step on the shin peaks near 2 g.
   { title: 'Accelerometer, gravity removed', kind: 'accel', nativeRange: 10, nativeFloor: 0.4, centred: true, axes: ['ax', 'ay', 'az'] },
-  // Thigh swing peaks around 250 °/s when walking, the shin near 450.
-  { title: 'Gyroscope', kind: 'gyro', nativeRange: 300, nativeFloor: 12, centred: false, axes: ['gx', 'gy', 'gz'] },
+  // Fixed at ±250 °/s: thigh swing peaks around there when walking; faster shin swings touch the edge.
+  { title: 'Gyroscope', kind: 'gyro', nativeRange: 250, nativeFloor: 250, centred: false, axes: ['gx', 'gy', 'gz'] },
 ];
 
 /** Fit the scale to the typical swing, not the single biggest spike: rare peaks like heel strike touch the edge. */
