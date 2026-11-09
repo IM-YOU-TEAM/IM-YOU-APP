@@ -191,11 +191,10 @@ function AssessmentDetails({
       : verified === false
         ? `${MOTION_LABELS[motion]} was not confirmed`
         : 'Movement assessment unavailable';
+  // A confirmed recording needs no explanation: the title says it.
   const detail =
     verified === true
-      ? method === 'imu'
-        ? 'The sensors recognized the movement you selected. Joint ranges below are from the model, not a camera count.'
-        : 'The camera saw the movement you selected.'
+      ? null
       : verified === false && detectedMotion && detectedMotion !== motion
         ? `This recording looked more like ${MOTION_LABELS[detectedMotion].toLowerCase()} than ${MOTION_LABELS[motion].toLowerCase()}. Record again if that was not what you meant to do.`
         : verified === false && detectedMotion === motion
@@ -210,12 +209,9 @@ function AssessmentDetails({
         <Ionicons name={verified === true ? 'checkmark-circle' : 'alert-circle'} size={26} color={verified === true ? colors.seagrass : colors.graphite} />
         <View style={{ flex: 1, gap: space.xs }}>
           <Text variant="headline">{title}</Text>
-          <Text variant="callout" muted>
-            {detail}
-          </Text>
-          {match != null ? (
-            <Text variant="caption" muted>
-              Pattern match {match}%
+          {detail ? (
+            <Text variant="callout" muted>
+              {detail}
             </Text>
           ) : null}
         </View>
