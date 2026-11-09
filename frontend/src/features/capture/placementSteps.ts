@@ -56,7 +56,7 @@ const CV_STEPS: Record<MotionType, PlacementStep[]> = {
 
 const IMU_STEPS: Record<MotionType, PlacementStep[]> = {
   walking: [
-    { icon: 'people', title: 'Sign in on both phones', detail: 'Same I\'M U patient account in Safari on each phone.' },
+    { icon: 'qr-code', title: 'Sign in on one phone', detail: 'Then scan its code with the second phone\'s camera. That one needs no sign-in.' },
     { icon: 'phone-portrait', title: 'Right thigh and right shin', detail: 'One phone strapped to the outer thigh, the other just below the knee.' },
     { icon: 'arrow-up', title: 'Tops pointing up', detail: 'Screens facing the leg, snug so they do not swing.' },
     { icon: 'walk', title: 'Walk a straight path', detail: 'At your normal pace. Keep both Safari pages open and unlocked.' },
@@ -68,7 +68,7 @@ const IMU_STEPS: Record<MotionType, PlacementStep[]> = {
     { icon: 'speedometer', title: 'Run at your usual pace', detail: 'Warm up first, then keep a steady speed.' },
   ],
   stairs: [
-    { icon: 'people', title: 'Sign in on both phones', detail: 'Same I\'M U patient account in Safari on each phone.' },
+    { icon: 'qr-code', title: 'Sign in on one phone', detail: 'Then scan its code with the second phone\'s camera. That one needs no sign-in.' },
     { icon: 'phone-portrait', title: 'Right thigh and right shin', detail: 'A tight side pocket or strap on the thigh; the second phone on the shin.' },
     { icon: 'arrow-up', title: 'Tops pointing up', detail: 'Screens facing the leg.' },
     { icon: 'hand-left', title: 'Hold the handrail', detail: 'Go up and back down at least one full flight. Keep both pages open.' },

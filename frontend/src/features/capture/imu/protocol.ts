@@ -1,5 +1,3 @@
-import type { JointName, ModelActivity } from './liveTypes';
-
 /**
  * Where each phone is strapped. The model was trained on two sensors and wants
  * the shank channels first, so `DEVICE_ID` keeps the names its export uses.
@@ -33,32 +31,14 @@ export type ImuSample = {
   gz: number;
 };
 
-/** Sent by whichever phone the person tapped. Both phones always act on it together. */
+/** Sent by the signed-in phone, which has the only controls. The scanned phone follows it. */
 export type ControlMessage = {
   action: 'start' | 'stop' | 'pause' | 'resume';
-  motion: string;
-  /** Milliseconds since the epoch, so both phones trim to the same window. */
-  at: number;
-  session_id: string;
-  /** Presence key of the phone that pressed the button, so only it resets the model. */
-  origin: string;
 };
 
-/** One scored window, published by the model worker. Mirrors the live API's shape. */
-export type WindowMessage = {
-  index: number;
-  usable: boolean;
-  reason: string | null;
-  activity: ModelActivity | null;
-  confidence: number;
-  angles: Record<JointName, number[]>;
-  summary: Record<JointName, { min: number; max: number; mean: number }>;
-};
-
-/** Broadcast event names. Kept here so the worker and the app cannot drift apart. */
+/** Broadcast event names, kept in one place so the two phones cannot drift apart. */
 export const EVENTS = {
   control: 'control',
-  window: 'window',
 } as const;
 
 /**

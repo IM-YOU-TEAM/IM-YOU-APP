@@ -2,33 +2,30 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { EVENTS, SITES, type PhonePresence, type Site } from './protocol';
-import { myImuTopic } from './topic';
 
 export type PairGate =
-  /** Resolving the topic and joining the channel. */
+  /** Waiting for a pairing topic, or joining its channel. */
   | 'connecting'
-  /** The account has no patient record, so there is no stream to join. */
-  | 'not-a-patient'
   /** The channel refused us, or the network is down. */
   | 'unreachable'
-  /** On the channel, waiting for this phone to be told where it is strapped. */
+  /** On the channel; this phone has not taken a spot yet. */
   | 'choose-site'
-  /** This phone has a site; the other one has not arrived yet. */
+  /** This phone has a spot; the other one has not arrived yet. */
   | 'waiting-for-peer'
   /** Both the thigh and the shin are present. The model can be fed. */
   | 'paired';
 
+type Joined = 'connecting' | 'unreachable' | 'joined';
+
 export type Pairing = {
   gate: PairGate;
   mySite: Site | null;
-  /** Stable id for this tab, used so Start/Stop only reset the model once. */
-  clientKey: string;
-  /** Sites currently held by other phones on this account. */
+  /** Sites currently held by the other phone. */
   peerSites: Site[];
   /** Sites nobody holds yet, so a phone cannot claim an occupied one. */
   freeSites: Site[];
   claim: (site: Site) => Promise<void>;
-  /** Publishes on the shared topic. No-op before the channel is joined. */
+  /** Publishes on the pairing topic. No-op before the channel is joined. */
   publish: (event: string, payload: object) => void;
 };
 
@@ -39,29 +36,30 @@ function newKey(): string {
 }
 
 /**
- * Joins the patient's private IMU topic and tracks which phone is where.
+ * Joins a pairing's private Realtime topic and tracks which phone is where.
  *
- * Pairing is implicit: both phones are signed into the same account, so they
- * resolve the same topic and find each other through presence. There is no code
- * to type. What each phone still has to say is where it is strapped, because
- * the model needs the shank and thigh channels in a fixed order.
+ * The signed-in phone gets the topic when it creates the pairing; the scanned
+ * phone gets it by redeeming the QR code. Each phone still says where it is
+ * strapped, because the model needs the shank and thigh channels in a fixed order.
  */
 export function usePairing(
-  enabled: boolean,
+  topic: string | null,
   onBroadcast?: (event: string, payload: unknown) => void,
 ): Pairing {
-  const [gate, setGate] = useState<PairGate>('connecting');
+  const [joined, setJoined] = useState<Joined>('connecting');
   const [mySite, setMySite] = useState<Site | null>(null);
   const [peerSites, setPeerSites] = useState<Site[]>([]);
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const keyRef = useRef<string>(newKey());
+  /** Survives a new topic, so a renewed code keeps this phone's spot. */
+  const siteRef = useRef<Site | null>(null);
   const onBroadcastRef = useRef(onBroadcast);
   onBroadcastRef.current = onBroadcast;
 
   useEffect(() => {
-    if (!enabled) {
-      setGate('connecting');
+    if (!topic) {
+      setJoined('connecting');
       return;
     }
 
@@ -69,13 +67,6 @@ export function usePairing(
     let channel: RealtimeChannel | null = null;
 
     const join = async () => {
-      const topic = await myImuTopic();
-      if (stopped) return;
-      if (!topic) {
-        setGate('not-a-patient');
-        return;
-      }
-
       // Private channels authorize against the access token held by the
       // realtime client, which is not refreshed for us on every join.
       await supabase.realtime.setAuth();
@@ -85,7 +76,6 @@ export function usePairing(
         config: {
           private: true,
           presence: { key: keyRef.current },
-          // Our own samples are already in hand; echoing them back wastes the quota.
           broadcast: { self: false },
         },
       });
@@ -112,11 +102,16 @@ export function usePairing(
       channel.subscribe((status) => {
         if (stopped) return;
         if (status === 'SUBSCRIBED') {
-          setGate((prev) => (prev === 'connecting' || prev === 'unreachable' ? 'choose-site' : prev));
+          const site = siteRef.current;
+          if (site) {
+            const presence: PhonePresence = { site };
+            void channel?.track(presence);
+          }
+          setJoined('joined');
           return;
         }
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          setGate('unreachable');
+          setJoined('unreachable');
         }
       });
     };
@@ -127,24 +122,15 @@ export function usePairing(
       stopped = true;
       if (channel) void supabase.removeChannel(channel);
       channelRef.current = null;
-      setMySite(null);
       setPeerSites([]);
+      setJoined('connecting');
     };
-  }, [enabled]);
-
-  // Derived gate: a site of our own plus the other site present means paired.
-  useEffect(() => {
-    setGate((prev) => {
-      if (prev === 'connecting' || prev === 'not-a-patient' || prev === 'unreachable') return prev;
-      if (mySite == null) return 'choose-site';
-      const other = SITES.find((site) => site !== mySite);
-      return other != null && peerSites.includes(other) ? 'paired' : 'waiting-for-peer';
-    });
-  }, [mySite, peerSites]);
+  }, [topic]);
 
   const claim = useCallback(async (site: Site) => {
     const channel = channelRef.current;
     if (!channel) return;
+    siteRef.current = site;
     const presence: PhonePresence = { site };
     await channel.track(presence);
     setMySite(site);
@@ -154,18 +140,20 @@ export function usePairing(
     channelRef.current?.send({ type: 'broadcast', event, payload });
   }, []);
 
-  // Memoised: useImuSession copies this into state from an effect, so a fresh array each render loops forever.
+  // Memoised: callers keep this in effect dependencies, so a fresh array each render would loop.
   const freeSites = useMemo(() => SITES.filter((site) => !peerSites.includes(site)), [peerSites]);
 
-  return {
-    gate,
-    mySite,
-    clientKey: keyRef.current,
-    peerSites,
-    freeSites,
-    claim,
-    publish,
-  };
+  const other = mySite ? SITES.find((site) => site !== mySite) : undefined;
+  const gate: PairGate =
+    joined !== 'joined'
+      ? joined
+      : mySite == null
+        ? 'choose-site'
+        : other != null && peerSites.includes(other)
+          ? 'paired'
+          : 'waiting-for-peer';
+
+  return { gate, mySite, peerSites, freeSites, claim, publish };
 }
 
 export { EVENTS };
