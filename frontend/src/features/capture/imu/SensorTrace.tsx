@@ -46,13 +46,14 @@ const AXIS_STYLE = [
 
 const PANELS: Panel[] = [
   // With gravity taken out, walking swings a few m/s²; a brisk step on the shin peaks near 2 g.
-  { title: 'Accelerometer, gravity removed', kind: 'accel', nativeRange: 20, nativeFloor: 1.5, centred: true, axes: ['ax', 'ay', 'az'] },
+  { title: 'Accelerometer, gravity removed', kind: 'accel', nativeRange: 10, nativeFloor: 0.4, centred: true, axes: ['ax', 'ay', 'az'] },
   // Thigh swing peaks around 250 °/s when walking, the shin near 450.
-  { title: 'Gyroscope', kind: 'gyro', nativeRange: 500, nativeFloor: 40, centred: false, axes: ['gx', 'gy', 'gz'] },
+  { title: 'Gyroscope', kind: 'gyro', nativeRange: 300, nativeFloor: 12, centred: false, axes: ['gx', 'gy', 'gz'] },
 ];
 
-/** Headroom above the tallest peak, so the trace fills most of the box without touching its edges. */
-const HEADROOM = 1.25;
+/** Fit the scale to the typical swing, not the single biggest spike: rare peaks like heel strike touch the edge. */
+const FIT_PERCENTILE = 0.85;
+const HEADROOM = 1.1;
 /** Per redraw: zoom out fast when a bigger movement arrives, zoom back in slowly once it has passed. */
 const GROW = 0.5;
 const SHRINK = 0.04;
@@ -92,13 +93,15 @@ function centresOf(panel: Panel, samples: ImuSample[]): Record<Axis, number> {
   return centres;
 }
 
-/** The scale this window asks for, in native units: the tallest swing plus headroom, within the panel's limits. */
+/** The scale this window asks for, in native units: the typical swing plus headroom, within the panel's limits. */
 function targetRange(panel: Panel, samples: ImuSample[], centres: Record<Axis, number>): number {
-  let peak = 0;
+  const swings: number[] = [];
   for (const sample of samples) {
-    for (const axis of panel.axes) peak = Math.max(peak, Math.abs(sample[axis] - centres[axis]));
+    for (const axis of panel.axes) swings.push(Math.abs(sample[axis] - centres[axis]));
   }
-  return Math.min(panel.nativeRange, Math.max(panel.nativeFloor, peak * HEADROOM));
+  swings.sort((a, b) => a - b);
+  const typical = swings.length > 0 ? swings[Math.floor((swings.length - 1) * FIT_PERCENTILE)] : 0;
+  return Math.min(panel.nativeRange, Math.max(panel.nativeFloor, typical * HEADROOM));
 }
 
 /** Time runs right to left from `end`, so a phone sending fewer or uneven samples still lines up. */
@@ -143,14 +146,9 @@ function TracePanel({
 
   return (
     <View style={{ flex: 1, gap: space.xs }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <Text variant="caption" color={colors.onDarkMuted}>
-          {panel.title}
-        </Text>
-        <Text variant="caption" color={colors.onDarkMuted} style={{ fontVariant: ['tabular-nums'] }}>
-          ±{bound} {unit}
-        </Text>
-      </View>
+      <Text variant="caption" color={colors.onDarkMuted}>
+        {panel.title} ({unit})
+      </Text>
       <View style={{ flex: 1, flexDirection: 'row', gap: space.xs }}>
         <View style={{ width: 36, justifyContent: 'space-between' }}>
           <Text variant="caption" color={colors.onDarkMuted} align="right" style={{ fontVariant: ['tabular-nums'] }}>
