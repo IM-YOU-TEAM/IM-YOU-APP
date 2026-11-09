@@ -9,7 +9,7 @@ import { formatLongDate } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
 import { EmptyState } from '@/features/results/EmptyState';
-import { cadenceTrend, greetingFor, recentSessions, sessionRow, weekCounts } from '@/features/results/derive';
+import { cadenceTrend, greetingFor, latestCadence, recentSessions, sessionRow, sessionScoreLabel, weekCounts } from '@/features/results/derive';
 
 export default function HomeScreen() {
   const wide = useWindowDimensions().width >= WIDE;
@@ -19,6 +19,7 @@ export default function HomeScreen() {
   const day = today();
   const list = sessions.data ?? [];
   const latest = list.at(-1);
+  const cadenceSession = latestCadence(list);
   const week = weekCounts(list, day);
   const weekTotal = week.reduce((sum, d) => sum + d.value, 0);
   const recent = recentSessions(list);
@@ -47,22 +48,23 @@ export default function HomeScreen() {
         <PillButton label="Start tracking" icon="play" size="lg" fullWidth={!wide} onPress={startTracking} />
       </View>
 
-      {/* Hero cadence + today's focus */}
+      {/* Hero cadence + doctor */}
       <BentoGrid weights={[2, 1]}>
         <View style={{ flex: 1 }}>
           <StatTile
             label="Cadence"
-            value={latest ? latest.cadence : '—'}
+            value={cadenceSession ? cadenceSession.cadence : '—'}
             unit="steps/min"
             icon="footsteps"
             waveform={cadenceTrend(list)}
-            // With no data, keep room at the bottom for the two-line hint below.
-            style={{ flex: 1, paddingBottom: latest ? 20 : 64 }}
+            style={{ flex: 1, paddingBottom: cadenceSession ? 20 : 64 }}
           />
-          {!latest && (
+          {!cadenceSession && (
             <View pointerEvents="none" style={{ position: 'absolute', left: 20, right: 20, bottom: 20 }}>
               <Text variant="callout" weight={700} color={colors.onSeagrassMuted}>
-                Track your first session to see your cadence here.
+                {latest
+                  ? 'Cadence is steps per minute, counted from camera sessions.'
+                  : 'Track a camera session to see your steps per minute here.'}
               </Text>
             </View>
           )}
@@ -107,8 +109,8 @@ export default function HomeScreen() {
                     title={row.title}
                     subtitle={row.subtitle}
                     icon={MOTION_ICONS[s.motion]}
-                    trailing={s.movementVerified === false ? '—' : String(s.gaitScore)}
-                    accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${s.movementVerified === false ? 'not available' : s.gaitScore}`}
+                    trailing={sessionScoreLabel(s)}
+                    accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${sessionScoreLabel(s)}`}
                     onPress={() => router.push(`/results?sessionId=${s.id}`)}
                   />
                 );
