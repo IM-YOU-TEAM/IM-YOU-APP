@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/features/auth/AuthProvider';
 import { sessionId } from '@/lib/session';
 import type { MotionType, Session } from '@/types';
 import { summariseImu, type ImuTally } from './imuSummary';
@@ -11,6 +12,7 @@ import {
   type ModelActivity,
 } from './liveTypes';
 import type { MotionGate, SiteTrace } from './motionTypes';
+import { clearHostPairing, loadHostPairing, saveHostPairing } from './hostPairingStore';
 import { createPairing, type HostPairing } from './pairingApi';
 import { EVENTS, SITES, type ControlMessage, type Site } from './protocol';
 import { useMotionStream } from './useMotionStream';
@@ -90,13 +92,19 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
   const supported = motion != null && IMU_SUPPORTED.includes(motion);
   const sensors = useMotionStream();
 
-  const [hostPairing, setHostPairing] = useState<HostPairing | null>(null);
+  // A pairing made earlier on this phone (by this account) is rejoined, so a second phone scanned
+  // before a demo stays connected across recordings, the results page and reloads.
+  const userId = useAuth().session?.user.id ?? null;
+  const [stored] = useState(() => (userId ? loadHostPairing(userId) : null));
+  const reusing = useRef(stored != null);
+  const [hostPairing, setHostPairing] = useState<HostPairing | null>(stored?.pairing ?? null);
   const [pairingFailed, setPairingFailed] = useState(false);
   const pairingRequest = useRef(0);
   const pairingQueue = useRef<Promise<void>>(Promise.resolve());
 
   const renewPairing = useCallback(() => {
     const request = ++pairingRequest.current;
+    reusing.current = false;
     setPairingFailed(false);
     // One at a time: each pairing retires the older ones, so the newest must also be created last.
     pairingQueue.current = pairingQueue.current.then(async () => {
@@ -110,7 +118,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
 
   useEffect(() => {
     if (!supported) return;
-    renewPairing();
+    if (!reusing.current) renewPairing();
     return () => {
       pairingRequest.current += 1;
     };
@@ -127,8 +135,22 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     },
     [peerListen],
   );
-  const pairing = usePairing(supported ? (hostPairing?.topic ?? null) : null, onBroadcast);
+  const pairing = usePairing(supported ? (hostPairing?.topic ?? null) : null, onBroadcast, stored?.site ?? null);
   publishRef.current = pairing.publish;
+
+  // Remember the pairing and this phone's spot for the next visit.
+  const mySiteNow = pairing.mySite;
+  useEffect(() => {
+    if (userId && hostPairing) saveHostPairing(userId, hostPairing, mySiteNow);
+  }, [userId, hostPairing, mySiteNow]);
+
+  // The remembered pairing was retired or ran past its 12 hours: start a fresh one.
+  const pairGateNow = pairing.gate;
+  useEffect(() => {
+    if (pairGateNow !== 'unreachable' || !reusing.current) return;
+    clearHostPairing();
+    renewPairing();
+  }, [pairGateNow, renewPairing]);
 
   const uplink = useSampleUplink(supported, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current);
 

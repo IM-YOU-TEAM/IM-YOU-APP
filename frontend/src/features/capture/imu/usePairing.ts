@@ -45,15 +45,17 @@ function newKey(): string {
 export function usePairing(
   topic: string | null,
   onBroadcast?: (event: string, payload: unknown) => void,
+  /** A spot this phone already took on this pairing, re-announced as soon as it joins. */
+  initialSite: Site | null = null,
 ): Pairing {
   const [joined, setJoined] = useState<Joined>('connecting');
-  const [mySite, setMySite] = useState<Site | null>(null);
+  const [mySite, setMySite] = useState<Site | null>(initialSite);
   const [peerSites, setPeerSites] = useState<Site[]>([]);
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const keyRef = useRef<string>(newKey());
   /** Survives a new topic, so a renewed code keeps this phone's spot. */
-  const siteRef = useRef<Site | null>(null);
+  const siteRef = useRef<Site | null>(initialSite);
   const onBroadcastRef = useRef(onBroadcast);
   onBroadcastRef.current = onBroadcast;
 

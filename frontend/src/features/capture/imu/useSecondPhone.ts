@@ -63,7 +63,8 @@ export function useSecondPhone(code: string) {
   });
   const [recording, setRecording] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [done, setDone] = useState(false);
+  // This phone never finishes on its own: it stays paired for every recording until its tab is closed.
+  const done = false;
   const recordingRef = useRef(false);
   const pausedRef = useRef(false);
 
@@ -103,12 +104,11 @@ export function useSecondPhone(code: string) {
           setPaused(pausedRef.current);
           return;
         case 'stop':
+          // Stay on the channel: the next Start from the signed-in phone records again, with no new scan.
           recordingRef.current = false;
           pausedRef.current = false;
           setRecording(false);
           setPaused(false);
-          setDone(true);
-          remember(code, null);
           return;
         default: {
           const unexpected: never = control.action;
