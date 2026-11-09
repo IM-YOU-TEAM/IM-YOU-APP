@@ -33,6 +33,17 @@ export type Patient = {
 /** Right-leg joints the phone-sensor model predicts, named as its export names them. */
 export type JointName = 'hip_flexion_r' | 'knee_angle_r' | 'ankle_angle_r';
 
+/**
+ * A sensor session's predicted joint angles over the whole recording, in the model's own signs
+ * (OpenSim: knee flexion is negative). Null values are gaps the model did not score.
+ */
+export type JointTrace = {
+  sampleHz: number;
+  /** Seconds from the start of recording to the first value. */
+  startSec: number;
+  angles: Record<JointName, (number | null)[]>;
+};
+
 export type SessionAssessmentMetric = {
   key: string;
   label: string;
@@ -68,6 +79,8 @@ export type Session = {
   assessmentMetrics?: SessionAssessmentMetric[];
   /** Sensor sessions: the model's predicted angles in degrees over its most confident 2.5 s window. */
   jointAngles?: Record<JointName, number[]>;
+  /** Sensor sessions, before saving only: the whole recording. Saved apart and loaded per session. */
+  jointTrace?: JointTrace;
 };
 
 export type Feedback = {

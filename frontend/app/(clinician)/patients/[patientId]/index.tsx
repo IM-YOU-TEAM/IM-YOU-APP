@@ -12,7 +12,7 @@ import {
   Text,
   type Metric,
 } from '@/components';
-import { JointCurves } from '@/features/capture/imu/JointCurves';
+import { SessionJointCurves } from '@/features/capture/imu/SessionJointCurves';
 import { fetchRosterPatient, patientName } from '@/features/care/api';
 import { TasksEditor } from '@/features/care/TasksEditor';
 import { fetchSessions } from '@/features/results/api';
@@ -137,7 +137,7 @@ export default function PatientDetailScreen() {
               : 'Predicted hip, knee and ankle angles appear here after a phone-sensor session.'}
           </Text>
         </View>
-        <JointCurves angles={shown?.jointAngles} caption="No phone-sensor sessions with joint angles yet." />
+        <SessionJointCurves session={shown} caption="No phone-sensor sessions with joint angles yet." />
       </View>
 
       <Card style={{ gap: space.md }}>

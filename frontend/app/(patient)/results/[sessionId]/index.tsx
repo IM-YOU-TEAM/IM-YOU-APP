@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import { Card, LineChart, LoadState, MetricRow, PillButton, ScreenContainer, SegmentedToggle, Text, type Metric } from '@/components';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { JointCurves } from '@/features/capture/imu/JointCurves';
+import { SessionJointCurves } from '@/features/capture/imu/SessionJointCurves';
 import { fetchSessions } from '@/features/results/api';
 import { METHOD_LABELS, MOTION_ICONS, MOTION_LABELS, today } from '@/lib/data';
 import { formatDuration } from '@/lib/format';
@@ -138,7 +138,7 @@ export default function SessionResultsScreen() {
         metrics={session.assessmentMetrics ?? []}
       />
 
-      {session.jointAngles ? <JointCurves angles={session.jointAngles} /> : null}
+      {session.method === 'imu' ? <SessionJointCurves session={session} /> : null}
 
       {session.method === 'cv' ? (
         <Card style={{ gap: space.lg }}>

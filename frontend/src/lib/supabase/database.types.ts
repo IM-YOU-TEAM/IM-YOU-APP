@@ -246,6 +246,44 @@ export type Database = {
           },
         ]
       }
+      session_joint_traces: {
+        Row: {
+          ankle: (number | null)[]
+          created_at: string
+          hip: (number | null)[]
+          knee: (number | null)[]
+          sample_hz: number
+          session_id: string
+          start_s: number
+        }
+        Insert: {
+          ankle: (number | null)[]
+          created_at?: string
+          hip: (number | null)[]
+          knee: (number | null)[]
+          sample_hz: number
+          session_id: string
+          start_s?: number
+        }
+        Update: {
+          ankle?: (number | null)[]
+          created_at?: string
+          hip?: (number | null)[]
+          knee?: (number | null)[]
+          sample_hz?: number
+          session_id?: string
+          start_s?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_joint_traces_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_checks: {
         Row: {
           created_at: string

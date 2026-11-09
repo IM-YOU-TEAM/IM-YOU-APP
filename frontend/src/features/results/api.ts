@@ -4,7 +4,7 @@ import { parseMethod, parseMotion } from '@/features/capture/params';
 import { localIso, parseLocal } from '@/lib/format';
 import { supabase } from '@/lib/supabase/client';
 import type { Json, Tables } from '@/lib/supabase/database.types';
-import type { Feedback, JointName, Session, SessionAssessmentMetric } from '@/types';
+import type { Feedback, JointName, JointTrace, Session, SessionAssessmentMetric } from '@/types';
 
 const SESSION_COLUMNS =
   'id, patient_id, motion, method, started_at, duration_sec, gait_score, cadence, symmetry, far_leg_hidden, step_count, reps, metrics';
@@ -90,7 +90,40 @@ export async function saveSession(session: Session, patientId: string): Promise<
     .select(SESSION_COLUMNS)
     .single();
   if (error) throw error;
+  if (session.jointTrace) await saveJointTrace(data.id, session.jointTrace);
   return toSession(data);
+}
+
+/**
+ * Store a sensor session's whole timeline. The session row is already saved, so a failure here must not
+ * fail the save (a retry would duplicate the session); screens fall back to its single saved window.
+ */
+async function saveJointTrace(sessionId: string, trace: JointTrace): Promise<void> {
+  // The client reports failures in `error` instead of throwing, and that error is deliberately dropped.
+  await supabase.from('session_joint_traces').insert({
+    session_id: sessionId,
+    sample_hz: trace.sampleHz,
+    start_s: trace.startSec,
+    hip: trace.angles.hip_flexion_r,
+    knee: trace.angles.knee_angle_r,
+    ankle: trace.angles.ankle_angle_r,
+  });
+}
+
+/** A sensor session's whole timeline, or null for camera sessions and sessions saved before timelines. */
+export async function fetchJointTrace(sessionId: string): Promise<JointTrace | null> {
+  const { data, error } = await supabase
+    .from('session_joint_traces')
+    .select('sample_hz, start_s, hip, knee, ankle')
+    .eq('session_id', sessionId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    sampleHz: data.sample_hz,
+    startSec: data.start_s,
+    angles: { hip_flexion_r: data.hip, knee_angle_r: data.knee, ankle_angle_r: data.ankle },
+  };
 }
 
 function parseAssessment(metrics: Json): Partial<Session> {

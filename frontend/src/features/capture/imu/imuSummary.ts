@@ -1,11 +1,12 @@
 import { LOCAL_PATIENT_ID } from '@/lib/data';
 import { localDateTime, sessionId } from '@/lib/session';
 import type { MotionType, Session, SessionAssessmentMetric } from '@/types';
+import { buildJointTrace } from './jointTrace';
 import { ACTIVITY_TO_MOTION, type JointName, type LiveWindow, type ModelActivity } from './liveTypes';
 
 const JOINT_LABELS: Record<JointName, string> = {
   hip_flexion_r: 'Hip flexion',
-  knee_angle_r: 'Knee angle',
+  knee_angle_r: 'Knee flexion',
   ankle_angle_r: 'Ankle angle',
 };
 
@@ -130,6 +131,7 @@ export function summariseImu(tally: ImuTally, motion: MotionType, durationSec: n
   const confidence =
     matching.length > 0 ? matching.reduce((sum, window) => sum + window.confidence, 0) / matching.length : 0;
   const jointAngles = savedAngles(bestWindow(tally.accepted, dominant));
+  const jointTrace = buildJointTrace(tally.accepted);
 
   return {
     id: sessionId('imu'),
@@ -148,5 +150,6 @@ export function summariseImu(tally: ImuTally, motion: MotionType, durationSec: n
     movementMatch: match,
     assessmentMetrics: jointRanges(tally.accepted),
     ...(jointAngles ? { jointAngles } : {}),
+    ...(jointTrace ? { jointTrace } : {}),
   };
 }

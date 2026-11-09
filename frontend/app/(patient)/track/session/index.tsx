@@ -83,7 +83,7 @@ export default function SessionScreen() {
       try {
         const saved = await saveSession(session, patient.id);
         if (method === 'cv' && finishedPose.current) savePoseLog(saved.id, finishedPose.current.samples);
-        router.replace({ pathname: '/results', params: { sessionId: saved.id } });
+        router.replace(`/results/${saved.id}`);
       } catch {
         setSaveError("This session didn't save. Check your connection and try again.");
         setSaving(false);
