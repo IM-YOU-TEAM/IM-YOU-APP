@@ -25,6 +25,9 @@ export type Patient = {
   latest: { date: string; gaitScore: number } | null;
 };
 
+/** Right-leg joints the phone-sensor model predicts, named as its export names them. */
+export type JointName = 'hip_flexion_r' | 'knee_angle_r' | 'ankle_angle_r';
+
 export type SessionAssessmentMetric = {
   key: string;
   label: string;
@@ -56,6 +59,8 @@ export type Session = {
   movementMatch?: number;
   /** Motion-specific, descriptive measurements. They have no clinical pass/fail thresholds. */
   assessmentMetrics?: SessionAssessmentMetric[];
+  /** Sensor sessions: the model's predicted angles in degrees over its most confident 2.5 s window. */
+  jointAngles?: Record<JointName, number[]>;
 };
 
 export type Feedback = {

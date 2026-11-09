@@ -1,10 +1,10 @@
-import type { MotionType } from '@/types';
+import type { JointName, MotionType } from '@/types';
+
+export type { JointName };
 
 /** What the live API can predict. The two ramp classes exist in the checkpoint but
  * were never performed on a phone, so the service does not report them. */
 export type ModelActivity = 'walking' | 'ramp_ascent' | 'ramp_descent' | 'stair_ascent' | 'stair_descent';
-
-export type JointName = 'hip_flexion_r' | 'knee_angle_r' | 'ankle_angle_r';
 
 /** Sent once when a client connects, so the UI never hardcodes the model's shape. */
 export type LiveContract = {

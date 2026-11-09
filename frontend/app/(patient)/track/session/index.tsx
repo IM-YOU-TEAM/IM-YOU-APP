@@ -280,7 +280,7 @@ function sensorPrompt(
           : 'Both phones are in, but the model service is not reachable. Joint angles will wait for it.';
       }
       if (imu.lowMotion) return 'Not enough movement to measure. Keep going at your usual pace.';
-      return 'Keep moving at your usual pace. Your clinician sees the joint angles live.';
+      return 'Keep moving at your usual pace. Your joint angles are saved for your clinician when you stop.';
     default: {
       const unexpected: never = imu.gate;
       return unexpected;

@@ -47,7 +47,7 @@ function curve(series: number[]): { d: string; min: number; max: number } {
 
 /**
  * Camargo-style joint curves: one window, time on X, degrees on Y, hip / knee / ankle stacked.
- * Live sessions have the BioMAT prediction only — there is no motion-capture reference line.
+ * Sensor sessions have the BioMAT prediction only — there is no motion-capture reference line.
  */
 export function JointCurves({ angles, caption }: Props) {
   const ready = angles != null && JOINTS.every((j) => (angles[j.joint]?.length ?? 0) > 1);
@@ -56,7 +56,7 @@ export function JointCurves({ angles, caption }: Props) {
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={ready ? 'Predicted hip, knee and ankle angles for the last 2.5 seconds' : caption}
+      accessibilityLabel={ready ? 'Predicted hip, knee and ankle angles over 2.5 seconds' : caption}
       style={{
         borderRadius: radii.card,
         backgroundColor: colors.graphite,

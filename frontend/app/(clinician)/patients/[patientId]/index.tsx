@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import {
   Card,
@@ -11,11 +12,12 @@ import {
   Text,
   type Metric,
 } from '@/components';
+import { JointCurves } from '@/features/capture/imu/JointCurves';
 import { fetchRosterPatient, patientName } from '@/features/care/api';
 import { fetchSessions } from '@/features/results/api';
 import { EmptyState } from '@/features/results/EmptyState';
-import { PATIENT_STATUS_LABELS, sessionRow } from '@/features/results/derive';
-import { MOTION_ICONS } from '@/lib/data';
+import { PATIENT_STATUS_LABELS, sessionRow, sessionWhen } from '@/features/results/derive';
+import { MOTION_ICONS, MOTION_LABELS } from '@/lib/data';
 import { formatDate } from '@/lib/format';
 import { colors, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
@@ -24,6 +26,7 @@ export default function PatientDetailScreen() {
   const params = useLocalSearchParams<{ patientId?: string | string[] }>();
   const patientId = Array.isArray(params.patientId) ? params.patientId[0] : params.patientId;
   const wide = useWindowDimensions().width >= WIDE;
+  const [pickedId, setPickedId] = useState<string | null>(null);
 
   const loaded = useLoader(async () => {
     if (!patientId) return { patient: null, sessions: [] };
@@ -80,6 +83,9 @@ export default function PatientDetailScreen() {
 
   const latest = sessions.at(-1);
   const recent = [...sessions].reverse().slice(0, 5);
+  // The picked session's predicted angles, or the latest sensor session that has them.
+  const angled = sessions.filter((s) => s.jointAngles != null);
+  const shown = angled.find((s) => s.id === pickedId) ?? angled.at(-1);
   const metrics: Metric[] = [
     { label: 'Sessions', value: String(sessions.length) },
     { label: 'Movement score', value: latest && latest.movementVerified !== false ? String(latest.gaitScore) : '—' },
@@ -100,7 +106,7 @@ export default function PatientDetailScreen() {
             {patientName(patient)}
           </Text>
           <Text variant="body" muted>
-            {PATIENT_STATUS_LABELS[patient.status]} · {patient.careCode}
+            {PATIENT_STATUS_LABELS[patient.status]}
             {patient.linkedAt ? ` · since ${formatDate(patient.linkedAt)}` : ` · created ${formatDate(patient.createdAt)}`}
           </Text>
         </View>
@@ -118,16 +124,17 @@ export default function PatientDetailScreen() {
         )}
       </Card>
 
-      {patient.status === 'linked' ? (
-        <PillButton
-          label="Watch live joint angles"
-          icon="pulse"
-          size="lg"
-          fullWidth={!wide}
-          style={wide ? { alignSelf: 'flex-start' } : undefined}
-          onPress={() => router.push(`/patients/${patient.id}/live`)}
-        />
-      ) : null}
+      <View style={{ gap: space.md }}>
+        <View style={{ gap: space.xs }}>
+          <Text variant="headline">Joint angles</Text>
+          <Text variant="callout" muted>
+            {shown
+              ? `${MOTION_LABELS[shown.motion]} · ${sessionWhen(shown)}`
+              : 'Predicted hip, knee and ankle angles appear here after a phone-sensor session.'}
+          </Text>
+        </View>
+        <JointCurves angles={shown?.jointAngles} caption="No phone-sensor sessions with joint angles yet." />
+      </View>
 
       <Card style={{ gap: space.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: space.sm }}>
@@ -149,6 +156,8 @@ export default function PatientDetailScreen() {
                   icon={MOTION_ICONS[session.motion]}
                   trailing={session.movementVerified === false ? '—' : `${session.gaitScore}`}
                   chevron={false}
+                  selected={session.jointAngles != null && session.id === shown?.id}
+                  onPress={session.jointAngles != null ? () => setPickedId(session.id) : undefined}
                   accessibilityLabel={`${row.title}, ${row.subtitle}, movement score ${session.movementVerified === false ? 'not available' : session.gaitScore}`}
                 />
               );
@@ -160,7 +169,7 @@ export default function PatientDetailScreen() {
             title="No sessions yet"
             line={
               patient.status === 'waiting'
-                ? 'Sessions appear here once your patient joins with the care code.'
+                ? 'Sessions appear here once your patient signs in and records one.'
                 : "This patient's completed sessions will appear here."
             }
             action={false}

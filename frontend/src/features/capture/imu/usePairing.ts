@@ -28,8 +28,6 @@ export type Pairing = {
   /** Sites nobody holds yet, so a phone cannot claim an occupied one. */
   freeSites: Site[];
   claim: (site: Site) => Promise<void>;
-  /** Updates what this phone advertises, e.g. its delivered sensor rate. */
-  advertise: (patch: Partial<Omit<PhonePresence, 'site'>>) => Promise<void>;
   /** Publishes on the shared topic. No-op before the channel is joined. */
   publish: (event: string, payload: object) => void;
 };
@@ -58,9 +56,6 @@ export function usePairing(
 
   const channelRef = useRef<RealtimeChannel | null>(null);
   const keyRef = useRef<string>(newKey());
-  // Presence has to be re-tracked whenever we change what we advertise, so the
-  // latest payload is kept here rather than read from stale state.
-  const selfRef = useRef<PhonePresence | null>(null);
   const onBroadcastRef = useRef(onBroadcast);
   onBroadcastRef.current = onBroadcast;
 
@@ -132,7 +127,6 @@ export function usePairing(
       stopped = true;
       if (channel) void supabase.removeChannel(channel);
       channelRef.current = null;
-      selfRef.current = null;
       setMySite(null);
       setPeerSites([]);
     };
@@ -151,19 +145,9 @@ export function usePairing(
   const claim = useCallback(async (site: Site) => {
     const channel = channelRef.current;
     if (!channel) return;
-    const next: PhonePresence = { site, hz: 0, sensing: false };
-    selfRef.current = next;
-    await channel.track(next);
+    const presence: PhonePresence = { site };
+    await channel.track(presence);
     setMySite(site);
-  }, []);
-
-  const advertise = useCallback(async (patch: Partial<Omit<PhonePresence, 'site'>>) => {
-    const channel = channelRef.current;
-    const current = selfRef.current;
-    if (!channel || !current) return;
-    const next = { ...current, ...patch };
-    selfRef.current = next;
-    await channel.track(next);
   }, []);
 
   const publish = useCallback((event: string, payload: object) => {
@@ -179,7 +163,6 @@ export function usePairing(
     peerSites,
     freeSites,
     claim,
-    advertise,
     publish,
   };
 }
