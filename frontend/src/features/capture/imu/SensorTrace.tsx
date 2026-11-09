@@ -32,8 +32,6 @@ type Panel = {
 const W = 320;
 const H = 88;
 const PAD = 4;
-const G = 9.81;
-const DEG_TO_RAD = Math.PI / 180;
 /** Fewer points than this is a trace still filling in, not a signal. */
 const MIN_POINTS = 8;
 const X_TICKS = [3, 2, 1, 0];
@@ -68,19 +66,9 @@ const GYRO_UNITS: { value: GyroUnit; label: string }[] = [
   { value: 'radps', label: 'rad/s' },
 ];
 
-function convert(value: number, kind: Panel['kind'], accelUnit: AccelUnit, gyroUnit: GyroUnit): number {
-  if (kind === 'accel') return accelUnit === 'g' ? value / G : value;
-  return gyroUnit === 'radps' ? value * DEG_TO_RAD : value;
-}
-
 function unitLabel(kind: Panel['kind'], accelUnit: AccelUnit, gyroUnit: GyroUnit): string {
   if (kind === 'accel') return accelUnit === 'g' ? 'g' : 'm/s²';
   return gyroUnit === 'radps' ? 'rad/s' : '°/s';
-}
-
-function formatBound(range: number, unit: string): string {
-  if (unit === 'g' || unit === 'rad/s') return range < 1 ? range.toFixed(2) : range.toFixed(1);
-  return range < 10 ? range.toFixed(1) : `${Math.round(range)}`;
 }
 
 /** Each axis's average over the window (zero when the panel isn't centred). */
@@ -142,7 +130,6 @@ function TracePanel({
   const shown = useRef(target);
   shown.current += (target - shown.current) * (target > shown.current ? GROW : SHRINK);
   const nativeRange = shown.current;
-  const bound = formatBound(convert(nativeRange, panel.kind, accelUnit, gyroUnit), unit);
 
   return (
     <View style={{ flex: 1, gap: space.xs }}>
@@ -150,17 +137,6 @@ function TracePanel({
         {panel.title} ({unit})
       </Text>
       <View style={{ flex: 1, flexDirection: 'row', gap: space.xs }}>
-        <View style={{ width: 36, justifyContent: 'space-between' }}>
-          <Text variant="caption" color={colors.onDarkMuted} align="right" style={{ fontVariant: ['tabular-nums'] }}>
-            {bound}
-          </Text>
-          <Text variant="caption" color={colors.onDarkMuted} align="right" style={{ fontVariant: ['tabular-nums'] }}>
-            0
-          </Text>
-          <Text variant="caption" color={colors.onDarkMuted} align="right" style={{ fontVariant: ['tabular-nums'] }}>
-            −{bound}
-          </Text>
-        </View>
         <View style={{ flex: 1, gap: 2 }}>
           <View style={{ flex: 1 }}>
             <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
@@ -266,8 +242,7 @@ export function SensorTrace({ traces, caption }: Props) {
           <UnitToggle options={GYRO_UNITS} value={gyroUnit} onChange={setGyroUnit} accessibilityLabel="Gyroscope units" />
         </View>
         <Text variant="caption" color={colors.onDarkMuted}>
-          Vertical axis is the chosen unit and zooms to fit the movement. Horizontal axis is time in seconds, with now on
-          the right.
+          Horizontal axis is time in seconds, with now on the right.
         </Text>
       </View>
 
