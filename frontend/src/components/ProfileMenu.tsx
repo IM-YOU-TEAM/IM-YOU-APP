@@ -96,8 +96,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: space.xl,
   },
-  sheet: { width: 320, maxWidth: '100%', gap: space.xl, ...shadows.card },
-  who: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
+  sheet: { width: 320, maxWidth: '100%', ...shadows.card },
+  // GlassCard wraps children in an inner View, so a gap on the sheet never reaches them.
+  who: { flexDirection: 'row', alignItems: 'center', gap: space.lg, marginBottom: space.xl },
   logout: {
     flexDirection: 'row',
     alignItems: 'center',
