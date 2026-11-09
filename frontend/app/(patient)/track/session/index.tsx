@@ -144,7 +144,13 @@ export default function SessionScreen() {
 
   const siteChooser =
     method === 'imu' && imu.gate === 'choose-site' ? (
-      <View accessibilityRole="radiogroup" accessibilityLabel="Where is this phone" style={{ gap: space.md }}>
+      <View accessibilityRole="radiogroup" accessibilityLabel="Which spot is this phone for" style={{ gap: space.md }}>
+        <View style={{ gap: space.xs }}>
+          <Text variant="headline">Which spot is this phone for?</Text>
+          <Text variant="callout" muted>
+            Pick for the phone in your hand. Your other phone takes the other spot automatically.
+          </Text>
+        </View>
         {SITES.map((site) => (
           <ChoiceCard
             key={site}
@@ -160,11 +166,18 @@ export default function SessionScreen() {
       </View>
     ) : null;
 
-  const imuReadout = imu.captureStarted
-    ? null
-    : imu.mySite
-      ? `${SITE_LABELS[imu.mySite]}${imu.hz > 0 ? ` · ${imu.hz.toFixed(0)} Hz` : ''}`
-      : null;
+  // Before Start, spell out which phone goes where, so nobody has to guess.
+  const phoneSpots =
+    method === 'imu' && !imu.captureStarted && imu.mySite ? (
+      <View style={{ alignItems: 'center', gap: 2 }}>
+        <Text variant="title" align="center">
+          This phone: {SITE_LABELS[imu.mySite]}
+        </Text>
+        <Text variant="callout" muted align="center">
+          Other phone: {imu.otherSite ? SITE_LABELS[imu.otherSite] : 'not placed yet'}
+        </Text>
+      </View>
+    ) : null;
 
   const controls = (
     <Card style={{ gap: space.xl, flex: wide ? 1 : undefined, justifyContent: 'center' }}>
@@ -181,11 +194,7 @@ export default function SessionScreen() {
             {pose.count} {pose.unit}
           </Text>
         ) : null}
-        {method === 'imu' && imuReadout ? (
-          <Text variant="title" align="center">
-            {imuReadout}
-          </Text>
-        ) : null}
+        {phoneSpots}
         <Text
           variant="callout"
           muted={method !== 'cv' || !pose.cue}
@@ -220,7 +229,11 @@ export default function SessionScreen() {
             disabled={!imu.secondPhoneConnected}
             onPress={imu.confirmSecondPhone}
           />
-        ) : imuWaiting && (imu.gate === 'need-permission' || imu.gate === 'unreachable') ? null : imuWaiting ? (
+        ) : null}
+        {imuWaiting && imu.gate === 'ready' && imu.otherSite ? (
+          <PillButton label="Swap phones" icon="swap-horizontal" variant="secondary" size="lg" fullWidth onPress={imu.swapSites} />
+        ) : null}
+        {imuWaiting && imu.gate === 'scan-qr' ? null : imuWaiting && (imu.gate === 'need-permission' || imu.gate === 'unreachable') ? null : imuWaiting ? (
           <PillButton
             label="Start"
             icon="play"
@@ -307,7 +320,7 @@ function sensorPrompt(
         ? 'Second phone connected. Tap Next.'
         : 'Scan this code with your second phone, then tap Next.';
     case 'choose-site':
-      return 'Where is this phone? Pick the right thigh or the right shin.';
+      return 'Pick the spot for the phone in your hand. Your other phone takes the other one.';
     case 'need-permission':
       return 'Safari will ask to use Motion & Orientation. Keep this page open.';
     case 'unavailable-sensors':
@@ -319,7 +332,7 @@ function sensorPrompt(
     case 'ready':
       if (!imu.recording) {
         return imu.modelConnected
-          ? 'Both phones are in. The graphs are your thigh and shin. Strap them on, then tap Start here.'
+          ? 'Strap each phone to the spot shown above, then tap Start. Wrong way round? Tap Swap phones.'
           : 'Both phones are in, but the model service is not reachable, so a recording would not be measured.';
       }
       return 'Keep moving at your usual pace. Your joint angles are saved for your clinician when you stop.';

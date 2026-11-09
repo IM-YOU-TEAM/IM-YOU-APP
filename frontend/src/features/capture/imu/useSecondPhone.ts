@@ -23,7 +23,7 @@ export type SecondPhoneGate =
 
 type Claim = { state: 'claiming' } | { state: 'invalid' } | { state: 'offline' } | { state: 'claimed'; topic: string };
 
-const CONTROL_ACTIONS: ControlMessage['action'][] = ['start', 'stop', 'pause', 'resume'];
+const CONTROL_ACTIONS: ControlMessage['action'][] = ['start', 'stop', 'pause', 'resume', 'swap'];
 
 /** How long the signed-in phone can be gone mid-recording before this phone stops by itself. */
 const HOST_GONE_MS = 10_000;
@@ -87,6 +87,8 @@ export function useSecondPhone(code: string) {
     if (arrivedUnclaimed.current) void redeem();
   }, [redeem]);
 
+  // Set once the pairing below exists, so a swap from the signed-in phone can move this phone's spot.
+  const swapRef = useRef<() => void>(() => undefined);
   // Set once the clock sync below exists; the pairing hands it the signed-in phone's answers.
   const syncListenRef = useRef<(event: string, payload: unknown) => void>(() => undefined);
 
@@ -105,6 +107,10 @@ export function useSecondPhone(code: string) {
         case 'resume':
           pausedRef.current = control.action === 'pause';
           setPaused(pausedRef.current);
+          return;
+        case 'swap':
+          // Only before a recording: mid-recording the legs must not change places.
+          if (!recordingRef.current) swapRef.current();
           return;
         case 'stop':
           // Stay on the channel: the next Start from the signed-in phone records again, with no new scan.
@@ -125,6 +131,11 @@ export function useSecondPhone(code: string) {
   const topic = claim.state === 'claimed' && !done ? claim.topic : null;
   const pairing = usePairing(topic, onBroadcast);
   const { gate: pairGate, peerSites, claim: claimSite } = pairing;
+  const mySiteNow = pairing.mySite;
+  swapRef.current = () => {
+    const other = SITES.find((site) => site !== mySiteNow);
+    if (mySiteNow && other) void claimSite(other);
+  };
   const onChannel = pairGate !== 'connecting' && pairGate !== 'unreachable';
   const sync = useClockSync(onChannel, pairing.publish);
   syncListenRef.current = sync.listen;

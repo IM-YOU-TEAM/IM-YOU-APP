@@ -79,7 +79,7 @@ function secondPhonePrompt(
     case 'claiming':
       return 'Pairing with your other phone…';
     case 'invalid-code':
-      return 'This code was already used or has run out. On your signed-in phone, tap Show a new code and scan that one.';
+      return 'This code was already used or has run out. Scan the new code showing on your signed-in phone.';
     case 'unreachable':
       return 'Could not reach your other phone. Check the network, then try again.';
     case 'connecting':

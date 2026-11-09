@@ -235,6 +235,16 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     setPastQr(false);
   }, [topicNow]);
   // Step 1 -> step 2, only once the second phone has actually scanned.
+  // Before Start: this phone and the other trade spots, so either phone can go on the thigh.
+  const claimSite = pairing.claim;
+  const swapSites = useCallback(() => {
+    const mine = mySiteNow;
+    const other = SITES.find((site) => site !== mine);
+    if (!mine || !other || recordingRef.current) return;
+    publishRef.current(EVENTS.control, { action: 'swap' } satisfies ControlMessage);
+    void claimSite(other);
+  }, [mySiteNow, claimSite]);
+
   const confirmSecondPhone = useCallback(() => {
     if (secondPhoneConnected) setPastQr(true);
   }, [secondPhoneConnected]);
@@ -382,6 +392,8 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     modelConnected,
     mySite,
     freeSites: pairing.freeSites,
+    /** Where the other phone is strapped, once it has taken its spot. */
+    otherSite: (pairing.peerSites[0] ?? null) as Site | null,
     secondPhoneIn: paired,
     secondPhoneConnected,
     rejoining,
@@ -392,6 +404,7 @@ export function useImuSession(motion: MotionType | null, paused: boolean) {
     pairExpiresAt: hostPairing?.expiresAt ?? null,
     renewPairing,
     claim: pairing.claim,
+    swapSites,
     requestSensors: sensors.request,
     start,
     finish,

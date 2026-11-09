@@ -31,9 +31,12 @@ export type ImuSample = {
   gz: number;
 };
 
-/** Sent by the signed-in phone, which has the only controls. The scanned phone follows it. */
+/**
+ * Sent by the signed-in phone, which has the only controls. The scanned phone follows it.
+ * `swap`: before Start, both phones trade spots (thigh and shin).
+ */
 export type ControlMessage = {
-  action: 'start' | 'stop' | 'pause' | 'resume';
+  action: 'start' | 'stop' | 'pause' | 'resume' | 'swap';
 };
 
 /** Broadcast event names, kept in one place so the two phones cannot drift apart. */
