@@ -4,6 +4,7 @@ import { EVENTS, SITES, type ControlMessage, type Site } from './protocol';
 import { useMotionStream } from './useMotionStream';
 import { usePairing } from './usePairing';
 import { useSampleUplink } from './useSampleUplink';
+import { useTraceSender } from './useTraceSender';
 
 export type SecondPhoneGate =
   | 'claiming'
@@ -49,8 +50,8 @@ function asControl(payload: unknown): ControlMessage | null {
 
 /**
  * The scanned phone. No account: it redeems the QR code, takes whichever spot the
- * signed-in phone left free, and streams its sensors to the model while that phone
- * says it is recording. It never saves anything.
+ * signed-in phone left free, and streams its sensors to the model, plus a smoothed
+ * copy to that phone's graphs, while that phone says it is recording. It never saves anything.
  */
 export function useSecondPhone(code: string) {
   const [claim, setClaim] = useState<Claim>(() => {
@@ -115,6 +116,7 @@ export function useSecondPhone(code: string) {
   const pairing = usePairing(topic, onBroadcast);
   const sensors = useMotionStream();
   useSampleUplink(topic != null, pairing.mySite, sensors.subscribe, () => recordingRef.current && !pausedRef.current);
+  useTraceSender(recording && !paused, pairing.mySite, sensors.recent, pairing.publish);
 
   // Take the spot the signed-in phone left free, once Safari is actually sending motion.
   const { gate: pairGate, peerSites, claim: claimSite } = pairing;
