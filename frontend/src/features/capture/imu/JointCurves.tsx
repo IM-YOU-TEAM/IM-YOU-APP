@@ -39,13 +39,13 @@ const WHOLE_SNAP = 0.985;
  * One steady degree scale per joint, the same for every session, so charts can be compared by eye.
  * Widened only if a value falls outside it.
  */
-const JOINTS: { joint: JointName; label: string; up: string; down: string; lo: number; hi: number; step: number }[] = [
-  { joint: 'hip_flexion_r', label: 'Hip', up: 'Flexion', down: 'Extension', lo: -20, hi: 60, step: 20 },
-  { joint: 'knee_angle_r', label: 'Knee', up: 'Flexion', down: 'Extension', lo: -10, hi: 80, step: 20 },
-  { joint: 'ankle_angle_r', label: 'Ankle', up: 'Dorsi', down: 'Plantar', lo: -30, hi: 30, step: 15 },
+const JOINTS: { joint: JointName; label: string; lo: number; hi: number; step: number }[] = [
+  { joint: 'hip_flexion_r', label: 'Hip', lo: -20, hi: 60, step: 20 },
+  { joint: 'knee_angle_r', label: 'Knee', lo: -10, hi: 80, step: 20 },
+  { joint: 'ankle_angle_r', label: 'Ankle', lo: -30, hi: 30, step: 15 },
 ];
 
-type Joint = { label: string; up: string; down: string; values: (number | null)[]; lo: number; hi: number; ticks: number[] };
+type Joint = { label: string; values: (number | null)[]; lo: number; hi: number; ticks: number[] };
 
 function scaleOf(spec: (typeof JOINTS)[number], values: (number | null)[]): { lo: number; hi: number; ticks: number[] } {
   const range = seriesRange(values);
@@ -93,7 +93,7 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
     if (!trace) return [];
     return JOINTS.map((spec) => {
       const values = displaySeries(trace, spec.joint);
-      return { label: spec.label, up: spec.up, down: spec.down, values, ...scaleOf(spec, values) };
+      return { label: spec.label, values, ...scaleOf(spec, values) };
     });
   }, [trace]);
 
@@ -134,7 +134,7 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
         const visible = seriesRange(
           j.values.slice(Math.max(0, Math.ceil(start * hz)), Math.floor((start + view) * hz) + 1),
         );
-        return { label: j.label, up: j.up, down: j.down, d, range: visible, zeroY: j.lo < 0 && j.hi > 0 ? y(0) : null, ticks: j.ticks, y };
+        return { label: j.label, d, range: visible, zeroY: j.lo < 0 && j.hi > 0 ? y(0) : null, ticks: j.ticks, y };
       })
     : [];
 
@@ -184,9 +184,6 @@ export function JointCurves({ trace, excerpt = false, caption }: Props) {
                 <View style={{ height: HEADER_H, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Text variant="callout" weight={700} color={colors.onDark} numberOfLines={1} style={{ marginLeft: Y_AXIS_W, flexShrink: 1 }}>
                     {row.label}
-                    <Text variant="caption" color={colors.onDarkMuted}>
-                      {`  ${row.up} ↑  ${row.down} ↓`}
-                    </Text>
                   </Text>
                   <Text variant="caption" color={colors.onDarkMuted} style={{ fontVariant: ['tabular-nums'] }}>
                     {row.range ? `${formatTick(row.range.min)} to ${formatTick(row.range.max)}` : 'Not scored'}
