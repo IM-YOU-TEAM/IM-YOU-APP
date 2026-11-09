@@ -19,7 +19,7 @@ const ROLE_OPTIONS = [
   },
   {
     value: 'clinician',
-    label: 'Professional',
+    label: 'Clinical',
     description: 'Clinicians, researchers, and organizations',
     icon: 'people',
   },
@@ -122,7 +122,7 @@ export default function SignupScreen() {
           </Text>
           <Text variant="callout" muted align="center">
             {preset
-              ? `One last step for your ${preset === 'patient' ? 'patient' : 'professional'} account.`
+              ? `One last step for your ${preset === 'patient' ? 'patient' : 'clinical'} account.`
               : "Select how you'll use I'M YOU."}
           </Text>
         </View>
