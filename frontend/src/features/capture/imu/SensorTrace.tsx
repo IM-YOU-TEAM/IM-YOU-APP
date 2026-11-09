@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useWindowDimensions, View } from 'react-native';
 import Svg, { Line, Path } from 'react-native-svg';
 import { Text } from '@/components';
@@ -20,10 +20,8 @@ type GyroUnit = 'dps' | 'radps';
 type Panel = {
   title: string;
   kind: 'accel' | 'gyro';
-  /** The widest the scale ever gets, in m/s² or °/s. */
+  /** Half-height of the plot, in m/s² or °/s. Fixed so walking does not make the line breathe. */
   nativeRange: number;
-  /** The tightest it zooms in, so a phone lying still doesn't blow sensor noise up to full height. */
-  nativeFloor: number;
   /** Draw each axis around its own 3 s average, which takes gravity out of the accelerometer. */
   centred: boolean;
   axes: [Axis, Axis, Axis];
@@ -44,17 +42,10 @@ const AXIS_STYLE = [
 
 const PANELS: Panel[] = [
   // With gravity taken out, walking swings a few m/s²; a brisk step on the shin peaks near 2 g.
-  { title: 'Accelerometer, gravity removed', kind: 'accel', nativeRange: 10, nativeFloor: 0.4, centred: true, axes: ['ax', 'ay', 'az'] },
-  // Fixed at ±250 °/s: thigh swing peaks around there when walking; faster shin swings touch the edge.
-  { title: 'Gyroscope', kind: 'gyro', nativeRange: 250, nativeFloor: 250, centred: false, axes: ['gx', 'gy', 'gz'] },
+  { title: 'Accelerometer, gravity removed', kind: 'accel', nativeRange: 10, centred: true, axes: ['ax', 'ay', 'az'] },
+  // Thigh swing peaks around 250 °/s when walking; faster shin swings touch the edge.
+  { title: 'Gyroscope', kind: 'gyro', nativeRange: 250, centred: false, axes: ['gx', 'gy', 'gz'] },
 ];
-
-/** Fit the scale to the typical swing, not the single biggest spike: rare peaks like heel strike touch the edge. */
-const FIT_PERCENTILE = 0.85;
-const HEADROOM = 1.1;
-/** Per redraw: zoom out fast when a bigger movement arrives, zoom back in slowly once it has passed. */
-const GROW = 0.5;
-const SHRINK = 0.04;
 
 const ACCEL_UNITS: { value: AccelUnit; label: string }[] = [
   { value: 'ms2', label: 'm/s²' },
@@ -79,17 +70,6 @@ function centresOf(panel: Panel, samples: ImuSample[]): Record<Axis, number> {
     centres[axis] = samples.reduce((sum, sample) => sum + sample[axis], 0) / samples.length;
   }
   return centres;
-}
-
-/** The scale this window asks for, in native units: the typical swing plus headroom, within the panel's limits. */
-function targetRange(panel: Panel, samples: ImuSample[], centres: Record<Axis, number>): number {
-  const swings: number[] = [];
-  for (const sample of samples) {
-    for (const axis of panel.axes) swings.push(Math.abs(sample[axis] - centres[axis]));
-  }
-  swings.sort((a, b) => a - b);
-  const typical = swings.length > 0 ? swings[Math.floor((swings.length - 1) * FIT_PERCENTILE)] : 0;
-  return Math.min(panel.nativeRange, Math.max(panel.nativeFloor, typical * HEADROOM));
 }
 
 /** Time runs right to left from `end`, so a phone sending fewer or uneven samples still lines up. */
@@ -125,11 +105,7 @@ function TracePanel({
 }) {
   const unit = unitLabel(panel.kind, accelUnit, gyroUnit);
   const centres = centresOf(panel, trace.samples);
-  // The scale follows the movement, eased so it breathes instead of jumping on every redraw.
-  const target = targetRange(panel, trace.samples, centres);
-  const shown = useRef(target);
-  shown.current += (target - shown.current) * (target > shown.current ? GROW : SHRINK);
-  const nativeRange = shown.current;
+  const nativeRange = panel.nativeRange;
 
   return (
     <View style={{ flex: 1, gap: space.xs }}>
