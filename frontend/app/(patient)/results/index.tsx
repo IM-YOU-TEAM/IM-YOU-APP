@@ -12,7 +12,7 @@ import { colors, space, WIDE } from '@/lib/theme';
 import { useLoader } from '@/lib/useLoader';
 import type { CaptureMethod, SessionAssessmentMetric } from '@/types';
 import { EmptyState } from '@/features/results/EmptyState';
-import { cadenceWasMeasured, gaitSeries, sessionWhen, type Range } from '@/features/results/derive';
+import { gaitSeries, sessionWhen, type Range } from '@/features/results/derive';
 
 const RANGES = [
   { value: 'week', label: 'Week' },
@@ -75,19 +75,16 @@ export default function ResultsScreen() {
   const symmetryHidden = session.symmetryMeasured === false;
   const farLegHidden = session.farLegHidden === true;
   const movementNotVerified = session.movementVerified === false;
-  const showCadence = cadenceWasMeasured(session);
   const countBit = session.reps != null ? `${session.reps} reps` : session.stepCount != null ? `${session.stepCount} steps` : null;
   const sensorRanges = session.method === 'imu' ? (session.assessmentMetrics ?? []).slice(0, 3) : [];
   const metrics: Metric[] =
     session.method === 'imu'
       ? [
           { label: 'Duration', value: formatDuration(session.durationSec) },
-          ...(showCadence ? [{ label: 'Cadence', value: `${session.cadence}/min` }] : []),
           ...sensorRanges.map((metric) => ({ label: metric.label, value: `${metric.value}${metric.unit}` })),
         ]
       : [
           { label: 'Movement score', value: movementNotVerified ? '—' : String(session.gaitScore) },
-          ...(showCadence ? [{ label: 'Cadence', value: `${session.cadence}/min` }] : []),
           { label: 'Symmetry', value: symmetryHidden ? '—' : `${session.symmetry}%` },
           { label: 'Duration', value: formatDuration(session.durationSec) },
         ];
