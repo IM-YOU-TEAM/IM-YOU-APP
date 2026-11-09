@@ -45,10 +45,6 @@ function RoleChoice({ onPick }: { onPick: (role: Role) => void }) {
           accessibilityLabel="Professional portal for clinicians, researchers, and organizations"
         />
       </View>
-
-      <Text variant="caption" muted align="center">
-        For clinicians, researchers, and organization teams
-      </Text>
     </View>
   );
 }
