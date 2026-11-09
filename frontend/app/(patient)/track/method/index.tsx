@@ -6,7 +6,7 @@ import { ChoiceCard } from '@/features/capture/ChoiceCard';
 import { FlowHeader } from '@/features/capture/FlowHeader';
 import { MissingParams } from '@/features/capture/MissingParams';
 import { parseMethod, parseMotion } from '@/features/capture/params';
-import { METHOD_ICONS, METHOD_LABELS, MOTION_LABELS } from '@/lib/data';
+import { METHOD_ICONS, METHOD_LABELS } from '@/lib/data';
 import { GAP, space, WIDE } from '@/lib/theme';
 import type { CaptureMethod } from '@/types';
 
@@ -33,10 +33,7 @@ export default function MethodScreen() {
   return (
     <ScreenContainer maxWidth={880} gap={space.xl}>
       <FlowHeader step={2} backTo={{ pathname: '/track/motion-type', params: { motion } }} />
-      <View style={{ gap: space.sm }}>
-        <Text variant="display">How should we track it?</Text>
-        <Text muted>{MOTION_LABELS[motion]}: choose what does the measuring.</Text>
-      </View>
+      <Text variant="display">How should we track it?</Text>
 
       <View accessibilityRole="radiogroup" accessibilityLabel="Tracking method" style={{ flexDirection: 'column', gap: GAP }}>
         {METHODS.map((m) => (
